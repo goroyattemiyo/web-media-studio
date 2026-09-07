@@ -39,12 +39,12 @@ Exit criteria:
 
 ## Phase 2 — Library and playlists
 
-Status: persistent media Blob storage, queue reorder and resume position are merged and pass Android validation. Saved named playlists are implemented in PR #18 and await device validation.
+Status: persistent media Blob storage, queue reorder, resume position and saved named playlists are merged and pass Android Chrome/PWA validation.
 
 - [~] directory import — progressive enhancement only; tested Android picker does not provide true whole-directory import
 - [x] media filtering
 - [x] IndexedDB media storage
-- [x] saved named playlists — implementation complete in PR #18; device validation pending
+- [x] saved named playlists
 - [x] reorder/remove/add controls — import, Save, Delete, Clear-temp, ↑/↓ reorder and queue-only × implemented
 - [x] resume position — saved-library media remembers previous playback position
 - [ ] markers/bookmarks
@@ -69,7 +69,7 @@ Exit criteria:
 - existing recording takes survive IndexedDB schema upgrade: PASS
 - saved queue order persists: PASS
 - saved media resumes from previous position: PASS
-- saved named playlists can be restored: DEVICE TEST PENDING
+- saved named playlists survive restart and restore expected order/items: PASS
 
 ## Phase 3 — Recording
 
@@ -126,13 +126,13 @@ Exit criteria:
 
 ## Phase 6 — YouTube provider
 
-Start after persistent local library + saved playlists are stable.
+Status: first official-IFrame provider MVP is implemented on `feat/youtube-iframe-provider`; automated and device validation are pending.
 
-- [ ] URL parsing
-- [ ] official IFrame Player API integration
-- [ ] transport adapter
+- [x] URL parsing — watch, youtu.be, Shorts, embed/live forms and direct video IDs
+- [x] official IFrame Player API integration — lazy loaded
+- [~] transport adapter — provider-local play/pause/±10/seek/volume/rate implemented; shared main-player transport integration remains
 - [ ] playlist support where appropriate
-- [ ] source capability display
+- [x] source capability display — playback yes, download no, background device-dependent
 - [ ] recording while YouTube is playing where browser permissions allow
 - [ ] background behavior documented/tested
 
@@ -175,10 +175,10 @@ Only after the core media app is stable:
 
 ## Current priority
 
-1. validate PR #18 saved named playlists on Android Chrome/PWA
-2. then Phase 6 official YouTube provider
-3. markers/bookmarks after the provider boundary is stable
-4. richer visualizers and advanced audio features after core workflows are solid
+1. validate the first YouTube IFrame provider on Android Chrome/PWA
+2. integrate YouTube into the shared main-player transport/source state
+3. evaluate YouTube playlist handling and provider-specific background limits
+4. markers/bookmarks and richer visualizers after the provider boundary is stable
 
 ## Version targets
 

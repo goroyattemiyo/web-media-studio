@@ -4,13 +4,13 @@ Last updated: 2026-09-08 JST
 
 ## Repository state
 
-The repository foundation, player bootstrap, Recorder MVP, IndexedDB recording persistence, FFmpeg video-to-audio tools, local playlist improvements, Android background/Media Session validation, persistent local media library, WMS branding, switchable player-visual foundation, persistent queue reorder, and resume-position behavior are merged to `main`.
+The repository foundation, player bootstrap, Recorder MVP, IndexedDB recording persistence, FFmpeg video-to-audio tools, local playlist improvements, Android background/Media Session validation, persistent local media library, WMS branding, switchable player visuals, persistent queue reorder, resume-position behavior, and saved named playlists are merged to `main`.
 
 Public URL:
 
 `https://goroyattemiyo.github.io/web-media-studio/`
 
-Recorder, recording persistence, FFmpeg extraction/conversion, Android multi-file import, continuous playback, screen-off playback, installed-PWA background playback, tested lock-screen controls, persistent local media-library behavior, queue-order persistence, and saved-media resume behavior have passed the requested Android real-device checks.
+Recorder, recording persistence, FFmpeg extraction/conversion, Android multi-file import, continuous playback, screen-off playback, installed-PWA background playback, tested lock-screen controls, persistent local media-library behavior, queue-order persistence, saved-media resume behavior, and saved named playlists have passed the requested Android real-device checks.
 
 ## Implemented player foundation
 
@@ -91,7 +91,7 @@ Confirmed on the tested Android Chrome/PWA environment:
 
 These results apply only to the tested Android environment and do not imply identical behavior on iOS or every Android device/browser.
 
-## Implemented: persistent local media library (merged PR #12)
+## Implemented persistent local media library (merged PR #12)
 
 - shared IndexedDB schema upgraded from version 1 to version 2
 - existing `recording-takes` data preserved during schema upgrade
@@ -148,9 +148,7 @@ Android Chrome/PWA real-device validation:
 - automatic next-track playback starts the next item from 0:00: PASS
 - background/lock-screen playback regression check: PASS
 
-## In progress: saved named playlists (PR #18)
-
-Implemented on `feat/named-playlists` and automated typecheck/build PASS:
+## Implemented saved named playlists (merged PR #18)
 
 - IndexedDB schema version 3 adds a `saved-playlists` object store while preserving existing recording/media stores
 - create a named playlist from the current queue's saved media
@@ -163,15 +161,41 @@ Implemented on `feat/named-playlists` and automated typecheck/build PASS:
 - ↑ / ↓ updates the active named-playlist order when one is loaded
 - deleting saved media removes its ID from stored playlists
 
-Android real-device validation for named-playlist create/load/update/delete persistence is pending.
+Android Chrome/PWA real-device validation:
+
+- playlist creation and persistence across reload/PWA restart: PASS
+- loading restores only selected saved media in expected order: PASS
+- reorder persists when playlist is loaded again: PASS
+- Update changes the stored playlist snapshot: PASS
+- deleting playlist leaves underlying saved media available in All media: PASS
+
+## In progress: YouTube official IFrame provider
+
+Feature branch: `feat/youtube-iframe-provider`
+
+Implemented on the branch:
+
+- isolated provider adapter under `src/providers/youtube.ts`
+- YouTube watch/youtu.be/Shorts/embed/live URL parsing plus direct 11-character video IDs
+- `t=` / `start=` start-position parsing
+- lazy loading of the official `https://www.youtube.com/iframe_api` script
+- official `YT.Player` construction with `playsinline` and page `origin`
+- provider-local Play / Pause / ±10 seconds / seek / volume / supported playback-rate controls
+- player status, title, elapsed time and duration display
+- YouTube embed error mapping for invalid/unavailable/non-embeddable videos
+- autoplay-blocked status handling
+- capability display: playback supported, download unsupported, background device-dependent
+- explicit UI note that Web Media Studio does not download or extract YouTube media
+
+This first provider MVP is intentionally separate from the shared local-player transport. Shared transport/source-state integration remains the next provider step.
 
 ## Real-device validation still required
 
-- named playlist survives reload/PWA restart
-- named playlist loads only its selected saved tracks in the expected order
-- named playlist reorder/update survives reload
-- deleting a named playlist leaves saved media intact
-- longer multi-file sessions
+- YouTube provider URL parsing and player load on Android Chrome/PWA
+- YouTube Play/Pause/seek/volume/rate controls
+- embed-restricted video error behavior
+- YouTube screen-off/background behavior on the tested Android environment
+- longer multi-file local sessions
 - lock-screen Previous specifically
 - local video in longer playlists
 - recording while locked/backgrounded
@@ -182,12 +206,14 @@ Android real-device validation for named-playlist create/load/update/delete pers
 
 ## Not implemented yet
 
+- YouTube integration with the shared main-player transport/source state
+- YouTube playlist handling
+- YouTube + recorder behavior validation
 - markers/bookmarks
 - sample-accurate synchronized recording
 - playback + microphone digital mixdown
 - audio trim/fade/normalization tools
 - album-art/wave-ring/spectrum/VU player visuals
-- YouTube provider
 - direct URL provider
 - automated browser E2E tests
 
@@ -203,14 +229,16 @@ Android real-device validation for named-playlist create/load/update/delete pers
 - WMS diamond emblem is the primary app-brand mark
 - player visuals should be switchable rather than fixed to a single animation
 - named playlists reference saved local media instead of duplicating media Blobs
-- YouTube playback will use the official embedded player/API
-- YouTube stream downloading is not a project feature
-- background behavior is platform-dependent; tested Android Chrome/PWA is confirmed working
+- YouTube playback uses the official embedded IFrame Player API
+- YouTube stream downloading/audio extraction is not a project feature
+- provider capabilities are surfaced instead of assumed
+- background behavior is platform-dependent; tested local Android Chrome/PWA is confirmed working
 
 ## Immediate next step
 
-1. validate PR #18 named-playlist create/load/update/delete behavior on Android Chrome/PWA
-2. after PASS, continue to the official YouTube IFrame provider
-3. add markers/bookmarks and richer visualizers after the core provider flow is stable
+1. validate the first YouTube IFrame provider on Android Chrome/PWA
+2. after PASS, integrate YouTube into the shared player transport/source state
+3. evaluate provider-specific background and playlist behavior
+4. add markers/bookmarks and richer visualizers after the provider boundary is stable
 
 Do not describe planned work as implemented work.

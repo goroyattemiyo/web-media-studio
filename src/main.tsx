@@ -1,6 +1,7 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import App from './App'
+import YouTubeProviderPanel from './YouTubeProviderPanel'
 import './styles.css'
 import './mobile-overrides.css'
 import './recorder.css'
@@ -10,6 +11,7 @@ import './tool-descriptions.css'
 import './player-visuals.css'
 import './reorder-resume.css'
 import './named-playlists.css'
+import './youtube-provider.css'
 
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
@@ -20,5 +22,6 @@ if ('serviceWorker' in navigator) {
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <App />
+    <YouTubeProviderPanel />
   </StrictMode>,
 )
