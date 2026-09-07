@@ -7,14 +7,21 @@ import {
   saveMediaLibraryItems,
   StoredMediaLibraryItem,
 } from './mediaLibraryDb'
+import { GoogleIdentityApi, loadGoogleIdentityServices } from './googleIdentity'
 import { parseYouTubeInput, youtubeWatchUrl } from './providers/youtube'
 
 const WORKER_URL = 'https://wms-media-worker-pcdbs5armq-an.a.run.app'
-const WORKER_KEY_STORAGE_KEY = 'wms-worker-api-key'
+const GOOGLE_CLIENT_ID = (import.meta.env.VITE_GOOGLE_CLIENT_ID ?? '').trim()
+const GOOGLE_ID_TOKEN_STORAGE_KEY = 'wms-google-id-token'
 const LAST_YOUTUBE_URL_KEY = 'wms-youtube-last-url'
 
 type AudioFormat = 'mp3' | 'm4a' | 'wav'
 type Bitrate = '128' | '192' | '256' | '320'
+
+type GoogleUser = {
+  email: string
+  name: string | null
+}
 
 type Props = {
   onMediaLocalized?: (item: StoredMediaLibraryItem) => void
@@ -67,11 +74,37 @@ async function responseError(response: Response) {
   return `Worker request failed (${response.status}).`
 }
 
+function storedGoogleToken() {
+  try {
+    return window.sessionStorage.getItem(GOOGLE_ID_TOKEN_STORAGE_KEY) ?? ''
+  } catch {
+    return ''
+  }
+}
+
+function rememberGoogleToken(token: string) {
+  try {
+    window.sessionStorage.setItem(GOOGLE_ID_TOKEN_STORAGE_KEY, token)
+  } catch {
+    // A private/restricted browser can reject storage; the current in-memory request still works.
+  }
+}
+
+function forgetGoogleToken() {
+  try {
+    window.sessionStorage.removeItem(GOOGLE_ID_TOKEN_STORAGE_KEY)
+  } catch {
+    // Ignore unavailable session storage.
+  }
+}
+
 function YouTubeLocalizerPanel({ onMediaLocalized }: Props) {
   const [portalTarget, setPortalTarget] = useState<Element | null>(null)
   const [urlInput, setUrlInput] = useState(() => window.localStorage.getItem(LAST_YOUTUBE_URL_KEY) ?? '')
-  const [apiKeyInput, setApiKeyInput] = useState('')
-  const [hasStoredKey, setHasStoredKey] = useState(() => Boolean(window.localStorage.getItem(WORKER_KEY_STORAGE_KEY)))
+  const [authUser, setAuthUser] = useState<GoogleUser | null>(null)
+  const [authBusy, setAuthBusy] = useState(false)
+  const [authReady, setAuthReady] = useState(false)
+  const [authStatus, setAuthStatus] = useState(GOOGLE_CLIENT_ID ? 'Googleアカウントで接続してください。' : 'Googleログインの設定待ちです。')
   const [audioFormat, setAudioFormat] = useState<AudioFormat>('mp3')
   const [bitrate, setBitrate] = useState<Bitrate>('192')
   const [busy, setBusy] = useState(false)
@@ -79,32 +112,117 @@ function YouTubeLocalizerPanel({ onMediaLocalized }: Props) {
   const [error, setError] = useState<string | null>(null)
   const [lastSavedName, setLastSavedName] = useState<string | null>(null)
   const abortRef = useRef<AbortController | null>(null)
+  const googleButtonRef = useRef<HTMLDivElement | null>(null)
+  const googleApiRef = useRef<GoogleIdentityApi | null>(null)
+  const tokenRef = useRef(storedGoogleToken())
+
+  const clearGoogleSession = (message: string) => {
+    tokenRef.current = ''
+    forgetGoogleToken()
+    setAuthUser(null)
+    setAuthStatus(message)
+    googleApiRef.current?.disableAutoSelect()
+  }
+
+  const verifyGoogleToken = async (token: string) => {
+    const response = await fetch(`${WORKER_URL}/auth/me`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+    if (!response.ok) throw new Error(await responseError(response))
+    return await response.json() as GoogleUser
+  }
+
+  const acceptGoogleCredential = async (token: string) => {
+    if (!token) return
+    setAuthBusy(true)
+    setError(null)
+    setAuthStatus('Googleアカウントを確認しています…')
+    try {
+      const user = await verifyGoogleToken(token)
+      tokenRef.current = token
+      rememberGoogleToken(token)
+      setAuthUser(user)
+      setAuthStatus(`${user.name ?? user.email} で接続しました。`)
+    } catch (authError) {
+      clearGoogleSession('Googleログインを確認できませんでした。もう一度接続してください。')
+      setError(authError instanceof Error ? authError.message : 'Googleログインを確認できませんでした。')
+    } finally {
+      setAuthBusy(false)
+    }
+  }
 
   useEffect(() => {
     setPortalTarget(document.querySelector('.side-stack'))
     return () => abortRef.current?.abort()
   }, [])
 
-  const currentKey = () => apiKeyInput.trim() || window.localStorage.getItem(WORKER_KEY_STORAGE_KEY)?.trim() || ''
-
-  const saveKey = () => {
-    const key = apiKeyInput.trim()
-    if (!/^[0-9a-fA-F]{64}$/.test(key)) {
-      setError('Worker API key は64文字の16進数で入力してください。')
+  useEffect(() => {
+    if (!portalTarget) return
+    if (!GOOGLE_CLIENT_ID) {
+      setAuthReady(true)
       return
     }
-    window.localStorage.setItem(WORKER_KEY_STORAGE_KEY, key)
-    setApiKeyInput('')
-    setHasStoredKey(true)
-    setError(null)
-    setStatus('Worker API key をこの端末に保存しました。')
-  }
 
-  const clearKey = () => {
-    window.localStorage.removeItem(WORKER_KEY_STORAGE_KEY)
-    setApiKeyInput('')
-    setHasStoredKey(false)
-    setStatus('この端末に保存した Worker API key を削除しました。')
+    let cancelled = false
+
+    const initializeGoogle = async () => {
+      try {
+        const api = await loadGoogleIdentityServices()
+        if (cancelled) return
+        googleApiRef.current = api
+        api.initialize({
+          client_id: GOOGLE_CLIENT_ID,
+          auto_select: true,
+          cancel_on_tap_outside: true,
+          callback: (credentialResponse) => {
+            void acceptGoogleCredential(credentialResponse.credential)
+          },
+        })
+
+        if (googleButtonRef.current) {
+          googleButtonRef.current.innerHTML = ''
+          api.renderButton(googleButtonRef.current, {
+            theme: 'outline',
+            size: 'large',
+            text: 'continue_with',
+            shape: 'pill',
+            width: 280,
+          })
+        }
+
+        const existingToken = tokenRef.current
+        if (existingToken) {
+          try {
+            const user = await verifyGoogleToken(existingToken)
+            if (!cancelled) {
+              setAuthUser(user)
+              setAuthStatus(`${user.name ?? user.email} で接続済みです。`)
+            }
+          } catch {
+            if (!cancelled) clearGoogleSession('ログイン期限が切れています。Googleで再接続してください。')
+          }
+        } else {
+          api.prompt()
+        }
+      } catch (loadError) {
+        if (!cancelled) {
+          setError(loadError instanceof Error ? loadError.message : 'Googleログインを準備できませんでした。')
+          setAuthStatus('Googleログインを準備できませんでした。')
+        }
+      } finally {
+        if (!cancelled) setAuthReady(true)
+      }
+    }
+
+    void initializeGoogle()
+    return () => {
+      cancelled = true
+    }
+  }, [portalTarget])
+
+  const signOut = () => {
+    clearGoogleSession('このブラウザのWMSからサインアウトしました。')
+    setError(null)
   }
 
   const useCurrentYouTubeUrl = () => {
@@ -124,9 +242,9 @@ function YouTubeLocalizerPanel({ onMediaLocalized }: Props) {
       return
     }
 
-    const workerKey = currentKey()
-    if (!/^[0-9a-fA-F]{64}$/.test(workerKey)) {
-      setError('Worker API key を入力するか、この端末に保存してください。')
+    const googleToken = tokenRef.current || storedGoogleToken()
+    if (!authUser || !googleToken) {
+      setError('先にGoogleアカウントで接続してください。')
       return
     }
 
@@ -141,8 +259,8 @@ function YouTubeLocalizerPanel({ onMediaLocalized }: Props) {
       const response = await fetch(`${WORKER_URL}/extract`, {
         method: 'POST',
         headers: {
+          'Authorization': `Bearer ${googleToken}`,
           'Content-Type': 'application/json',
-          'X-WMS-Worker-Key': workerKey,
         },
         body: JSON.stringify({
           url: youtubeWatchUrl(parsed.videoId),
@@ -152,7 +270,13 @@ function YouTubeLocalizerPanel({ onMediaLocalized }: Props) {
         signal: controller.signal,
       })
 
-      if (!response.ok) throw new Error(await responseError(response))
+      if (!response.ok) {
+        const message = await responseError(response)
+        if (response.status === 401 || response.status === 403) {
+          clearGoogleSession('Googleログインの再確認が必要です。')
+        }
+        throw new Error(message)
+      }
 
       setStatus('音声を受信しました。端末内ライブラリへ保存しています…')
       const blob = await response.blob()
@@ -218,6 +342,8 @@ function YouTubeLocalizerPanel({ onMediaLocalized }: Props) {
 
   if (!portalTarget) return null
 
+  const authLabel = !GOOGLE_CLIENT_ID ? 'SETUP' : authBusy ? 'SIGNING IN' : authUser ? 'CONNECTED' : 'SIGN IN'
+
   return createPortal(
     <section id="youtube-localizer-panel" className="glass-panel youtube-localizer-panel">
       <div className="section-heading compact">
@@ -229,24 +355,24 @@ function YouTubeLocalizerPanel({ onMediaLocalized }: Props) {
         <span className="localizer-worker-badge">CLOUD RUN</span>
       </div>
 
-      <div className="localizer-key-card">
-        <div>
-          <strong>Worker API key</strong>
-          <span>{hasStoredKey ? 'この端末に保存済み' : '未保存'}</span>
+      <div className="localizer-auth-card">
+        <div className="localizer-auth-heading">
+          <div>
+            <strong>Google account</strong>
+            <span>{authStatus}</span>
+          </div>
+          <b className={authUser ? 'is-connected' : ''}>{authLabel}</b>
         </div>
-        <div className="localizer-key-row">
-          <input
-            type="password"
-            autoComplete="off"
-            placeholder={hasStoredKey ? '保存済みキーを使用します' : '64文字のAPI key'}
-            value={apiKeyInput}
-            onChange={(event) => setApiKeyInput(event.target.value)}
-            aria-label="Worker API key"
-          />
-          <button type="button" onClick={saveKey} disabled={!apiKeyInput.trim() || busy}>Save key</button>
-          {hasStoredKey && <button type="button" className="secondary" onClick={clearKey} disabled={busy}>Clear</button>}
-        </div>
-        <small>キーはこのブラウザの localStorage にだけ保存します。公開GitHubリポジトリには書き込みません。</small>
+        <div className={`google-signin-slot ${authUser ? 'is-hidden' : ''}`} ref={googleButtonRef} />
+        {authUser && (
+          <div className="localizer-auth-user">
+            <span>{authUser.name ?? 'Google user'}</span>
+            <small>{authUser.email}</small>
+            <button type="button" className="secondary" onClick={signOut} disabled={busy}>Sign out</button>
+          </div>
+        )}
+        {!GOOGLE_CLIENT_ID && <small>Google OAuth Client ID を設定すると、APIキー入力なしで利用できます。</small>}
+        {GOOGLE_CLIENT_ID && authReady && !authUser && <small>Googleで接続すると、このブラウザセッション中はAPIキー入力なしでWorkerを利用できます。</small>}
       </div>
 
       <form className="localizer-form" onSubmit={localize}>
@@ -286,7 +412,7 @@ function YouTubeLocalizerPanel({ onMediaLocalized }: Props) {
         </div>
 
         <div className="localizer-actions">
-          <button type="submit" className="primary" disabled={busy || !urlInput.trim()}>{busy ? 'Processing…' : 'Localize & Save'}</button>
+          <button type="submit" className="primary" disabled={busy || !urlInput.trim() || !authUser}>{busy ? 'Processing…' : 'Localize & Save'}</button>
           {busy && <button type="button" className="secondary" onClick={cancel}>Cancel</button>}
         </div>
       </form>

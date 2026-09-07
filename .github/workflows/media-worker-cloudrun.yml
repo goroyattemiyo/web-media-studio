@@ -21,13 +21,28 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v7
 
-      - name: Validate worker secret
+      - name: Validate migration API key
         shell: bash
         env:
           WORKER_SECRET: ${{ secrets.WMS_WORKER_API_KEY }}
         run: |
           if [[ ! "${WORKER_SECRET}" =~ ^[0-9a-fA-F]{64}$ ]]; then
-            echo "::error::WMS_WORKER_API_KEY must be exactly 64 hexadecimal characters with no spaces or newlines."
+            echo "::error::WMS_WORKER_API_KEY must be exactly 64 hexadecimal characters with no spaces or newlines during the Google-auth migration."
+            exit 1
+          fi
+
+      - name: Validate Google auth config
+        shell: bash
+        env:
+          GOOGLE_CLIENT_ID: ${{ vars.GOOGLE_CLIENT_ID }}
+          ALLOWED_GOOGLE_EMAILS: ${{ vars.ALLOWED_GOOGLE_EMAILS }}
+        run: |
+          if [[ ! "${GOOGLE_CLIENT_ID}" =~ ^[0-9A-Za-z._-]+\.apps\.googleusercontent\.com$ ]]; then
+            echo "::error::Repository variable GOOGLE_CLIENT_ID is missing or invalid."
+            exit 1
+          fi
+          if [[ -z "${ALLOWED_GOOGLE_EMAILS// }" ]]; then
+            echo "::error::Repository variable ALLOWED_GOOGLE_EMAILS is required."
             exit 1
           fi
 
@@ -48,6 +63,8 @@ jobs:
           env_vars_update_strategy: overwrite
           env_vars: |-
             WMS_WORKER_API_KEY=${{ secrets.WMS_WORKER_API_KEY }}
+            GOOGLE_CLIENT_ID=${{ vars.GOOGLE_CLIENT_ID }}
+            ALLOWED_GOOGLE_EMAILS=${{ vars.ALLOWED_GOOGLE_EMAILS }}
             ALLOWED_ORIGINS=https://goroyattemiyo.github.io
             MAX_DURATION_SECONDS=1800
             MAX_SOURCE_BYTES=786432000

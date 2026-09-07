@@ -6,6 +6,12 @@ from wms_media_worker.extractor import ExtractionResult
 client = TestClient(main_module.app)
 
 
+def clear_auth_env(monkeypatch):
+    monkeypatch.delenv("WMS_WORKER_API_KEY", raising=False)
+    monkeypatch.delenv("GOOGLE_CLIENT_ID", raising=False)
+    monkeypatch.delenv("ALLOWED_GOOGLE_EMAILS", raising=False)
+
+
 def test_health():
     response = client.get("/health")
     assert response.status_code == 200
@@ -13,6 +19,7 @@ def test_health():
 
 
 def test_api_key(monkeypatch):
+    clear_auth_env(monkeypatch)
     monkeypatch.setenv("WMS_WORKER_API_KEY", "secret")
     response = client.post(
         "/extract",
@@ -21,8 +28,61 @@ def test_api_key(monkeypatch):
     assert response.status_code == 401
 
 
+def test_google_auth_requires_bearer(monkeypatch):
+    clear_auth_env(monkeypatch)
+    monkeypatch.setenv("GOOGLE_CLIENT_ID", "client.apps.googleusercontent.com")
+    monkeypatch.setenv("ALLOWED_GOOGLE_EMAILS", "allowed@example.com")
+
+    response = client.get("/auth/me")
+    assert response.status_code == 401
+
+
+def test_google_auth_allows_configured_email(monkeypatch):
+    clear_auth_env(monkeypatch)
+    monkeypatch.setenv("GOOGLE_CLIENT_ID", "client.apps.googleusercontent.com")
+    monkeypatch.setenv("ALLOWED_GOOGLE_EMAILS", "allowed@example.com")
+    monkeypatch.setattr(
+        main_module.google_id_token,
+        "verify_oauth2_token",
+        lambda token, request, audience: {
+            "email": "allowed@example.com",
+            "email_verified": True,
+            "name": "Allowed User",
+            "aud": audience,
+        },
+    )
+
+    response = client.get(
+        "/auth/me",
+        headers={"Authorization": "Bearer valid-token"},
+    )
+    assert response.status_code == 200
+    assert response.json() == {"email": "allowed@example.com", "name": "Allowed User"}
+
+
+def test_google_auth_rejects_other_email(monkeypatch):
+    clear_auth_env(monkeypatch)
+    monkeypatch.setenv("GOOGLE_CLIENT_ID", "client.apps.googleusercontent.com")
+    monkeypatch.setenv("ALLOWED_GOOGLE_EMAILS", "allowed@example.com")
+    monkeypatch.setattr(
+        main_module.google_id_token,
+        "verify_oauth2_token",
+        lambda token, request, audience: {
+            "email": "other@example.com",
+            "email_verified": True,
+            "aud": audience,
+        },
+    )
+
+    response = client.get(
+        "/auth/me",
+        headers={"Authorization": "Bearer valid-token"},
+    )
+    assert response.status_code == 403
+
+
 def test_extract_returns_file(monkeypatch, tmp_path):
-    monkeypatch.delenv("WMS_WORKER_API_KEY", raising=False)
+    clear_auth_env(monkeypatch)
     work_dir = tmp_path / "job"
     work_dir.mkdir()
     output = work_dir / "audio.mp3"
