@@ -23,6 +23,7 @@ _ALLOWED_HOSTS = {
     "www.youtube-nocookie.com",
 }
 _VIDEO_ID_RE = re.compile(r"^[A-Za-z0-9_-]{11}$")
+_PO_TOKEN_MODE_BGUTIL = "bgutil-script-mweb"
 _YOUTUBE_RESTRICTION_MESSAGE = (
     "YouTube側で取得が制限されました。この動画はCloud処理から直接Local化できません。"
     "手元の音声・動画ファイルをLocal Libraryへ追加してください。"
@@ -72,6 +73,37 @@ def _int_env(name: str, default: int) -> int:
         return int(os.getenv(name, str(default)))
     except ValueError:
         return default
+
+
+def youtube_po_token_mode() -> str:
+    mode = os.getenv("YOUTUBE_PO_TOKEN_MODE", "off").strip().lower()
+    return mode or "off"
+
+
+def _youtube_provider_opts() -> dict:
+    mode = youtube_po_token_mode()
+    if mode in {"off", "disabled", "0"}:
+        return {}
+    if mode != _PO_TOKEN_MODE_BGUTIL:
+        raise ExtractionError(f"Unsupported YOUTUBE_PO_TOKEN_MODE: {mode}")
+
+    server_home = os.getenv(
+        "BGUTIL_SERVER_HOME",
+        "/opt/bgutil-ytdlp-pot-provider/server",
+    ).strip()
+    if not server_home:
+        raise ExtractionError("BGUTIL_SERVER_HOME is required when PO Token support is enabled.")
+
+    return {
+        "extractor_args": {
+            "youtube": {
+                "player_client": ["mweb"],
+            },
+            "youtubepot-bgutilscript": {
+                "server_home": [server_home],
+            },
+        },
+    }
 
 
 def _check_limits(info: dict) -> None:
@@ -145,6 +177,7 @@ def extract_audio(
         "no_warnings": False,
         "retries": 3,
         "socket_timeout": 20,
+        **_youtube_provider_opts(),
     }
 
     try:
