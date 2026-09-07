@@ -35,6 +35,8 @@ jobs:
         run: npm run typecheck
 
       - name: Build
+        env:
+          VITE_GOOGLE_CLIENT_ID: ${{ vars.GOOGLE_CLIENT_ID }}
         run: npm run build
 
       - name: Configure Pages
