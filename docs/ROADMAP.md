@@ -39,14 +39,14 @@ Exit criteria:
 
 ## Phase 2 — Library and playlists
 
-Status: persistent media Blob storage is merged in PR #12 and passes Android reload/PWA-restart validation.
+Status: persistent media Blob storage is merged in PR #12 and passes Android reload/PWA-restart validation. Persistent queue order and resume position are implemented in PR #17 and await device validation.
 
 - [~] directory import — progressive enhancement only; tested Android picker does not provide true whole-directory import
 - [x] media filtering
 - [x] IndexedDB media storage
 - [ ] saved named playlists
-- [~] reorder/remove/add controls — import, Save, Delete and Clear-temp implemented; reorder remains
-- [ ] resume position
+- [x] reorder/remove/add controls — import, Save, Delete, Clear-temp and ↑/↓ reorder implemented
+- [x] resume position — saved-library media remembers previous playback position
 - [ ] markers/bookmarks
 - [x] remaining skins
 - [x] Android multi-file import
@@ -67,6 +67,8 @@ Exit criteria:
 - saved local media survives reload/PWA restart and remains playable: PASS on tested Android Chrome/PWA
 - deleted saved media stays deleted after reload: PASS
 - existing recording takes survive IndexedDB schema upgrade: PASS
+- saved queue order persists: DEVICE TEST PENDING
+- saved media resumes from previous position: DEVICE TEST PENDING
 - saved named playlists can be restored: NOT YET MET
 
 ## Phase 3 — Recording
@@ -173,10 +175,10 @@ Only after the core media app is stable:
 
 ## Current priority
 
-1. validate WMS emblem + Emblem Spin / Minimal on Android Chrome/PWA
-2. add saved named playlists
-3. add reorder and resume-position behavior
-4. then Phase 6 official YouTube provider
+1. validate PR #17 queue order + resume behavior on Android Chrome/PWA
+2. implement saved named playlists
+3. then Phase 6 official YouTube provider
+4. advanced visualizers and markers/bookmarks after core library flow is stable
 
 ## Version targets
 
