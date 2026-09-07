@@ -27,6 +27,16 @@ type Props = {
   onMediaLocalized?: (item: StoredMediaLibraryItem) => void
 }
 
+class WorkerHttpError extends Error {
+  status: number
+
+  constructor(message: string, status: number) {
+    super(message)
+    this.name = 'WorkerHttpError'
+    this.status = status
+  }
+}
+
 function formatBytes(value: number) {
   if (!Number.isFinite(value) || value <= 0) return '0 MB'
   const units = ['B', 'KB', 'MB', 'GB']
@@ -104,10 +114,13 @@ function YouTubeLocalizerPanel({ onMediaLocalized }: Props) {
   const [authUser, setAuthUser] = useState<GoogleUser | null>(null)
   const [authBusy, setAuthBusy] = useState(false)
   const [authReady, setAuthReady] = useState(false)
-  const [authStatus, setAuthStatus] = useState(GOOGLE_CLIENT_ID ? 'Googleアカウントで接続してください。' : 'Googleログインの設定待ちです。')
+  const [authStatus, setAuthStatus] = useState(
+    GOOGLE_CLIENT_ID ? 'Googleアカウントで接続してください。' : 'Googleログインの設定待ちです。',
+  )
   const [audioFormat, setAudioFormat] = useState<AudioFormat>('mp3')
   const [bitrate, setBitrate] = useState<Bitrate>('192')
   const [busy, setBusy] = useState(false)
+  const [restricted, setRestricted] = useState(false)
   const [status, setStatus] = useState('Cloud Run workerで音声化し、端末内ライブラリへ保存します。')
   const [error, setError] = useState<string | null>(null)
   const [lastSavedName, setLastSavedName] = useState<string | null>(null)
@@ -128,7 +141,7 @@ function YouTubeLocalizerPanel({ onMediaLocalized }: Props) {
     const response = await fetch(`${WORKER_URL}/auth/me`, {
       headers: { Authorization: `Bearer ${token}` },
     })
-    if (!response.ok) throw new Error(await responseError(response))
+    if (!response.ok) throw new WorkerHttpError(await responseError(response), response.status)
     return await response.json() as GoogleUser
   }
 
@@ -223,12 +236,14 @@ function YouTubeLocalizerPanel({ onMediaLocalized }: Props) {
   const signOut = () => {
     clearGoogleSession('このブラウザのWMSからサインアウトしました。')
     setError(null)
+    setRestricted(false)
   }
 
   const useCurrentYouTubeUrl = () => {
     const current = window.localStorage.getItem(LAST_YOUTUBE_URL_KEY) ?? ''
     setUrlInput(current)
     setError(null)
+    setRestricted(false)
     setStatus(current ? 'Official playerで最後に読み込んだURLをセットしました。' : 'Official player側に保存されたURLがありません。')
   }
 
@@ -239,12 +254,14 @@ function YouTubeLocalizerPanel({ onMediaLocalized }: Props) {
     const parsed = parseYouTubeInput(urlInput)
     if (!parsed) {
       setError('YouTubeの動画URL、Shorts URL、youtu.be URL、または11文字の動画IDを入力してください。')
+      setRestricted(false)
       return
     }
 
     const googleToken = tokenRef.current || storedGoogleToken()
     if (!authUser || !googleToken) {
       setError('先にGoogleアカウントで接続してください。')
+      setRestricted(false)
       return
     }
 
@@ -252,6 +269,7 @@ function YouTubeLocalizerPanel({ onMediaLocalized }: Props) {
     abortRef.current = controller
     setBusy(true)
     setError(null)
+    setRestricted(false)
     setLastSavedName(null)
     setStatus('Cloud Runで音声を生成しています。動画の長さによって数分かかることがあります…')
 
@@ -259,7 +277,7 @@ function YouTubeLocalizerPanel({ onMediaLocalized }: Props) {
       const response = await fetch(`${WORKER_URL}/extract`, {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${googleToken}`,
+          Authorization: `Bearer ${googleToken}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
@@ -275,7 +293,7 @@ function YouTubeLocalizerPanel({ onMediaLocalized }: Props) {
         if (response.status === 401 || response.status === 403) {
           clearGoogleSession('Googleログインの再確認が必要です。')
         }
-        throw new Error(message)
+        throw new WorkerHttpError(message, response.status)
       }
 
       setStatus('音声を受信しました。端末内ライブラリへ保存しています…')
@@ -328,6 +346,10 @@ function YouTubeLocalizerPanel({ onMediaLocalized }: Props) {
     } catch (requestError) {
       if (requestError instanceof DOMException && requestError.name === 'AbortError') {
         setStatus('音声化をキャンセルしました。')
+      } else if (requestError instanceof WorkerHttpError && requestError.status === 409) {
+        setRestricted(true)
+        setError(requestError.message)
+        setStatus('YouTube側の取得制限により、この動画はCloudからLocal化できません。')
       } else {
         setError(requestError instanceof Error ? requestError.message : '音声化に失敗しました。')
         setStatus('音声化または保存に失敗しました。')
@@ -343,6 +365,8 @@ function YouTubeLocalizerPanel({ onMediaLocalized }: Props) {
   if (!portalTarget) return null
 
   const authLabel = !GOOGLE_CLIENT_ID ? 'SETUP' : authBusy ? 'SIGNING IN' : authUser ? 'CONNECTED' : 'SIGN IN'
+  const stateLabel = lastSavedName ? 'SAVED' : busy ? 'WORKING' : restricted ? 'LIMITED' : 'READY'
+  const stateClass = lastSavedName ? 'supported' : busy ? 'working' : restricted ? 'limited' : ''
 
   return createPortal(
     <section id="youtube-localizer-panel" className="glass-panel youtube-localizer-panel">
@@ -384,7 +408,11 @@ function YouTubeLocalizerPanel({ onMediaLocalized }: Props) {
               inputMode="url"
               placeholder="YouTube URL または動画ID"
               value={urlInput}
-              onChange={(event) => setUrlInput(event.target.value)}
+              onChange={(event) => {
+                setUrlInput(event.target.value)
+                setRestricted(false)
+                setError(null)
+              }}
               aria-label="LocalizeするYouTube URL または動画ID"
             />
             <button type="button" className="secondary" onClick={useCurrentYouTubeUrl} disabled={busy}>Use current</button>
@@ -418,7 +446,7 @@ function YouTubeLocalizerPanel({ onMediaLocalized }: Props) {
       </form>
 
       <div className="localizer-status">
-        <span className={lastSavedName ? 'supported' : busy ? 'working' : ''}>{lastSavedName ? 'SAVED' : busy ? 'WORKING' : 'READY'}</span>
+        <span className={stateClass}>{stateLabel}</span>
         <small>{status}</small>
       </div>
       {error && <p className="youtube-error">{error}</p>}
@@ -426,7 +454,7 @@ function YouTubeLocalizerPanel({ onMediaLocalized }: Props) {
       <div className="localizer-flow">
         <span>URL</span><b>→</b><span>Cloud Run</span><b>→</b><span>Audio Blob</span><b>→</b><span>IndexedDB</span><b>→</b><span>Local Player</span>
       </div>
-      <p className="youtube-policy-note">自分が権利を持つ、または保存・変換の許可を得ているコンテンツだけに使用してください。開始位置付きURLでも音声化するのは動画全体です。</p>
+      <p className="youtube-policy-note">自分が権利を持つ、または保存・変換の許可を得ているコンテンツだけに使用してください。YouTube側がCloud取得を制限した場合は、回避せず手元のファイルをLocal Libraryへ追加してください。</p>
     </section>,
     portalTarget,
   )
