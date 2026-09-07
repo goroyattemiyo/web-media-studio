@@ -13,6 +13,7 @@ import {
 
 type ThemeId = 'midnight-neon' | 'obsidian' | 'studio-light' | 'analog-warm' | 'cyber-blue'
 type RepeatMode = 'off' | 'all' | 'one'
+type PlayerVisualMode = 'emblem' | 'minimal'
 
 type MediaItem = {
   id: string
@@ -38,6 +39,11 @@ const themes: Array<{ id: ThemeId; label: string }> = [
   { id: 'studio-light', label: 'Studio Light' },
   { id: 'analog-warm', label: 'Analog Warm' },
   { id: 'cyber-blue', label: 'Cyber Blue' },
+]
+
+const playerVisualModes: Array<{ id: PlayerVisualMode; label: string }> = [
+  { id: 'emblem', label: 'Emblem Spin' },
+  { id: 'minimal', label: 'Minimal' },
 ]
 
 const speedPresets = [0.5, 0.75, 0.8, 0.9, 1, 1.1, 1.25, 1.5, 2]
@@ -75,6 +81,10 @@ function App() {
     const saved = window.localStorage.getItem('wms-theme') as ThemeId | null
     return themes.some((item) => item.id === saved) ? saved! : 'midnight-neon'
   })
+  const [playerVisualMode, setPlayerVisualMode] = useState<PlayerVisualMode>(() => {
+    const saved = window.localStorage.getItem('wms-player-visual') as PlayerVisualMode | null
+    return playerVisualModes.some((item) => item.id === saved) ? saved! : 'emblem'
+  })
   const [items, setItems] = useState<MediaItem[]>([])
   const [currentIndex, setCurrentIndex] = useState(-1)
   const [isPlaying, setIsPlaying] = useState(false)
@@ -102,6 +112,7 @@ function App() {
   const currentItem = items[currentIndex] ?? null
   const persistedCount = items.filter((item) => item.persisted).length
   const temporaryCount = items.length - persistedCount
+  const wmsIconUrl = `${import.meta.env.BASE_URL}icons/app-icon.svg`
 
   const capabilities = useMemo(
     () => [
@@ -134,6 +145,10 @@ function App() {
     document.documentElement.dataset.theme = theme
     window.localStorage.setItem('wms-theme', theme)
   }, [theme])
+
+  useEffect(() => {
+    window.localStorage.setItem('wms-player-visual', playerVisualMode)
+  }, [playerVisualMode])
 
   useEffect(() => {
     folderInputRef.current?.setAttribute('webkitdirectory', '')
@@ -536,7 +551,7 @@ function App() {
     <div className="app-shell">
       <header className="topbar">
         <div className="brand-lockup">
-          <div className="brand-mark" aria-hidden="true">WM</div>
+          <div className="brand-mark" aria-hidden="true"><img src={wmsIconUrl} alt="" /></div>
           <div>
             <p className="eyebrow">WEB MEDIA STUDIO</p>
             <h1>Player Lab</h1>
@@ -552,7 +567,15 @@ function App() {
 
       <main className="content-grid">
         <section id="player-panel" className="player-panel glass-panel">
-          <div className="player-visual">
+          <div className={`player-visual player-visual-mode-${playerVisualMode}`}>
+            {currentItem?.kind !== 'video' && (
+              <label className="player-visual-toolbar">
+                <span>Visual</span>
+                <select value={playerVisualMode} onChange={(event) => setPlayerVisualMode(event.target.value as PlayerVisualMode)}>
+                  {playerVisualModes.map((mode) => <option key={mode.id} value={mode.id}>{mode.label}</option>)}
+                </select>
+              </label>
+            )}
             {currentItem?.kind === 'video' ? (
               <video
                 key={currentItem.id}
@@ -569,8 +592,7 @@ function App() {
             ) : currentItem ? (
               <>
                 <div className="artwork-placeholder" aria-hidden="true">
-                  <div className="vinyl-ring" />
-                  <span>WMS</span>
+                  <img src={wmsIconUrl} alt="" />
                 </div>
                 <audio
                   key={currentItem.id}
