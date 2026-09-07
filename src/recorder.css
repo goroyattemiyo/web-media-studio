@@ -1,0 +1,254 @@
+.recorder-panel {
+  padding: 18px;
+  scroll-margin-bottom: calc(132px + env(safe-area-inset-bottom));
+}
+
+.record-status {
+  min-width: 54px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: rgba(var(--color-accent-rgb), .1);
+  color: var(--color-accent);
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: .14em;
+  text-align: center;
+}
+
+.record-status.is-recording {
+  color: #ff5f82;
+  background: rgba(255, 95, 130, .12);
+  box-shadow: 0 0 24px rgba(255, 95, 130, .16);
+}
+
+.record-source-card {
+  display: grid;
+  gap: 3px;
+  padding: 13px 14px;
+  border: 1px solid var(--color-border);
+  border-radius: 15px;
+  background: color-mix(in srgb, var(--color-surface-strong) 68%, transparent);
+}
+
+.record-source-card span,
+.record-source-card small {
+  color: var(--color-text-muted);
+  font-size: 10px;
+}
+
+.record-source-card strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
+}
+
+.record-clock {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  min-height: 92px;
+  margin: 12px 0;
+  border: 1px solid var(--color-border);
+  border-radius: 20px;
+  background:
+    radial-gradient(circle at 50% 50%, rgba(var(--color-accent-rgb), .08), transparent 68%),
+    color-mix(in srgb, var(--color-surface-strong) 66%, transparent);
+}
+
+.record-clock strong {
+  font-size: clamp(28px, 9vw, 42px);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -.04em;
+}
+
+.record-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--color-text-muted);
+}
+
+.record-clock.is-recording .record-dot {
+  background: #ff5f82;
+  box-shadow: 0 0 0 7px rgba(255, 95, 130, .09), 0 0 24px rgba(255, 95, 130, .42);
+  animation: record-pulse 1.15s ease-in-out infinite;
+}
+
+@keyframes record-pulse {
+  50% { transform: scale(.78); opacity: .62; }
+}
+
+.record-actions {
+  display: grid;
+  grid-template-columns: 1fr 1.25fr;
+  gap: 8px;
+}
+
+.record-actions button {
+  min-height: 48px;
+  padding: 0 12px;
+  border: 1px solid var(--color-border);
+  border-radius: 15px;
+  background: color-mix(in srgb, var(--color-surface-strong) 78%, transparent);
+  color: var(--color-text);
+  font-size: 11px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.record-actions button:disabled {
+  opacity: .36;
+  cursor: default;
+}
+
+.record-actions .record-primary {
+  border-color: rgba(var(--color-accent-rgb), .36);
+  background: linear-gradient(145deg, rgba(var(--color-accent-rgb), .18), color-mix(in srgb, var(--color-accent-secondary) 14%, transparent));
+  color: var(--color-accent);
+}
+
+.record-actions .record-stop {
+  grid-column: 1 / -1;
+  border-color: rgba(255, 95, 130, .36);
+  background: rgba(255, 95, 130, .12);
+  color: #ff7693;
+}
+
+.record-error {
+  margin: 10px 0 0;
+  padding: 10px 12px;
+  border: 1px solid rgba(255, 95, 130, .22);
+  border-radius: 12px;
+  background: rgba(255, 95, 130, .08);
+  color: #ff7895;
+  font-size: 10px;
+  line-height: 1.55;
+}
+
+.record-note {
+  margin: 10px 2px 16px;
+  color: var(--color-text-muted);
+  font-size: 9px;
+  line-height: 1.55;
+}
+
+.take-list {
+  display: grid;
+  gap: 8px;
+}
+
+.take-list-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  color: var(--color-text-muted);
+  font-size: 10px;
+}
+
+.take-list-heading strong {
+  color: var(--color-text);
+  font-size: 11px;
+}
+
+.take-empty {
+  padding: 18px 12px;
+  border: 1px dashed var(--color-border);
+  border-radius: 14px;
+  color: var(--color-text-muted);
+  font-size: 10px;
+  line-height: 1.6;
+  text-align: center;
+}
+
+.take-card {
+  display: grid;
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid var(--color-border);
+  border-radius: 15px;
+  background: color-mix(in srgb, var(--color-surface-strong) 70%, transparent);
+}
+
+.take-meta {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.take-meta > div {
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+}
+
+.take-meta strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 11px;
+}
+
+.take-meta span,
+.take-source {
+  color: var(--color-text-muted);
+  font-size: 9px;
+}
+
+.take-meta button {
+  width: 28px;
+  height: 28px;
+  flex: none;
+  border: 0;
+  border-radius: 9px;
+  background: rgba(255, 95, 130, .08);
+  color: var(--color-danger);
+  cursor: pointer;
+}
+
+.take-source {
+  margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.take-card audio {
+  width: 100%;
+  height: 36px;
+}
+
+.take-download {
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 34px;
+  border: 1px solid rgba(var(--color-accent-rgb), .22);
+  border-radius: 11px;
+  background: rgba(var(--color-accent-rgb), .07);
+  color: var(--color-accent);
+  font-size: 10px;
+  font-weight: 800;
+  text-decoration: none;
+}
+
+.bottom-nav button.is-recording {
+  color: #ff7693;
+  background: rgba(255, 95, 130, .1);
+}
+
+.bottom-nav button.is-recording > span {
+  animation: record-pulse 1.15s ease-in-out infinite;
+}
+
+@media (max-width: 520px) {
+  .recorder-panel { padding: 15px; }
+  .record-actions { grid-template-columns: 1fr; }
+  .record-actions .record-stop { grid-column: auto; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .record-clock.is-recording .record-dot,
+  .bottom-nav button.is-recording > span { animation: none; }
+}

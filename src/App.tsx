@@ -1,4 +1,5 @@
 import { ChangeEvent, useEffect, useMemo, useRef, useState } from 'react'
+import RecorderPanel from './RecorderPanel'
 
 type ThemeId = 'midnight-neon' | 'obsidian' | 'studio-light' | 'analog-warm' | 'cyber-blue'
 type RepeatMode = 'off' | 'all' | 'one'
@@ -44,6 +45,7 @@ function App() {
   const [shuffle, setShuffle] = useState(false)
   const [aPoint, setAPoint] = useState<number | null>(null)
   const [bPoint, setBPoint] = useState<number | null>(null)
+  const [recordingActive, setRecordingActive] = useState(false)
 
   const mediaRef = useRef<HTMLMediaElement | null>(null)
   const objectUrlsRef = useRef<string[]>([])
@@ -161,11 +163,13 @@ function App() {
   const togglePlayback = async () => {
     const media = mediaRef.current
     if (!media) return
-    if (media.paused) {
-      await media.play()
-    } else {
-      media.pause()
-    }
+    if (media.paused) await media.play()
+    else media.pause()
+  }
+
+  const startCurrentPlayback = async () => {
+    const media = mediaRef.current
+    if (media && media.paused) await media.play()
   }
 
   const skipBy = (seconds: number) => {
@@ -194,9 +198,7 @@ function App() {
       return
     }
 
-    if (!fromEnded || repeatMode === 'all') {
-      setCurrentIndex(0)
-    }
+    if (!fromEnded || repeatMode === 'all') setCurrentIndex(0)
   }
 
   const handleEnded = () => {
@@ -210,10 +212,7 @@ function App() {
   }
 
   const handleTimeUpdate = (media: HTMLMediaElement) => {
-    if (aPoint !== null && bPoint !== null && media.currentTime >= bPoint) {
-      media.currentTime = aPoint
-    }
-
+    if (aPoint !== null && bPoint !== null && media.currentTime >= bPoint) media.currentTime = aPoint
     setCurrentTime(media.currentTime)
 
     if ('mediaSession' in navigator && Number.isFinite(media.duration) && media.duration > 0) {
@@ -243,6 +242,10 @@ function App() {
     setRepeatMode((mode) => (mode === 'off' ? 'all' : mode === 'all' ? 'one' : 'off'))
   }
 
+  const scrollTo = (id: string) => {
+    document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }
+
   const mediaEvents = {
     onLoadedMetadata: (media: HTMLMediaElement) => {
       setDuration(Number.isFinite(media.duration) ? media.duration : 0)
@@ -265,15 +268,13 @@ function App() {
         <label className="theme-picker">
           <span>Skin</span>
           <select value={theme} onChange={(event) => setTheme(event.target.value as ThemeId)}>
-            {themes.map((item) => (
-              <option key={item.id} value={item.id}>{item.label}</option>
-            ))}
+            {themes.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}
           </select>
         </label>
       </header>
 
       <main className="content-grid">
-        <section className="player-panel glass-panel">
+        <section id="player-panel" className="player-panel glass-panel">
           <div className="player-visual">
             {currentItem?.kind === 'video' ? (
               <video
@@ -339,30 +340,21 @@ function App() {
                 setCurrentTime(next)
               }}
             />
-            <div className="time-row">
-              <span>{formatTime(currentTime)}</span>
-              <span>{formatTime(duration)}</span>
-            </div>
+            <div className="time-row"><span>{formatTime(currentTime)}</span><span>{formatTime(duration)}</span></div>
           </div>
 
           <div className="transport" aria-label="Playback controls">
             <button type="button" onClick={goPrevious} disabled={!items.length} aria-label="前の曲">⏮</button>
             <button type="button" onClick={() => skipBy(-10)} disabled={!currentItem} aria-label="10秒戻る">−10</button>
-            <button type="button" className="play-button" onClick={() => void togglePlayback()} disabled={!currentItem} aria-label={isPlaying ? '一時停止' : '再生'}>
-              {isPlaying ? 'Ⅱ' : '▶'}
-            </button>
+            <button type="button" className="play-button" onClick={() => void togglePlayback()} disabled={!currentItem} aria-label={isPlaying ? '一時停止' : '再生'}>{isPlaying ? 'Ⅱ' : '▶'}</button>
             <button type="button" onClick={() => skipBy(10)} disabled={!currentItem} aria-label="10秒進む">+10</button>
             <button type="button" onClick={() => goNext()} disabled={!items.length} aria-label="次の曲">⏭</button>
           </div>
 
           <div className="quick-controls">
             <button type="button" className={shuffle ? 'is-active' : ''} onClick={() => setShuffle((value) => !value)} disabled={!items.length}>Shuffle</button>
-            <button type="button" className={repeatMode !== 'off' ? 'is-active' : ''} onClick={cycleRepeat} disabled={!items.length}>
-              Repeat {repeatMode === 'off' ? 'Off' : repeatMode === 'all' ? 'All' : '1'}
-            </button>
-            <button type="button" className={aPoint !== null ? 'is-active' : ''} onClick={() => setAPoint(mediaRef.current?.currentTime ?? null)} disabled={!currentItem}>
-              A {aPoint === null ? 'Set' : formatTime(aPoint)}
-            </button>
+            <button type="button" className={repeatMode !== 'off' ? 'is-active' : ''} onClick={cycleRepeat} disabled={!items.length}>Repeat {repeatMode === 'off' ? 'Off' : repeatMode === 'all' ? 'All' : '1'}</button>
+            <button type="button" className={aPoint !== null ? 'is-active' : ''} onClick={() => setAPoint(mediaRef.current?.currentTime ?? null)} disabled={!currentItem}>A {aPoint === null ? 'Set' : formatTime(aPoint)}</button>
             <button
               type="button"
               className={bPoint !== null ? 'is-active' : ''}
@@ -371,9 +363,7 @@ function App() {
                 if (point !== null && aPoint !== null && point > aPoint) setBPoint(point)
               }}
               disabled={!currentItem || aPoint === null}
-            >
-              B {bPoint === null ? 'Set' : formatTime(bPoint)}
-            </button>
+            >B {bPoint === null ? 'Set' : formatTime(bPoint)}</button>
             <button type="button" onClick={() => { setAPoint(null); setBPoint(null) }} disabled={aPoint === null && bPoint === null}>Clear A-B</button>
           </div>
 
@@ -392,16 +382,10 @@ function App() {
         </section>
 
         <aside className="side-stack">
-          <section className="glass-panel library-panel">
+          <section id="library-panel" className="glass-panel library-panel">
             <div className="section-heading">
-              <div>
-                <p className="eyebrow">LOCAL LIBRARY</p>
-                <h2>Quick playlist</h2>
-              </div>
-              <label className="import-button">
-                ＋ Add media
-                <input type="file" accept="audio/*,video/*" multiple onChange={importFiles} />
-              </label>
+              <div><p className="eyebrow">LOCAL LIBRARY</p><h2>Quick playlist</h2></div>
+              <label className="import-button">＋ Add media<input type="file" accept="audio/*,video/*" multiple onChange={importFiles} /></label>
             </div>
 
             <div className="playlist-list">
@@ -417,20 +401,14 @@ function App() {
                   <span className="source-chip">{item.kind}</span>
                 </button>
               )) : (
-                <div className="playlist-empty">
-                  <strong>まだ曲がありません</strong>
-                  <span>複数ファイルをまとめて選択すると、そのまま簡易プレイリストになります。</span>
-                </div>
+                <div className="playlist-empty"><strong>まだ曲がありません</strong><span>複数ファイルをまとめて選択すると、そのまま簡易プレイリストになります。</span></div>
               )}
             </div>
           </section>
 
           <section className="glass-panel device-panel">
             <div className="section-heading compact">
-              <div>
-                <p className="eyebrow">REAL DEVICE CHECK</p>
-                <h2>Browser capabilities</h2>
-              </div>
+              <div><p className="eyebrow">REAL DEVICE CHECK</p><h2>Browser capabilities</h2></div>
               <span className="live-badge">LIVE</span>
             </div>
             <div className="capability-grid">
@@ -443,15 +421,22 @@ function App() {
             </div>
             <p className="device-note">Media Session が Detected でも、画面OFF継続はOS・ブラウザごとの実機確認が必要です。</p>
           </section>
+
+          <RecorderPanel
+            sourceName={currentItem?.name ?? null}
+            getSourcePosition={() => mediaRef.current?.currentTime ?? 0}
+            startSourcePlayback={startCurrentPlayback}
+            onRecordingChange={setRecordingActive}
+          />
         </aside>
       </main>
 
       <nav className="bottom-nav" aria-label="Primary navigation">
-        <button type="button" className="is-current"><span>▶</span>Player</button>
-        <button type="button"><span>≡</span>Playlist</button>
-        <button type="button"><span>●</span>Record<small>soon</small></button>
-        <button type="button"><span>✦</span>Tools<small>FFmpeg</small></button>
-        <button type="button"><span>▣</span>Library</button>
+        <button type="button" className="is-current" onClick={() => scrollTo('player-panel')}><span>▶</span>Player</button>
+        <button type="button" onClick={() => scrollTo('library-panel')}><span>≡</span>Playlist</button>
+        <button type="button" className={recordingActive ? 'is-recording' : ''} onClick={() => scrollTo('recorder-panel')}><span>●</span>Record{recordingActive && <small>REC</small>}</button>
+        <button type="button" aria-disabled="true"><span>✦</span>Tools<small>FFmpeg</small></button>
+        <button type="button" onClick={() => scrollTo('library-panel')}><span>▣</span>Library</button>
       </nav>
     </div>
   )
