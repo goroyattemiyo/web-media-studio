@@ -4,13 +4,13 @@ Last updated: 2026-09-07 JST
 
 ## Repository state
 
-The repository foundation, Phase 1 player bootstrap, Recorder MVP, IndexedDB recording persistence, and FFmpeg video-to-audio tools are merged to `main`. GitHub Pages is enabled and production deployment has completed successfully.
+The repository foundation, Phase 1 player bootstrap, Recorder MVP, IndexedDB recording persistence, FFmpeg video-to-audio tools, and folder/playlist improvements are merged to `main`. GitHub Pages is enabled and production deployment has completed successfully.
 
 Public URL:
 
 `https://goroyattemiyo.github.io/web-media-studio/`
 
-Recorder, persistence, and FFmpeg audio extraction/conversion have passed the requested Android real-device checks. Folder import and continuous playlist playback are now being implemented on `feat/folder-playlist`.
+Recorder, persistence, FFmpeg audio extraction/conversion, and Android multi-file import have passed the requested real-device checks. Android whole-folder selection remains browser/file-picker dependent and is not considered confirmed on the tested phone.
 
 ## Implemented in the Phase 1 player bootstrap
 
@@ -74,26 +74,24 @@ Android real-device persistence checks passed: take survives reload and browser/
 
 Android real-device checks passed for FFmpeg initial load, Original extraction, MP3 conversion, WAV conversion, preview, and device save.
 
-## In progress: folder playlist
-
-Feature branch: `feat/folder-playlist`
+## Implemented: local playlist and folder progressive enhancement (merged PR #9)
 
 - separate Files and Folder import actions
-- folder selection through `webkitdirectory` / directory attribute where supported
+- regular Files input supports multiple media selection
+- Folder selection uses `webkitdirectory` / `directory` where the browser/file picker supports true directory import
 - audio/video-only filtering
 - natural path sorting so numbered tracks stay in expected order
-- relative folder path retained and shown in the playlist
-- loaded root folders displayed as chips
-- folder media appended to the current playlist
+- relative folder path retained and shown when directory metadata is available
+- loaded root folders displayed as chips when available
 - playlist Clear action revokes temporary object URLs
 - track completion advances to the next playlist item and attempts continuous playback
 - manual next/previous keeps playback running when the previous track was already playing
 
-This phase is not considered device-confirmed until Android folder selection and continuous next-track playback pass.
+Android target-device observation: tapping Folder opened a normal file chooser rather than importing an entire directory. Multiple file selection works and is the primary Android import path for now. Folder import remains progressive enhancement for desktop/compatible browser-file-picker combinations.
 
 ## Automated checks
 
-Latest `main` Pages workflow before this feature branch:
+Latest `main` Pages workflow:
 
 - dependency install: PASS
 - TypeScript typecheck: PASS
@@ -122,22 +120,25 @@ Observed on Android phone on 2026-09-07:
 - Original audio extraction: PASS
 - MP3 conversion/playback/save: PASS
 - WAV conversion/playback/save: PASS
+- Android multiple-file media selection: PASS
+- selected multiple files are added to the playlist and playable: PASS
+- Android whole-folder import through the tested Folder control: NOT CONFIRMED; tested picker fell back to normal file selection
 
 ## Real-device validation still required
 
 Do not mark the following as supported until checked on target hardware/browser:
 
-- Android folder chooser opens from Folder button
-- one folder imports all supported audio/video files
-- relative paths and track order display correctly
-- track ending automatically continues into the next playlist item
-- long folder playlists remain usable
+- track ending automatically continues into the next playlist item on Android
+- long multi-file playlists remain usable
 - Android Chrome background playback continuity
 - Android installed-PWA background behavior
 - lock-screen Media Session controls
+- next/previous control from the lock screen
+- next-track continuation while the screen is off
 - local video behavior in longer playlists
 - recording behavior while screen is locked/backgrounded
 - larger FFmpeg files near the MVP guard
+- true folder import on desktop or another compatible browser/file picker
 - iPhone Safari / installed web-app behavior
 - service-worker update/offline behavior
 
@@ -163,6 +164,8 @@ API detection in the UI is not equivalent to successful real-device behavior.
 - local-first storage for recordings/library metadata
 - switchable visual skins
 - advanced music-player features including A-B repeat and playback speed
+- Android primary import path: multiple local file selection
+- Folder import is progressive enhancement, not guaranteed mobile behavior
 - browser-side FFmpeg for local video/audio processing
 - FFmpeg loads on demand rather than at app startup
 - GitHub Pages uses single-thread FFmpeg because cross-origin isolation is not assumed
@@ -172,13 +175,13 @@ API detection in the UI is not equivalent to successful real-device behavior.
 
 ## Immediate next step
 
-1. run folder-playlist typecheck/build
-2. merge after green CI
-3. deploy to GitHub Pages
-4. on Android, open Playlist and select Folder
-5. confirm all supported media appears in natural path order
-6. start track 1 and verify track 2 starts automatically when track 1 ends
-7. verify Clear releases the playlist and a second folder can be loaded cleanly
-8. after folder playlist PASS, continue background/lock-screen validation and URL/YouTube providers
+1. validate Android multi-file playlist continuous next-track playback
+2. play a track in Android Chrome and turn the screen off
+3. confirm whether audio continues for at least 30 seconds
+4. check whether lock-screen playback controls appear
+5. test pause/play and previous/next from the lock screen if available
+6. leave the screen off through the end of a track and confirm whether the next item begins
+7. repeat the same checks in the installed PWA when available
+8. after background behavior is understood, improve Media Session/background handling and continue URL/YouTube provider work
 
 Do not describe planned work as implemented work.
