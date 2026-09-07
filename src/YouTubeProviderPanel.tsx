@@ -60,16 +60,19 @@ function YouTubeProviderPanel() {
     return () => {
       playerRef.current?.destroy()
       playerRef.current = null
+      if (playerHostRef.current) playerHostRef.current.innerHTML = ''
     }
   }, [])
 
   const createPlayer = async (nextVideoId: string, startSeconds: number) => {
-    const host = playerHostRef.current
-    if (!host) return
+    const hostContainer = playerHostRef.current
+    if (!hostContainer) return
 
     setError(null)
     setStatus('YouTube公式プレーヤーを読み込んでいます…')
     setReady(false)
+    setCurrentTime(startSeconds)
+    setDuration(0)
 
     try {
       const yt = await loadYouTubeIframeApi()
@@ -77,13 +80,16 @@ function YouTubeProviderPanel() {
       if (playerRef.current) {
         playerRef.current.cueVideoById(nextVideoId, startSeconds)
         setVideoId(nextVideoId)
-        setCurrentTime(startSeconds)
-        setDuration(0)
+        setReady(true)
         setStatus('動画を読み込みました。再生ボタンを押してください。')
         return
       }
 
-      playerRef.current = new yt.Player(host, {
+      hostContainer.innerHTML = ''
+      const mount = document.createElement('div')
+      hostContainer.appendChild(mount)
+
+      playerRef.current = new yt.Player(mount, {
         width: '100%',
         height: '100%',
         videoId: nextVideoId,
@@ -144,6 +150,7 @@ function YouTubeProviderPanel() {
   const clearPlayer = () => {
     playerRef.current?.destroy()
     playerRef.current = null
+    if (playerHostRef.current) playerHostRef.current.innerHTML = ''
     setReady(false)
     setVideoId(null)
     setCurrentTime(0)
@@ -194,12 +201,12 @@ function YouTubeProviderPanel() {
 
       <form className="youtube-url-form" onSubmit={loadFromInput}>
         <input
-          type="url"
+          type="text"
           inputMode="url"
-          placeholder="https://www.youtube.com/watch?v=..."
+          placeholder="YouTube URL または動画ID"
           value={urlInput}
           onChange={(event) => setUrlInput(event.target.value)}
-          aria-label="YouTube URL"
+          aria-label="YouTube URL または動画ID"
         />
         <button type="submit">Load</button>
         {videoId && <button type="button" className="secondary" onClick={clearPlayer}>Clear</button>}
