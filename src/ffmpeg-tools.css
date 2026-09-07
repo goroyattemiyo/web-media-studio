@@ -1,0 +1,176 @@
+.ffmpeg-panel {
+  padding: 18px;
+  scroll-margin-top: 18px;
+}
+
+.ffmpeg-status {
+  flex: none;
+  padding: 5px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--color-border);
+  color: var(--color-text-muted);
+  background: var(--color-surface-strong);
+  font-size: 8px;
+  font-weight: 900;
+  letter-spacing: .09em;
+}
+
+.ffmpeg-status.loading {
+  color: var(--color-accent-secondary);
+  border-color: color-mix(in srgb, var(--color-accent-secondary) 34%, transparent);
+}
+
+.ffmpeg-status.ready {
+  color: #45d690;
+  border-color: rgba(69, 214, 144, .28);
+  background: rgba(69, 214, 144, .07);
+}
+
+.ffmpeg-dropzone {
+  min-height: 132px;
+  display: grid;
+  place-items: center;
+  align-content: center;
+  gap: 6px;
+  padding: 18px;
+  border: 1px dashed rgba(var(--color-accent-rgb), .38);
+  border-radius: 19px;
+  background:
+    radial-gradient(circle at 50% 10%, rgba(var(--color-accent-rgb), .12), transparent 60%),
+    color-mix(in srgb, var(--color-surface-strong) 72%, transparent);
+  text-align: center;
+  cursor: pointer;
+}
+
+.ffmpeg-dropzone input { display: none; }
+.ffmpeg-dropzone strong {
+  width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13px;
+}
+.ffmpeg-dropzone small { color: var(--color-text-muted); font-size: 10px; }
+.ffmpeg-drop-icon {
+  width: 42px;
+  height: 42px;
+  display: grid;
+  place-items: center;
+  border-radius: 14px;
+  background: rgba(var(--color-accent-rgb), .12);
+  color: var(--color-accent);
+  font-size: 20px;
+  box-shadow: var(--player-glow);
+}
+
+.ffmpeg-presets {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 7px;
+  margin-top: 12px;
+}
+
+.ffmpeg-presets button {
+  min-width: 0;
+  min-height: 62px;
+  display: grid;
+  place-items: center;
+  gap: 3px;
+  padding: 8px 5px;
+  border: 1px solid var(--color-border);
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--color-surface-strong) 76%, transparent);
+  color: var(--color-text);
+  cursor: pointer;
+}
+.ffmpeg-presets button strong { font-size: 11px; }
+.ffmpeg-presets button span { color: var(--color-text-muted); font-size: 8px; }
+.ffmpeg-presets button.is-active {
+  border-color: rgba(var(--color-accent-rgb), .42);
+  background: rgba(var(--color-accent-rgb), .11);
+  box-shadow: inset 0 0 24px rgba(var(--color-accent-rgb), .06);
+}
+.ffmpeg-presets button.is-active strong { color: var(--color-accent); }
+
+.ffmpeg-run {
+  width: 100%;
+  min-height: 48px;
+  margin-top: 10px;
+  border: 1px solid rgba(var(--color-accent-rgb), .4);
+  border-radius: 15px;
+  background: linear-gradient(135deg, var(--color-accent), var(--color-accent-secondary));
+  color: #05070c;
+  font-weight: 900;
+  cursor: pointer;
+  box-shadow: var(--player-glow);
+}
+.ffmpeg-run:disabled { opacity: .36; cursor: default; box-shadow: none; }
+
+.ffmpeg-progress {
+  display: grid;
+  gap: 5px;
+  margin-top: 12px;
+}
+.ffmpeg-progress > div {
+  display: flex;
+  justify-content: space-between;
+  color: var(--color-text-muted);
+  font-size: 9px;
+}
+.ffmpeg-progress strong { color: var(--color-accent); }
+.ffmpeg-progress progress {
+  width: 100%;
+  height: 7px;
+  overflow: hidden;
+  border: 0;
+  border-radius: 999px;
+  accent-color: var(--color-accent);
+}
+
+.ffmpeg-message,
+.ffmpeg-note,
+.ffmpeg-error {
+  margin: 10px 0 0;
+  font-size: 9px;
+  line-height: 1.65;
+}
+.ffmpeg-message,
+.ffmpeg-note { color: var(--color-text-muted); }
+.ffmpeg-error {
+  padding: 9px 10px;
+  border: 1px solid color-mix(in srgb, var(--color-danger) 38%, transparent);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--color-danger) 9%, transparent);
+  color: var(--color-danger);
+}
+
+.ffmpeg-result {
+  display: grid;
+  gap: 9px;
+  margin-top: 12px;
+  padding: 12px;
+  border: 1px solid rgba(var(--color-accent-rgb), .26);
+  border-radius: 16px;
+  background: rgba(var(--color-accent-rgb), .06);
+}
+.ffmpeg-result > div { display: grid; gap: 3px; min-width: 0; }
+.ffmpeg-result > div > span { color: var(--color-accent); font-size: 8px; font-weight: 900; letter-spacing: .14em; }
+.ffmpeg-result > div > strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; }
+.ffmpeg-result > div > small { color: var(--color-text-muted); font-size: 9px; }
+.ffmpeg-result audio { width: 100%; height: 38px; }
+.ffmpeg-result > a {
+  min-height: 38px;
+  display: grid;
+  place-items: center;
+  border: 1px solid rgba(var(--color-accent-rgb), .28);
+  border-radius: 12px;
+  color: var(--color-accent);
+  text-decoration: none;
+  font-size: 10px;
+  font-weight: 800;
+}
+
+@media (max-width: 520px) {
+  .ffmpeg-panel { padding: 15px; }
+  .ffmpeg-dropzone { min-height: 118px; }
+}
