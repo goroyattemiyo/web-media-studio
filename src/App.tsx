@@ -11,6 +11,8 @@ type MediaItem = {
   kind: 'audio' | 'video'
   url: string
   mimeType: string
+  relativePath: string | null
+  source: 'files' | 'folder'
 }
 
 const themes: Array<{ id: ThemeId; label: string }> = [
@@ -30,6 +32,10 @@ function formatTime(value: number) {
   return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`
 }
 
+function mediaPath(file: File) {
+  return file.webkitRelativePath || file.name
+}
+
 function App() {
   const [theme, setTheme] = useState<ThemeId>(() => {
     const saved = window.localStorage.getItem('wms-theme') as ThemeId | null
@@ -47,9 +53,12 @@ function App() {
   const [aPoint, setAPoint] = useState<number | null>(null)
   const [bPoint, setBPoint] = useState<number | null>(null)
   const [recordingActive, setRecordingActive] = useState(false)
+  const [folderRoots, setFolderRoots] = useState<string[]>([])
 
   const mediaRef = useRef<HTMLMediaElement | null>(null)
+  const folderInputRef = useRef<HTMLInputElement | null>(null)
   const objectUrlsRef = useRef<string[]>([])
+  const autoPlayOnLoadRef = useRef(false)
   const currentItem = items[currentIndex] ?? null
 
   const capabilities = useMemo(
@@ -68,6 +77,11 @@ function App() {
   }, [theme])
 
   useEffect(() => {
+    folderInputRef.current?.setAttribute('webkitdirectory', '')
+    folderInputRef.current?.setAttribute('directory', '')
+  }, [])
+
+  useEffect(() => {
     return () => {
       objectUrlsRef.current.forEach((url) => URL.revokeObjectURL(url))
     }
@@ -83,7 +97,7 @@ function App() {
     if (currentItem && 'mediaSession' in navigator) {
       navigator.mediaSession.metadata = new MediaMetadata({
         title: currentItem.name,
-        artist: 'Local media',
+        artist: currentItem.relativePath ? 'Folder media' : 'Local media',
         album: 'Web Media Studio',
       })
     }
@@ -100,11 +114,13 @@ function App() {
 
     const previous = () => {
       if (!items.length) return
+      autoPlayOnLoadRef.current = true
       setCurrentIndex((index) => (index <= 0 ? items.length - 1 : index - 1))
     }
 
     const next = () => {
       if (!items.length) return
+      autoPlayOnLoadRef.current = true
       setCurrentIndex((index) => (index >= items.length - 1 ? 0 : index + 1))
     }
 
@@ -137,28 +153,63 @@ function App() {
     mediaRef.current = node
   }
 
-  const importFiles = (event: ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(event.target.files ?? []).filter(
-      (file) => file.type.startsWith('audio/') || file.type.startsWith('video/'),
-    )
+  const appendFiles = (files: File[], source: MediaItem['source']) => {
+    const sorted = [...files]
+      .filter((file) => file.type.startsWith('audio/') || file.type.startsWith('video/'))
+      .sort((a, b) => mediaPath(a).localeCompare(mediaPath(b), undefined, { numeric: true, sensitivity: 'base' }))
 
-    if (!files.length) return
+    if (!sorted.length) return 0
 
-    const imported = files.map<MediaItem>((file) => {
+    const imported = sorted.map<MediaItem>((file) => {
       const url = URL.createObjectURL(file)
       objectUrlsRef.current.push(url)
       return {
-        id: `${file.name}-${file.lastModified}-${Math.random().toString(36).slice(2)}`,
+        id: `${mediaPath(file)}-${file.lastModified}-${Math.random().toString(36).slice(2)}`,
         name: file.name,
         kind: file.type.startsWith('video/') ? 'video' : 'audio',
         url,
         mimeType: file.type,
+        relativePath: source === 'folder' ? mediaPath(file) : null,
+        source,
       }
     })
 
     setItems((previous) => [...previous, ...imported])
     setCurrentIndex((index) => (index < 0 ? 0 : index))
+    return imported.length
+  }
+
+  const importFiles = (event: ChangeEvent<HTMLInputElement>) => {
+    appendFiles(Array.from(event.target.files ?? []), 'files')
     event.target.value = ''
+  }
+
+  const importFolder = (event: ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(event.target.files ?? [])
+    const count = appendFiles(files, 'folder')
+
+    if (count > 0) {
+      const roots = Array.from(new Set(
+        files
+          .map((file) => mediaPath(file).split('/')[0])
+          .filter(Boolean),
+      ))
+      setFolderRoots((previous) => Array.from(new Set([...previous, ...roots])))
+    }
+
+    event.target.value = ''
+  }
+
+  const clearPlaylist = () => {
+    mediaRef.current?.pause()
+    objectUrlsRef.current.forEach((url) => URL.revokeObjectURL(url))
+    objectUrlsRef.current = []
+    setItems([])
+    setCurrentIndex(-1)
+    setFolderRoots([])
+    setCurrentTime(0)
+    setDuration(0)
+    setIsPlaying(false)
   }
 
   const togglePlayback = async () => {
@@ -181,25 +232,33 @@ function App() {
 
   const goPrevious = () => {
     if (!items.length) return
+    autoPlayOnLoadRef.current = Boolean(mediaRef.current && !mediaRef.current.paused)
     setCurrentIndex((index) => (index <= 0 ? items.length - 1 : index - 1))
   }
 
   const goNext = (fromEnded = false) => {
     if (!items.length) return
 
+    const shouldContinue = fromEnded || Boolean(mediaRef.current && !mediaRef.current.paused)
+
     if (shuffle && items.length > 1) {
       let next = currentIndex
       while (next === currentIndex) next = Math.floor(Math.random() * items.length)
+      autoPlayOnLoadRef.current = shouldContinue
       setCurrentIndex(next)
       return
     }
 
     if (currentIndex < items.length - 1) {
+      autoPlayOnLoadRef.current = shouldContinue
       setCurrentIndex(currentIndex + 1)
       return
     }
 
-    if (!fromEnded || repeatMode === 'all') setCurrentIndex(0)
+    if (!fromEnded || repeatMode === 'all') {
+      autoPlayOnLoadRef.current = shouldContinue
+      setCurrentIndex(0)
+    }
   }
 
   const handleEnded = () => {
@@ -252,6 +311,12 @@ function App() {
       setDuration(Number.isFinite(media.duration) ? media.duration : 0)
       media.volume = volume
       media.playbackRate = playbackRate
+      if (autoPlayOnLoadRef.current) {
+        autoPlayOnLoadRef.current = false
+        void media.play().catch(() => {
+          // Autoplay may still be blocked by the browser in some contexts.
+        })
+      }
     },
     onTimeUpdate: (media: HTMLMediaElement) => handleTimeUpdate(media),
   }
@@ -319,8 +384,9 @@ function App() {
 
           <div className="track-heading">
             <div>
-              <p className="source-label">{currentItem ? 'LOCAL MEDIA' : 'NO SOURCE'}</p>
+              <p className="source-label">{currentItem?.source === 'folder' ? 'FOLDER MEDIA' : currentItem ? 'LOCAL MEDIA' : 'NO SOURCE'}</p>
               <h2>{currentItem?.name ?? 'Choose a file to begin'}</h2>
+              {currentItem?.relativePath && <p className="track-path">{currentItem.relativePath}</p>}
             </div>
             <span className="track-count">{items.length ? `${currentIndex + 1} / ${items.length}` : '0 / 0'}</span>
           </div>
@@ -384,10 +450,20 @@ function App() {
 
         <aside className="side-stack">
           <section id="library-panel" className="glass-panel library-panel">
-            <div className="section-heading">
-              <div><p className="eyebrow">LOCAL LIBRARY</p><h2>Quick playlist</h2></div>
-              <label className="import-button">＋ Add media<input type="file" accept="audio/*,video/*" multiple onChange={importFiles} /></label>
+            <div className="section-heading library-heading">
+              <div><p className="eyebrow">LOCAL LIBRARY</p><h2>Folder playlist</h2></div>
+              <div className="library-actions">
+                <label className="import-button">＋ Files<input type="file" accept="audio/*,video/*" multiple onChange={importFiles} /></label>
+                <label className="import-button folder-button">▣ Folder<input ref={folderInputRef} type="file" multiple onChange={importFolder} /></label>
+                {items.length > 0 && <button className="clear-library-button" type="button" onClick={clearPlaylist}>Clear</button>}
+              </div>
             </div>
+
+            {folderRoots.length > 0 && (
+              <div className="folder-root-list" aria-label="Loaded folders">
+                {folderRoots.map((folder) => <span key={folder}>▣ {folder}</span>)}
+              </div>
+            )}
 
             <div className="playlist-list">
               {items.length ? items.map((item, index) => (
@@ -395,16 +471,23 @@ function App() {
                   type="button"
                   key={item.id}
                   className={`playlist-item ${index === currentIndex ? 'is-current' : ''}`}
-                  onClick={() => setCurrentIndex(index)}
+                  onClick={() => {
+                    autoPlayOnLoadRef.current = Boolean(mediaRef.current && !mediaRef.current.paused)
+                    setCurrentIndex(index)
+                  }}
                 >
                   <span className="playlist-index">{String(index + 1).padStart(2, '0')}</span>
-                  <span className="playlist-name">{item.name}</span>
-                  <span className="source-chip">{item.kind}</span>
+                  <span className="playlist-copy">
+                    <span className="playlist-name">{item.name}</span>
+                    {item.relativePath && <small>{item.relativePath}</small>}
+                  </span>
+                  <span className="source-chip">{item.source === 'folder' ? 'folder' : item.kind}</span>
                 </button>
               )) : (
-                <div className="playlist-empty"><strong>まだ曲がありません</strong><span>複数ファイルをまとめて選択すると、そのまま簡易プレイリストになります。</span></div>
+                <div className="playlist-empty"><strong>まだ曲がありません</strong><span>「Folder」でフォルダ全体を読み込むと、音声・動画だけを自然順でプレイリスト化します。</span></div>
               )}
             </div>
+            {items.length > 0 && <p className="playlist-note">{items.length} items · 曲終了時は次の項目へ連続再生します。フォルダの実ファイル自体はサーバーへ送信しません。</p>}
           </section>
 
           <section className="glass-panel device-panel">
