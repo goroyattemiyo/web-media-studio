@@ -4,7 +4,11 @@ Last updated: 2026-09-07 JST
 
 ## Repository state
 
-The repository foundation is merged to `main`. Phase 1 application bootstrap is implemented on `feat/app-bootstrap` and has passed GitHub Actions typecheck/build validation.
+The repository foundation and Phase 1 player bootstrap are merged to `main`. GitHub Pages is enabled and the production deployment workflow has completed successfully.
+
+Public URL:
+
+`https://goroyattemiyo.github.io/web-media-studio/`
 
 ## Implemented in the Phase 1 bootstrap
 
@@ -40,23 +44,44 @@ The repository foundation is merged to `main`. Phase 1 application bootstrap is 
 
 ## Automated checks
 
-PR #2 bootstrap validation:
+Latest `main` Pages workflow:
 
 - dependency install: PASS
 - TypeScript typecheck: PASS
 - Vite production build: PASS
+- Configure Pages: PASS
+- Pages artifact upload: PASS
+- Deploy to GitHub Pages: PASS
 
-Pages deployment is intentionally skipped on pull-request events and runs after merge/push to `main`.
+## Real-device validation
+
+Observed on Android phone on 2026-09-07:
+
+- GitHub Pages loads successfully: PASS
+- local MP3 import: PASS
+- local audio playback: PASS
+- theme/skin switching: PASS
+- Service Worker capability detection: PASS
+- Media Recorder capability detection: PASS
+- Web Audio capability detection: PASS
+- Media Session reported unavailable in the browser used for the screenshot; Chrome/PWA validation is still required
+
+The first real-device screenshots also exposed two mobile layout issues:
+
+- the fixed bottom navigation can overlap content visually while scrolling
+- the horizontal quick-control row can clip the rightmost A-B control
+
+A mobile layout refinement is being applied before the next device pass.
 
 ## Real-device validation still required
 
-Do not mark the following as supported until checked on target hardware:
+Do not mark the following as supported until checked on target hardware/browser:
 
-- Android Chrome local audio playback
+- Android Chrome background playback continuity
 - Android installed-PWA behavior
-- screen-off/background playback continuity
 - lock-screen Media Session controls
 - local video behavior
+- A-B loop behavior under actual playback
 - iPhone Safari / installed web-app behavior
 - service-worker update/offline behavior
 
@@ -94,11 +119,11 @@ API detection in the UI is not equivalent to successful background-playback vali
 
 ## Immediate next step
 
-1. merge PR #2 after green build
-2. verify GitHub Pages deployment
-3. open the Pages URL on Android Chrome
-4. test local audio/video, themes and transport controls
-5. lock the screen and record actual Media Session/background behavior
-6. fix any device-specific issues before moving to persistent library/recording work
+1. deploy the real-device mobile layout refinement
+2. re-check the A-B control layout and bottom navigation spacing
+3. open the site in Android Chrome directly (not an in-app browser)
+4. test screen-off/background playback and lock-screen controls
+5. install as a PWA and repeat the playback test
+6. fix device-specific issues before persistent library/recording work
 
 Do not describe planned work as implemented work.
