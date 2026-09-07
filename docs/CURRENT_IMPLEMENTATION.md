@@ -4,33 +4,79 @@ Last updated: 2026-09-07 JST
 
 ## Repository state
 
-The repository exists and has an initial `main` branch commit.
+The repository foundation is merged to `main`. Phase 1 application bootstrap is implemented on `feat/app-bootstrap` and has passed GitHub Actions typecheck/build validation.
 
-Current implementation is intentionally minimal. Product/runtime code has not yet been bootstrapped.
+## Implemented in the Phase 1 bootstrap
 
-## Implemented
+- React + TypeScript + Vite application
+- root `index.html` configured for the GitHub Pages/Vite entry point
+- GitHub Pages base path: `/web-media-studio/`
+- polished responsive mobile-first player shell
+- five switchable skins:
+  - Midnight Neon
+  - Obsidian
+  - Studio Light
+  - Analog Warm
+  - Cyber Blue
+- theme persistence through local storage
+- local audio/video multi-file import
+- in-memory quick playlist
+- local audio/video playback
+- play/pause
+- previous/next
+- ±10-second seek
+- timeline seek
+- volume control
+- playback speed presets
+- shuffle
+- repeat off/all/one
+- A-B loop controls
+- initial Media Session metadata/action handlers
+- runtime capability panel for Service Worker / Media Session / Media Recorder / Web Audio detection
+- PWA manifest
+- basic same-origin app-shell service worker
+- GitHub Pages build/deploy workflow
+- pull-request typecheck/build validation
 
-- public GitHub repository created
-- default branch is `main`
-- Node-oriented `.gitignore`
-- initial README/description
+## Automated checks
+
+PR #2 bootstrap validation:
+
+- dependency install: PASS
+- TypeScript typecheck: PASS
+- Vite production build: PASS
+
+Pages deployment is intentionally skipped on pull-request events and runs after merge/push to `main`.
+
+## Real-device validation still required
+
+Do not mark the following as supported until checked on target hardware:
+
+- Android Chrome local audio playback
+- Android installed-PWA behavior
+- screen-off/background playback continuity
+- lock-screen Media Session controls
+- local video behavior
+- iPhone Safari / installed web-app behavior
+- service-worker update/offline behavior
+
+API detection in the UI is not equivalent to successful background-playback validation.
 
 ## Not implemented yet
 
-- React/Vite application
-- PWA manifest/service worker
-- GitHub Pages workflow
-- local media player
-- playlist/library
+- persistent library / IndexedDB / Dexie
 - directory import
-- Media Session integration
-- background playback validation
-- microphone recorder
-- IndexedDB persistence
-- theme system
-- ffmpeg.wasm
+- saved playlists
+- microphone recording
+- synchronized play + record
+- recording/take storage
+- FFmpeg / ffmpeg.wasm
+- video -> audio extraction
+- audio conversion/trim
 - YouTube provider
-- tests/CI
+- direct URL provider
+- waveform/spectrum/EQ
+- automated browser E2E tests
 
 ## Confirmed product decisions
 
@@ -48,14 +94,11 @@ Current implementation is intentionally minimal. Product/runtime code has not ye
 
 ## Immediate next step
 
-Bootstrap Phase 1 on a feature branch:
+1. merge PR #2 after green build
+2. verify GitHub Pages deployment
+3. open the Pages URL on Android Chrome
+4. test local audio/video, themes and transport controls
+5. lock the screen and record actual Media Session/background behavior
+6. fix any device-specific issues before moving to persistent library/recording work
 
-1. React + TypeScript + Vite
-2. stable project structure
-3. minimal theme tokens
-4. app shell/player screen
-5. local audio file import and playback
-6. test/build scripts
-7. GitHub Pages deployment workflow
-
-Do not mark features complete in this document until they are implemented and checked.
+Do not describe planned work as implemented work.
