@@ -1,0 +1,108 @@
+.library-heading {
+  align-items: flex-start;
+}
+
+.library-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 7px;
+}
+
+.folder-button {
+  background: color-mix(in srgb, var(--color-accent-secondary) 11%, transparent);
+  border-color: color-mix(in srgb, var(--color-accent-secondary) 38%, transparent);
+  color: var(--color-accent-secondary);
+}
+
+.clear-library-button {
+  min-height: 38px;
+  padding: 0 11px;
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  background: transparent;
+  color: var(--color-text-muted);
+  font-size: 10px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.folder-root-list {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  padding: 0 0 10px;
+  scrollbar-width: none;
+}
+
+.folder-root-list::-webkit-scrollbar {
+  display: none;
+}
+
+.folder-root-list span {
+  flex: none;
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  padding: 6px 9px;
+  border: 1px solid rgba(var(--color-accent-rgb), .2);
+  border-radius: 10px;
+  background: rgba(var(--color-accent-rgb), .07);
+  color: var(--color-accent);
+  font-size: 9px;
+  font-weight: 800;
+}
+
+.playlist-copy {
+  min-width: 0;
+  display: grid;
+  gap: 3px;
+}
+
+.playlist-copy small {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--color-text-muted);
+  font-size: 8px;
+  font-weight: 500;
+}
+
+.playlist-note,
+.track-path {
+  margin: 9px 0 0;
+  color: var(--color-text-muted);
+  font-size: 9px;
+  line-height: 1.55;
+}
+
+.track-path {
+  max-width: min(70vw, 620px);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (max-width: 520px) {
+  .library-heading {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  .library-actions {
+    justify-content: flex-start;
+    width: 100%;
+  }
+
+  .library-actions .import-button,
+  .clear-library-button {
+    flex: 1 1 auto;
+    justify-content: center;
+  }
+
+  .playlist-item {
+    grid-template-columns: 26px minmax(0, 1fr) auto;
+  }
+}
