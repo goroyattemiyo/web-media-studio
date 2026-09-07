@@ -1,8 +1,9 @@
 export const DB_NAME = 'web-media-studio'
-export const DB_VERSION = 3
+export const DB_VERSION = 4
 export const RECORDING_STORE = 'recording-takes'
 export const MEDIA_LIBRARY_STORE = 'media-library'
 export const PLAYLIST_STORE = 'saved-playlists'
+export const APPEARANCE_STORE = 'appearance-assets'
 
 export function openAppDatabase(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
@@ -26,6 +27,11 @@ export function openAppDatabase(): Promise<IDBDatabase> {
         const playlistStore = database.createObjectStore(PLAYLIST_STORE, { keyPath: 'id' })
         playlistStore.createIndex('updatedAt', 'updatedAt')
         playlistStore.createIndex('name', 'name')
+      }
+
+      if (!database.objectStoreNames.contains(APPEARANCE_STORE)) {
+        const appearanceStore = database.createObjectStore(APPEARANCE_STORE, { keyPath: 'id' })
+        appearanceStore.createIndex('updatedAt', 'updatedAt')
       }
     }
 
