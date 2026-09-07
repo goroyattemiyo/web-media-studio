@@ -37,7 +37,7 @@ jobs:
         run: pip install -r requirements-dev.txt
 
       - name: Python tests
-        run: pytest -q
+        run: python -m pytest -q
 
       - name: Build Docker image
         run: docker build -t wms-media-worker:test .
