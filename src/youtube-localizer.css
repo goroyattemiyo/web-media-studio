@@ -217,6 +217,10 @@
   color: var(--color-accent);
 }
 
+.localizer-status > span.limited {
+  color: #d8a15a;
+}
+
 .localizer-status small {
   color: var(--color-text-muted);
   line-height: 1.55;
