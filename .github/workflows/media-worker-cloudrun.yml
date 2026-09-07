@@ -57,6 +57,7 @@ jobs:
             ALLOWED_ORIGINS=https://goroyattemiyo.github.io
             MAX_DURATION_SECONDS=1800
             MAX_SOURCE_BYTES=786432000
+            YOUTUBE_PO_TOKEN_MODE=bgutil-script-mweb
           flags: >-
             --service-account=${{ env.GCP_RUNTIME_SERVICE_ACCOUNT }}
             --concurrency=1
