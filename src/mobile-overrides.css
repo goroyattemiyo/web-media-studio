@@ -1,0 +1,38 @@
+/* Real-device mobile refinements observed on Android in-app browser / Chrome-sized viewports. */
+
+html {
+  scroll-padding-bottom: calc(140px + env(safe-area-inset-bottom));
+}
+
+.app-shell {
+  padding-bottom: calc(142px + env(safe-area-inset-bottom));
+}
+
+@media (max-width: 520px) {
+  .quick-controls {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 7px;
+    overflow: visible;
+    padding: 2px 2px 8px;
+  }
+
+  .quick-controls button {
+    min-width: 0;
+    width: 100%;
+    padding: 0 7px;
+    white-space: nowrap;
+    font-size: 10px;
+  }
+
+  .bottom-nav {
+    bottom: max(8px, env(safe-area-inset-bottom));
+    width: min(calc(100% - 18px), 640px);
+  }
+
+  .player-panel,
+  .library-panel,
+  .device-panel {
+    scroll-margin-bottom: calc(126px + env(safe-area-inset-bottom));
+  }
+}
