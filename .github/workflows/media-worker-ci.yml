@@ -1,0 +1,64 @@
+name: Media Worker CI
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "services/media-worker/**"
+      - ".github/workflows/media-worker-ci.yml"
+  push:
+    branches: [main]
+    paths:
+      - "services/media-worker/**"
+      - ".github/workflows/media-worker-ci.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test-and-container:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: services/media-worker
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: services/media-worker/requirements-dev.txt
+
+      - name: Install dependencies
+        run: pip install -r requirements-dev.txt
+
+      - name: Python tests
+        run: python -m pytest -q
+
+      - name: Build Docker image
+        run: docker build -t wms-media-worker:test .
+
+      - name: Start container
+        run: docker run -d --rm --name wms-media-worker-test -p 8080:8080 wms-media-worker:test
+
+      - name: Wait for health
+        run: |
+          for i in $(seq 1 30); do
+            if curl --fail --silent http://127.0.0.1:8080/health; then
+              exit 0
+            fi
+            sleep 1
+          done
+          docker logs wms-media-worker-test
+          exit 1
+
+      - name: Show FFmpeg version
+        run: docker exec wms-media-worker-test ffmpeg -version | head -n 1
+
+      - name: Stop container
+        if: always()
+        run: docker stop wms-media-worker-test || true

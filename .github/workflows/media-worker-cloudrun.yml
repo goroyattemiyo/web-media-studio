@@ -1,0 +1,45 @@
+name: Deploy Media Worker to Cloud Run
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v3
+        with:
+          project_id: ${{ secrets.GCP_PROJECT_ID }}
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+
+      - name: Deploy Cloud Run service
+        id: deploy
+        uses: google-github-actions/deploy-cloudrun@v3
+        with:
+          service: wms-media-worker
+          region: ${{ vars.GCP_REGION || 'asia-northeast1' }}
+          source: services/media-worker
+          env_vars: |-
+            WMS_WORKER_API_KEY=${{ secrets.WMS_WORKER_API_KEY }}
+            ALLOWED_ORIGINS=https://goroyattemiyo.github.io
+            MAX_DURATION_SECONDS=1800
+            MAX_SOURCE_BYTES=786432000
+          flags: >-
+            --allow-unauthenticated
+            --concurrency=1
+            --cpu=1
+            --memory=1Gi
+            --timeout=900
+            --max-instances=2
+
+      - name: Show service URL
+        run: echo "${{ steps.deploy.outputs.url }}"
