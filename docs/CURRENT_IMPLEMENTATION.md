@@ -4,13 +4,15 @@ Last updated: 2026-09-07 JST
 
 ## Repository state
 
-The repository foundation, Phase 1 player bootstrap, Recorder MVP, IndexedDB recording persistence, FFmpeg video-to-audio tools, and folder/playlist improvements are merged to `main`. GitHub Pages is enabled and production deployment has completed successfully.
+The repository foundation, Phase 1 player bootstrap, Recorder MVP, IndexedDB recording persistence, FFmpeg video-to-audio tools, and local playlist/folder improvements are merged to `main`. GitHub Pages is enabled and production deployment has completed successfully.
 
 Public URL:
 
 `https://goroyattemiyo.github.io/web-media-studio/`
 
-Recorder, persistence, FFmpeg audio extraction/conversion, and Android multi-file import have passed the requested real-device checks. Android whole-folder selection remains browser/file-picker dependent and is not considered confirmed on the tested phone.
+Recorder, recording persistence, FFmpeg audio extraction/conversion, Android multi-file import, continuous playlist playback, screen-off playback, installed-PWA background playback, and the tested lock-screen Media Session controls have passed the requested Android real-device checks.
+
+Android whole-folder selection remains browser/file-picker dependent and is not considered confirmed on the tested phone.
 
 ## Implemented in the Phase 1 player bootstrap
 
@@ -89,6 +91,22 @@ Android real-device checks passed for FFmpeg initial load, Original extraction, 
 
 Android target-device observation: tapping Folder opened a normal file chooser rather than importing an entire directory. Multiple file selection works and is the primary Android import path for now. Folder import remains progressive enhancement for desktop/compatible browser-file-picker combinations.
 
+## Android background / Media Session validation
+
+Observed on the tested Android device on 2026-09-07:
+
+- multiple selected audio files form a playable playlist: PASS
+- track ending automatically continues into the next playlist item: PASS
+- Chrome playback continues after the screen is turned off for at least 30 seconds: PASS
+- lock-screen playback controls appear: PASS
+- lock-screen Pause -> Play control: PASS
+- lock-screen Next control: PASS
+- screen-off playback continues through the end of a track into the next playlist item: PASS
+- installed-PWA background playback test: PASS
+- installed-PWA lock-screen/background behavior requested in the same test sequence: PASS
+
+These results are confirmed only for the tested Android Chrome/PWA environment. They do not imply identical behavior on iOS or every Android browser/device combination.
+
 ## Automated checks
 
 Latest `main` Pages workflow:
@@ -122,24 +140,26 @@ Observed on Android phone on 2026-09-07:
 - WAV conversion/playback/save: PASS
 - Android multiple-file media selection: PASS
 - selected multiple files are added to the playlist and playable: PASS
+- continuous next-track playback: PASS
+- Android Chrome screen-off playback: PASS
+- lock-screen player controls: PASS
+- lock-screen pause/play: PASS
+- lock-screen next-track action: PASS
+- next-track continuation while screen is off: PASS
+- installed-PWA background/lock-screen sequence: PASS
 - Android whole-folder import through the tested Folder control: NOT CONFIRMED; tested picker fell back to normal file selection
 
 ## Real-device validation still required
 
 Do not mark the following as supported until checked on target hardware/browser:
 
-- track ending automatically continues into the next playlist item on Android
-- long multi-file playlists remain usable
-- Android Chrome background playback continuity
-- Android installed-PWA background behavior
-- lock-screen Media Session controls
-- next/previous control from the lock screen
-- next-track continuation while the screen is off
+- long multi-file playlists remain usable over extended sessions
+- lock-screen Previous action specifically
 - local video behavior in longer playlists
 - recording behavior while screen is locked/backgrounded
 - larger FFmpeg files near the MVP guard
 - true folder import on desktop or another compatible browser/file picker
-- iPhone Safari / installed web-app behavior
+- iPhone Safari / installed web-app playback and Media Session behavior
 - service-worker update/offline behavior
 
 API detection in the UI is not equivalent to successful real-device behavior.
@@ -148,6 +168,9 @@ API detection in the UI is not equivalent to successful real-device behavior.
 
 - persistent local media library across reloads
 - saved named playlists
+- playlist reorder/remove/add UI beyond Clear/import
+- resume position
+- markers/bookmarks
 - sample-accurate synchronized recording
 - playback + microphone digital mixdown
 - audio trim/fade/normalization tools
@@ -171,17 +194,17 @@ API detection in the UI is not equivalent to successful real-device behavior.
 - GitHub Pages uses single-thread FFmpeg because cross-origin isolation is not assumed
 - YouTube playback will use the official embedded player/API
 - YouTube audio/video stream downloading is not a project feature
-- background playback is a best-effort capability and must be tested on real devices
+- background playback remains a platform-dependent capability, but the tested Android Chrome/PWA environment is confirmed working
 
 ## Immediate next step
 
-1. validate Android multi-file playlist continuous next-track playback
-2. play a track in Android Chrome and turn the screen off
-3. confirm whether audio continues for at least 30 seconds
-4. check whether lock-screen playback controls appear
-5. test pause/play and previous/next from the lock screen if available
-6. leave the screen off through the end of a track and confirm whether the next item begins
-7. repeat the same checks in the installed PWA when available
-8. after background behavior is understood, improve Media Session/background handling and continue URL/YouTube provider work
+The next core-product priority is persistent local media/library behavior because imported playlist media currently disappears after reload.
+
+1. design a bounded IndexedDB media-library store separate from recording takes
+2. allow selected local audio/video files to be explicitly saved into the app library
+3. restore saved library items after reload/PWA restart
+4. add delete/remove and storage-usage/error handling
+5. add saved named playlists after persistent media works reliably
+6. then continue with the official YouTube IFrame provider phase
 
 Do not describe planned work as implemented work.
