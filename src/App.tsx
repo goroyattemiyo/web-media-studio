@@ -11,6 +11,13 @@ import {
   saveMediaLibraryOrder,
   StoredMediaLibraryItem,
 } from './mediaLibraryDb'
+import {
+  deletePlaylist,
+  listPlaylists,
+  removeMediaFromPlaylists,
+  savePlaylist,
+  StoredPlaylist,
+} from './playlistDb'
 
 type ThemeId = 'midnight-neon' | 'obsidian' | 'studio-light' | 'analog-warm' | 'cyber-blue'
 type RepeatMode = 'off' | 'all' | 'one'
@@ -93,6 +100,11 @@ function loadResumePositions(): ResumePositions {
   }
 }
 
+function playlistId() {
+  if ('randomUUID' in crypto) return crypto.randomUUID()
+  return `playlist-${Date.now()}-${Math.random().toString(36).slice(2)}`
+}
+
 function App() {
   const [theme, setTheme] = useState<ThemeId>(() => {
     const saved = window.localStorage.getItem('wms-theme') as ThemeId | null
@@ -103,6 +115,7 @@ function App() {
     return playerVisualModes.some((item) => item.id === saved) ? saved! : 'emblem'
   })
   const [items, setItems] = useState<MediaItem[]>([])
+  const [savedCatalog, setSavedCatalog] = useState<MediaItem[]>([])
   const [currentIndex, setCurrentIndex] = useState(-1)
   const [isPlaying, setIsPlaying] = useState(false)
   const [currentTime, setCurrentTime] = useState(0)
@@ -121,6 +134,12 @@ function App() {
   const [savedBytes, setSavedBytes] = useState(0)
   const [storageEstimate, setStorageEstimate] = useState<StorageEstimate | null>(null)
   const [storagePersistent, setStoragePersistent] = useState<boolean | null>(null)
+  const [playlists, setPlaylists] = useState<StoredPlaylist[]>([])
+  const [playlistName, setPlaylistName] = useState('')
+  const [activePlaylistId, setActivePlaylistId] = useState<string | null>(null)
+  const [playlistBusy, setPlaylistBusy] = useState(false)
+  const [playlistError, setPlaylistError] = useState<string | null>(null)
+  const [playlistStatus, setPlaylistStatus] = useState('保存済みの曲から名前付きプレイリストを作れます。')
 
   const mediaRef = useRef<HTMLMediaElement | null>(null)
   const folderInputRef = useRef<HTMLInputElement | null>(null)
@@ -130,6 +149,8 @@ function App() {
   const currentItem = items[currentIndex] ?? null
   const persistedCount = items.filter((item) => item.persisted).length
   const temporaryCount = items.length - persistedCount
+  const totalSavedCount = savedCatalog.length
+  const activePlaylist = playlists.find((playlist) => playlist.id === activePlaylistId) ?? null
   const wmsIconUrl = `${import.meta.env.BASE_URL}icons/app-icon.svg`
 
   const capabilities = useMemo(
@@ -222,6 +243,7 @@ function App() {
           }
         })
 
+        setSavedCatalog(restoredItems)
         setItems((previous) => {
           const existingIds = new Set(previous.map((item) => item.id))
           const uniqueRestored = restoredItems.filter((item) => !existingIds.has(item.id))
@@ -244,6 +266,24 @@ function App() {
   }, [])
 
   useEffect(() => {
+    let cancelled = false
+
+    const restorePlaylists = async () => {
+      try {
+        const storedPlaylists = await listPlaylists()
+        if (!cancelled) setPlaylists(storedPlaylists)
+      } catch (error) {
+        if (!cancelled) setPlaylistError(`プレイリストを復元できませんでした: ${errorMessage(error)}`)
+      }
+    }
+
+    void restorePlaylists()
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  useEffect(() => {
     return () => {
       objectUrlsRef.current.forEach((url) => URL.revokeObjectURL(url))
     }
@@ -260,10 +300,10 @@ function App() {
       navigator.mediaSession.metadata = new MediaMetadata({
         title: currentItem.name,
         artist: currentItem.persisted ? 'Saved library' : currentItem.relativePath ? 'Folder media' : 'Local media',
-        album: 'Web Media Studio',
+        album: activePlaylist?.name ?? 'Web Media Studio',
       })
     }
-  }, [currentItem])
+  }, [currentItem, activePlaylist?.name])
 
   useEffect(() => {
     if (!('mediaSession' in navigator)) return
@@ -421,10 +461,20 @@ function App() {
       })
 
       await saveMediaLibraryItems(records)
+      const savedItems = pending.map((item) => ({
+        ...item,
+        persisted: true,
+        savedAt: savedAtById.get(item.id) ?? baseSavedAt,
+      }))
+
       setItems((previous) => previous.map((item) => {
         const savedAt = savedAtById.get(item.id)
         return savedAt === undefined ? item : { ...item, persisted: true, savedAt }
       }))
+      setSavedCatalog((previous) => {
+        const existing = new Set(previous.map((item) => item.id))
+        return [...previous, ...savedItems.filter((item) => !existing.has(item.id))]
+      })
       setLibraryStatus(`${pending.length}件を端末内ライブラリへ保存しました。`)
       await refreshStorageStats()
     } catch (error) {
@@ -444,10 +494,16 @@ function App() {
     try {
       if (removalIndex === currentIndex) mediaRef.current?.pause()
       await deleteMediaLibraryItem(item.id)
+      await removeMediaFromPlaylists(item.id)
       clearResumePosition(item)
       URL.revokeObjectURL(item.url)
       objectUrlsRef.current = objectUrlsRef.current.filter((url) => url !== item.url)
       setItems((previous) => previous.filter((candidate) => candidate.id !== item.id))
+      setSavedCatalog((previous) => previous.filter((candidate) => candidate.id !== item.id))
+      setPlaylists((previous) => previous.map((playlist) => ({
+        ...playlist,
+        mediaIds: playlist.mediaIds.filter((id) => id !== item.id),
+      })))
       setCurrentIndex((index) => {
         const nextLength = Math.max(0, items.length - 1)
         if (!nextLength) return -1
@@ -479,6 +535,19 @@ function App() {
     setLibraryStatus('一時追加したメディアだけをクリアしました。保存済みライブラリは残っています。')
   }
 
+  const persistActivePlaylistOrder = (next: MediaItem[]) => {
+    if (!activePlaylist) return
+    const updated: StoredPlaylist = {
+      ...activePlaylist,
+      mediaIds: next.filter((item) => item.persisted).map((item) => item.id),
+      updatedAt: Date.now(),
+    }
+    setPlaylists((previous) => previous.map((playlist) => playlist.id === updated.id ? updated : playlist))
+    void savePlaylist(updated).catch((error) => {
+      setPlaylistError(`プレイリストを更新できませんでした: ${errorMessage(error)}`)
+    })
+  }
+
   const moveItem = (index: number, direction: -1 | 1) => {
     const targetIndex = index + direction
     if (targetIndex < 0 || targetIndex >= items.length) return
@@ -490,13 +559,158 @@ function App() {
 
     setItems(next)
     if (currentId) setCurrentIndex(next.findIndex((item) => item.id === currentId))
-    setLibraryStatus('曲順を変更しました。保存済み曲の順番は次回起動時にも保持されます。')
 
-    const persistedIds = next.filter((item) => item.persisted).map((item) => item.id)
+    if (activePlaylist) {
+      setPlaylistStatus(`${activePlaylist.name} の曲順を更新しました。`)
+      persistActivePlaylistOrder(next)
+      return
+    }
+
+    setLibraryStatus('曲順を変更しました。保存済み曲の順番は次回起動時にも保持されます。')
+    const persistedItems = next.filter((item) => item.persisted)
+    setSavedCatalog(persistedItems)
+    const persistedIds = persistedItems.map((item) => item.id)
     if (persistedIds.length > 1) {
       void saveMediaLibraryOrder(persistedIds).catch((error) => {
         setLibraryError(`曲順を保存できませんでした: ${errorMessage(error)}`)
       })
+    }
+  }
+
+  const removeFromQueue = (index: number) => {
+    const removed = items[index]
+    if (!removed) return
+    if (index === currentIndex) mediaRef.current?.pause()
+
+    const next = items.filter((_, itemIndex) => itemIndex !== index)
+    setItems(next)
+    setCurrentIndex((current) => {
+      if (!next.length) return -1
+      if (current > index) return current - 1
+      if (current === index) return Math.min(index, next.length - 1)
+      return current
+    })
+
+    if (activePlaylist) {
+      persistActivePlaylistOrder(next)
+      setPlaylistStatus(`${removed.name} を ${activePlaylist.name} から外しました。保存メディア本体は残っています。`)
+    } else {
+      setLibraryStatus(`${removed.name} を現在の再生キューから外しました。保存メディア本体は残っています。`)
+    }
+  }
+
+  const createNamedPlaylist = async () => {
+    const name = playlistName.trim()
+    if (!name || playlistBusy) return
+
+    const mediaIds = items.filter((item) => item.persisted).map((item) => item.id)
+    if (!mediaIds.length) {
+      setPlaylistError('プレイリストには、まず1曲以上を端末内ライブラリへ Save してください。')
+      return
+    }
+
+    if (playlists.some((playlist) => playlist.name.toLocaleLowerCase() === name.toLocaleLowerCase())) {
+      setPlaylistError('同じ名前のプレイリストがあります。別の名前を付けてください。')
+      return
+    }
+
+    setPlaylistBusy(true)
+    setPlaylistError(null)
+    try {
+      const now = Date.now()
+      const playlist: StoredPlaylist = {
+        id: playlistId(),
+        name,
+        mediaIds,
+        createdAt: now,
+        updatedAt: now,
+      }
+      await savePlaylist(playlist)
+      setPlaylists((previous) => [playlist, ...previous])
+      setActivePlaylistId(playlist.id)
+      setPlaylistName('')
+      setPlaylistStatus(`${name} を ${mediaIds.length}曲で保存しました。${temporaryCount ? ' 未保存の曲は含めていません。' : ''}`)
+    } catch (error) {
+      setPlaylistError(`プレイリストを保存できませんでした: ${errorMessage(error)}`)
+    } finally {
+      setPlaylistBusy(false)
+    }
+  }
+
+  const updateActivePlaylist = async () => {
+    if (!activePlaylist || playlistBusy) return
+    const mediaIds = items.filter((item) => item.persisted).map((item) => item.id)
+    if (!mediaIds.length) {
+      setPlaylistError('空のプレイリストには更新しません。1曲以上残してください。')
+      return
+    }
+
+    setPlaylistBusy(true)
+    setPlaylistError(null)
+    try {
+      const updated = { ...activePlaylist, mediaIds, updatedAt: Date.now() }
+      await savePlaylist(updated)
+      setPlaylists((previous) => previous.map((playlist) => playlist.id === updated.id ? updated : playlist))
+      setPlaylistStatus(`${updated.name} を現在の ${mediaIds.length}曲で更新しました。`)
+    } catch (error) {
+      setPlaylistError(`プレイリストを更新できませんでした: ${errorMessage(error)}`)
+    } finally {
+      setPlaylistBusy(false)
+    }
+  }
+
+  const loadNamedPlaylist = (playlist: StoredPlaylist) => {
+    const catalog = new Map(savedCatalog.map((item) => [item.id, item]))
+    const loaded = playlist.mediaIds.map((id) => catalog.get(id)).filter((item): item is MediaItem => Boolean(item))
+
+    if (!loaded.length) {
+      setPlaylistError(`${playlist.name} の曲がライブラリにありません。`)
+      return
+    }
+
+    mediaRef.current?.pause()
+    setItems(loaded)
+    setCurrentIndex(0)
+    setCurrentTime(0)
+    setDuration(0)
+    setIsPlaying(false)
+    setFolderRoots([])
+    setActivePlaylistId(playlist.id)
+    setPlaylistError(null)
+    const missing = playlist.mediaIds.length - loaded.length
+    setPlaylistStatus(`${playlist.name} を読み込みました。${missing ? ` 削除済みの${missing}曲はスキップしました。` : ''}`)
+  }
+
+  const showAllSavedMedia = () => {
+    mediaRef.current?.pause()
+    setItems(savedCatalog)
+    setCurrentIndex(savedCatalog.length ? 0 : -1)
+    setCurrentTime(0)
+    setDuration(0)
+    setIsPlaying(false)
+    setFolderRoots([])
+    setActivePlaylistId(null)
+    setPlaylistError(null)
+    setPlaylistStatus('すべての保存メディアを表示しています。')
+  }
+
+  const removeNamedPlaylist = async (playlist: StoredPlaylist) => {
+    if (playlistBusy) return
+    setPlaylistBusy(true)
+    setPlaylistError(null)
+    try {
+      await deletePlaylist(playlist.id)
+      setPlaylists((previous) => previous.filter((item) => item.id !== playlist.id))
+      if (activePlaylistId === playlist.id) {
+        setActivePlaylistId(null)
+        setItems(savedCatalog)
+        setCurrentIndex(savedCatalog.length ? 0 : -1)
+      }
+      setPlaylistStatus(`${playlist.name} を削除しました。曲ファイルは削除していません。`)
+    } catch (error) {
+      setPlaylistError(`プレイリストを削除できませんでした: ${errorMessage(error)}`)
+    } finally {
+      setPlaylistBusy(false)
     }
   }
 
@@ -701,7 +915,7 @@ function App() {
 
           <div className="track-heading">
             <div>
-              <p className="source-label">{currentItem?.persisted ? 'SAVED LIBRARY' : currentItem?.source === 'folder' ? 'FOLDER MEDIA' : currentItem ? 'LOCAL MEDIA' : 'NO SOURCE'}</p>
+              <p className="source-label">{activePlaylist ? `PLAYLIST · ${activePlaylist.name}` : currentItem?.persisted ? 'SAVED LIBRARY' : currentItem?.source === 'folder' ? 'FOLDER MEDIA' : currentItem ? 'LOCAL MEDIA' : 'NO SOURCE'}</p>
               <h2>{currentItem?.name ?? 'Choose a file to begin'}</h2>
               {currentItem?.relativePath && <p className="track-path">{currentItem.relativePath}</p>}
               {currentItem?.persisted && savedResumePosition >= 5 && <span className="resume-chip">前回位置 {formatTime(savedResumePosition)} を保存中</span>}
@@ -780,7 +994,7 @@ function App() {
 
             <div className="library-storage-card">
               <div className="library-storage-copy">
-                <strong>{persistedCount} saved</strong>
+                <strong>{totalSavedCount} saved</strong>
                 <span>{formatBytes(savedBytes)} / {formatBytes(MEDIA_LIBRARY_SOFT_LIMIT_BYTES)}</span>
               </div>
               <div className="library-storage-meter" aria-label={`Library storage ${Math.round(libraryFillPercent)} percent`}>
@@ -791,6 +1005,46 @@ function App() {
                 {storageEstimate && storageEstimate.quota > 0 && <span>Origin {formatBytes(storageEstimate.usage)} / {formatBytes(storageEstimate.quota)}</span>}
               </div>
               {libraryError ? <p className="library-message is-error">{libraryError}</p> : <p className="library-message">{libraryStatus}</p>}
+            </div>
+
+            <div className="named-playlists-card">
+              <div className="named-playlists-heading">
+                <div>
+                  <p className="eyebrow">NAMED PLAYLISTS</p>
+                  <p className="section-description">保存した曲を、名前付きの曲順として呼び出します。</p>
+                </div>
+                <button type="button" className="all-media-button" onClick={showAllSavedMedia} disabled={!savedCatalog.length}>All media</button>
+              </div>
+
+              <div className="playlist-create-row">
+                <input
+                  type="text"
+                  value={playlistName}
+                  maxLength={60}
+                  placeholder="例：朝のBGM / 練習用"
+                  aria-label="プレイリスト名"
+                  onChange={(event) => setPlaylistName(event.target.value)}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter') void createNamedPlaylist()
+                  }}
+                />
+                <button type="button" disabled={!playlistName.trim() || playlistBusy || !persistedCount} onClick={() => void createNamedPlaylist()}>＋ Save playlist</button>
+                {activePlaylist && <button type="button" className="update-playlist-button" disabled={playlistBusy} onClick={() => void updateActivePlaylist()}>Update</button>}
+              </div>
+
+              {playlistError ? <p className="playlist-manager-message is-error">{playlistError}</p> : <p className="playlist-manager-message">{activePlaylist ? `Active: ${activePlaylist.name} · ${items.length} items` : playlistStatus}</p>}
+
+              <div className="saved-playlist-list">
+                {playlists.length ? playlists.map((playlist) => (
+                  <div className={`saved-playlist-row ${playlist.id === activePlaylistId ? 'is-active' : ''}`} key={playlist.id}>
+                    <button type="button" className="saved-playlist-main" onClick={() => loadNamedPlaylist(playlist)}>
+                      <strong>{playlist.name}</strong>
+                      <span>{playlist.mediaIds.length} tracks</span>
+                    </button>
+                    <button type="button" className="saved-playlist-delete" disabled={playlistBusy} onClick={() => void removeNamedPlaylist(playlist)}>Delete</button>
+                  </div>
+                )) : <p className="saved-playlist-empty">まだ名前付きプレイリストはありません。</p>}
+              </div>
             </div>
 
             {folderRoots.length > 0 && (
@@ -828,13 +1082,14 @@ function App() {
                   <div className="queue-order-actions" aria-label={`${item.name} の曲順変更`}>
                     <button type="button" disabled={index === 0} onClick={() => moveItem(index, -1)} aria-label={`${item.name}を上へ`}>↑</button>
                     <button type="button" disabled={index === items.length - 1} onClick={() => moveItem(index, 1)} aria-label={`${item.name}を下へ`}>↓</button>
+                    <button type="button" className="queue-remove-button" onClick={() => removeFromQueue(index)} aria-label={`${item.name}を再生キューから外す`}>×</button>
                   </div>
                 </div>
               )) : (
                 <div className="playlist-empty"><strong>まだ曲がありません</strong><span>Androidでは「Multiple files」で複数選択するのがおすすめです。保存した曲は次回起動時にも復元されます。</span></div>
               )}
             </div>
-            {items.length > 0 && <p className="playlist-note">{items.length} items · {persistedCount} saved · ↑↓で曲順変更 · 保存済み曲は前回位置から再開します。</p>}
+            {items.length > 0 && <p className="playlist-note">{items.length} items · {persistedCount} saved in queue · ↑↓で曲順変更 · ×はキューから外すだけです。</p>}
           </section>
 
           <section className="glass-panel device-panel">

@@ -39,13 +39,13 @@ Exit criteria:
 
 ## Phase 2 — Library and playlists
 
-Status: persistent media Blob storage is merged in PR #12 and passes Android reload/PWA-restart validation. Persistent queue order and resume position are implemented in PR #17 and await device validation.
+Status: persistent media Blob storage, queue reorder and resume position are merged and pass Android validation. Saved named playlists are implemented in PR #18 and await device validation.
 
 - [~] directory import — progressive enhancement only; tested Android picker does not provide true whole-directory import
 - [x] media filtering
 - [x] IndexedDB media storage
-- [ ] saved named playlists
-- [x] reorder/remove/add controls — import, Save, Delete, Clear-temp and ↑/↓ reorder implemented
+- [x] saved named playlists — implementation complete in PR #18; device validation pending
+- [x] reorder/remove/add controls — import, Save, Delete, Clear-temp, ↑/↓ reorder and queue-only × implemented
 - [x] resume position — saved-library media remembers previous playback position
 - [ ] markers/bookmarks
 - [x] remaining skins
@@ -67,9 +67,9 @@ Exit criteria:
 - saved local media survives reload/PWA restart and remains playable: PASS on tested Android Chrome/PWA
 - deleted saved media stays deleted after reload: PASS
 - existing recording takes survive IndexedDB schema upgrade: PASS
-- saved queue order persists: DEVICE TEST PENDING
-- saved media resumes from previous position: DEVICE TEST PENDING
-- saved named playlists can be restored: NOT YET MET
+- saved queue order persists: PASS
+- saved media resumes from previous position: PASS
+- saved named playlists can be restored: DEVICE TEST PENDING
 
 ## Phase 3 — Recording
 
@@ -175,10 +175,10 @@ Only after the core media app is stable:
 
 ## Current priority
 
-1. validate PR #17 queue order + resume behavior on Android Chrome/PWA
-2. implement saved named playlists
-3. then Phase 6 official YouTube provider
-4. advanced visualizers and markers/bookmarks after core library flow is stable
+1. validate PR #18 saved named playlists on Android Chrome/PWA
+2. then Phase 6 official YouTube provider
+3. markers/bookmarks after the provider boundary is stable
+4. richer visualizers and advanced audio features after core workflows are solid
 
 ## Version targets
 

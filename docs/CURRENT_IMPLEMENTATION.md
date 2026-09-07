@@ -4,13 +4,13 @@ Last updated: 2026-09-08 JST
 
 ## Repository state
 
-The repository foundation, player bootstrap, Recorder MVP, IndexedDB recording persistence, FFmpeg video-to-audio tools, local playlist improvements, Android background/Media Session validation, persistent local media library, WMS branding, and switchable player-visual foundation are merged to `main`.
+The repository foundation, player bootstrap, Recorder MVP, IndexedDB recording persistence, FFmpeg video-to-audio tools, local playlist improvements, Android background/Media Session validation, persistent local media library, WMS branding, switchable player-visual foundation, persistent queue reorder, and resume-position behavior are merged to `main`.
 
 Public URL:
 
 `https://goroyattemiyo.github.io/web-media-studio/`
 
-Recorder, recording persistence, FFmpeg extraction/conversion, Android multi-file import, continuous playback, screen-off playback, installed-PWA background playback, tested lock-screen controls, and persistent local media-library behavior have passed the requested Android real-device checks.
+Recorder, recording persistence, FFmpeg extraction/conversion, Android multi-file import, continuous playback, screen-off playback, installed-PWA background playback, tested lock-screen controls, persistent local media-library behavior, queue-order persistence, and saved-media resume behavior have passed the requested Android real-device checks.
 
 ## Implemented player foundation
 
@@ -127,9 +127,7 @@ Android real-device validation:
 
 Future visual modes remain candidates, not implemented yet: album art, wave ring, spectrum, VU meter and other visualizers.
 
-## In progress: persistent queue reorder and resume position (PR #17)
-
-Implemented on `feat/reorder-resume` and automated build/typecheck PASS:
+## Implemented queue reorder and resume position (merged PR #17)
 
 - ↑ / ↓ queue-order controls
 - currently selected track remains selected while rows move
@@ -142,13 +140,37 @@ Implemented on `feat/reorder-resume` and automated build/typecheck PASS:
 - deleting saved media also clears its stored resume point
 - automatic next-track playback intentionally starts the next track at 0:00 instead of applying an old resume point
 
-Android real-device validation for these new behaviors is pending.
+Android Chrome/PWA real-device validation:
+
+- saved queue order survives reload: PASS
+- saved media resumes near the stored position after pause/reload: PASS
+- completed tracks reopen from 0:00: PASS
+- automatic next-track playback starts the next item from 0:00: PASS
+- background/lock-screen playback regression check: PASS
+
+## In progress: saved named playlists (PR #18)
+
+Implemented on `feat/named-playlists` and automated typecheck/build PASS:
+
+- IndexedDB schema version 3 adds a `saved-playlists` object store while preserving existing recording/media stores
+- create a named playlist from the current queue's saved media
+- temporary unsaved imports are excluded from named playlists
+- load a saved playlist as the active playback queue
+- update an active playlist from the current queue
+- delete a playlist without deleting its underlying saved media
+- `All media` restores the full saved-media catalog view
+- queue-only `×` removes a track from the current queue without deleting the saved media
+- ↑ / ↓ updates the active named-playlist order when one is loaded
+- deleting saved media removes its ID from stored playlists
+
+Android real-device validation for named-playlist create/load/update/delete persistence is pending.
 
 ## Real-device validation still required
 
-- persistent queue order after reload/PWA restart
-- saved-media resume position after pause/reload/PWA restart
-- automatic next-track playback still starts at 0:00 with resume enabled
+- named playlist survives reload/PWA restart
+- named playlist loads only its selected saved tracks in the expected order
+- named playlist reorder/update survives reload
+- deleting a named playlist leaves saved media intact
 - longer multi-file sessions
 - lock-screen Previous specifically
 - local video in longer playlists
@@ -160,7 +182,6 @@ Android real-device validation for these new behaviors is pending.
 
 ## Not implemented yet
 
-- saved named playlists
 - markers/bookmarks
 - sample-accurate synchronized recording
 - playback + microphone digital mixdown
@@ -181,14 +202,15 @@ Android real-device validation for these new behaviors is pending.
 - browser-side FFmpeg loads on demand
 - WMS diamond emblem is the primary app-brand mark
 - player visuals should be switchable rather than fixed to a single animation
+- named playlists reference saved local media instead of duplicating media Blobs
 - YouTube playback will use the official embedded player/API
 - YouTube stream downloading is not a project feature
 - background behavior is platform-dependent; tested Android Chrome/PWA is confirmed working
 
 ## Immediate next step
 
-1. validate PR #17 queue reorder and resume behavior on Android Chrome/PWA
-2. after PASS, implement saved named playlists
-3. then add markers/bookmarks or continue to the official YouTube IFrame provider based on product priority
+1. validate PR #18 named-playlist create/load/update/delete behavior on Android Chrome/PWA
+2. after PASS, continue to the official YouTube IFrame provider
+3. add markers/bookmarks and richer visualizers after the core provider flow is stable
 
 Do not describe planned work as implemented work.

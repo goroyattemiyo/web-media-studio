@@ -9,6 +9,7 @@ import './library.css'
 import './tool-descriptions.css'
 import './player-visuals.css'
 import './reorder-resume.css'
+import './named-playlists.css'
 
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
