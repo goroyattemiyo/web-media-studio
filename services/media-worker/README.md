@@ -2,7 +2,7 @@
 
 `Youtubeから自動文字おこし.ipynb` のうち、Colab 固有の処理を外し、`yt-dlp + FFmpeg` の音声生成を通常の Python / FastAPI / Docker で再利用する worker です。
 
-> 利用するメディアについて、必要な権利・許可を確認してください。この worker は認証 Cookie、DRM 回避、アクセス制限回避の仕組みを持ちません。
+> 利用するメディアについて、必要な権利・許可を確認してください。この worker は認証 Cookie、YouTube アカウント Cookie、Proxy、DRM 回避を使用しません。
 
 ## 1. CLI
 
@@ -26,6 +26,8 @@ Colab の最終 MP3 セルにあった基本方針を引き継いでいます。
 - `FFmpegExtractAudio`
 - MP3 192 kbps を既定値
 - playlist 全体は処理しない
+
+通常のローカル CLI では PO Token mode は既定で OFF です。
 
 ## 2. FastAPI
 
@@ -59,17 +61,38 @@ Worker は次を検証します。
 
 ローカル開発では Google 認証が未設定なら認証なしで動きます。本番 Cloud Run では Google 認証を必須にします。
 
-## 3. YouTube側の取得制限
+## 3. YouTube PO Token mode
 
-Cloud Run から YouTube へアクセスした際、YouTube 側が Bot 確認や追加認証を要求する場合があります。この worker は Cookie、Proxy、YouTube アカウント認証、Bot 判定回避を追加しません。
+YouTube は一部クライアントの再生用リクエストで Proof of Origin (PO) Token を要求します。Cloud Run では `bgutil-ytdlp-pot-provider` を使い、yt-dlp の `mweb` client に GVS 用 PO Token を自動提供する mode を試験導入します。
 
-そのため、yt-dlp が次のようなアクセス制限を返した場合は、内部エラー文や Cookie 利用手順をそのままフロントエンドへ返さず、HTTP 409 と次の案内へ変換します。
+Cloud Run の設定:
+
+```text
+YOUTUBE_PO_TOKEN_MODE=bgutil-script-mweb
+```
+
+Docker image には次を固定して含めます。
+
+- `bgutil-ytdlp-pot-provider==1.3.2`
+- provider source commit `7511309af023b09788dc8f2efc96cc3671291e6c`
+- Node.js runtime
+- provider の生成 script
+
+PO Token は動画ごとに provider が生成します。手動で token を貼り付けたり、YouTube account Cookie を保存したりしません。
+
+この mode は YouTube 側の 403 / Bot 判定を必ず解決するものではありません。Cloud Run の出口 IP 自体が制限されている場合などは、PO Token を使っても取得できない場合があります。
+
+## 4. YouTube側の取得制限
+
+Cloud Run から YouTube へアクセスした際、YouTube 側が Bot 確認や追加認証を要求する場合があります。
+
+PO Token mode を有効にしても取得できない場合は、内部エラー文や Cookie 利用手順をそのままフロントエンドへ返さず、HTTP 409 と次の案内へ変換します。
 
 > YouTube側で取得が制限されました。この動画はCloud処理から直接Local化できません。手元の音声・動画ファイルをLocal Libraryへ追加してください。
 
 この制限は Google login の成功・失敗とは別です。Google login は WMS → Worker の利用者認証、YouTube 側の制限は Worker → YouTube の取得可否です。
 
-## 4. 環境変数
+## 5. 環境変数
 
 Cloud Run:
 
@@ -78,6 +101,8 @@ Cloud Run:
 - `ALLOWED_ORIGINS=https://goroyattemiyo.github.io`
 - `MAX_DURATION_SECONDS=1800`
 - `MAX_SOURCE_BYTES=786432000`
+- `YOUTUBE_PO_TOKEN_MODE=bgutil-script-mweb` — Cloud Run で PO Token provider を有効化
+- `BGUTIL_SERVER_HOME` — Docker image では `/opt/bgutil-ytdlp-pot-provider/server` を既定値として設定
 
 GitHub Pages build:
 
@@ -85,7 +110,7 @@ GitHub Pages build:
 
 `GOOGLE_CLIENT_ID` は公開クライアント識別子であり秘密鍵ではありません。秘密値をフロントエンドへ埋め込まないでください。
 
-## 5. Google Cloud / GitHub setup
+## 6. Google Cloud / GitHub setup
 
 Repository variables:
 
@@ -99,16 +124,16 @@ Google Cloud Console では OAuth 2.0 Client ID を **Web application** とし�
 
 Cloud Run の公開 HTTP 呼び出しは許可したまま、アプリレベルで Google ID token を検証します。CORS は認証の代わりではありません。
 
-## 6. Docker
+## 7. Docker
 
 ```bash
 docker build -t wms-media-worker .
 docker run --rm -p 8080:8080 wms-media-worker
 ```
 
-コンテナには FFmpeg を含めています。
+コンテナには FFmpeg、Node.js、bgutil PO Token provider を含めています。PO Token provider の利用自体は `YOUTUBE_PO_TOKEN_MODE` で制御します。
 
-## 7. GitHub Actions
+## 8. GitHub Actions
 
 `.github/workflows/media-worker-ci.yml`:
 
@@ -116,6 +141,7 @@ docker run --rm -p 8080:8080 wms-media-worker
 2. Docker image build
 3. コンテナ起動
 4. `/health` が 200 を返すこと
+5. FFmpeg / Node.js / bgutil plugin / provider script の存在確認
 
 ネットワーク依存の YouTube 実取得は PR CI では行いません。
 
@@ -129,9 +155,10 @@ docker run --rm -p 8080:8080 wms-media-worker
 - max instances 2
 - 1 CPU / 1 GiB
 - Google auth config を Repository variables から注入
+- `YOUTUBE_PO_TOKEN_MODE=bgutil-script-mweb`
 - 旧 `WMS_WORKER_API_KEY` は Cloud Run へ設定しない
 
-## 8. Colab からの移植対応表
+## 9. Colab からの移植対応表
 
 | Colab | Worker |
 |---|---|
