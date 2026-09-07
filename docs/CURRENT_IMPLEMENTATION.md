@@ -1,10 +1,10 @@
 # Current Implementation
 
-Last updated: 2026-09-07 JST
+Last updated: 2026-09-08 JST
 
 ## Repository state
 
-The repository foundation, player bootstrap, Recorder MVP, IndexedDB recording persistence, FFmpeg video-to-audio tools, local playlist improvements, Android background/Media Session validation, and persistent local media-library implementation are merged to `main`.
+The repository foundation, player bootstrap, Recorder MVP, IndexedDB recording persistence, FFmpeg video-to-audio tools, local playlist improvements, Android background/Media Session validation, persistent local media library, WMS branding, and switchable player-visual foundation are merged to `main`.
 
 Public URL:
 
@@ -26,6 +26,8 @@ Recorder, recording persistence, FFmpeg extraction/conversion, Android multi-fil
 - Media Session metadata/action handlers
 - capability panel
 - service worker and manifest
+- WMS diamond/monogram SVG branding
+- initial switchable player visuals: `Emblem Spin` and `Minimal`
 
 ## Implemented Recorder MVP (merged PR #6)
 
@@ -106,7 +108,7 @@ These results apply only to the tested Android environment and do not imply iden
 - saved count, saved bytes, quota estimate and storage-protection status UI
 - no application-server upload
 
-Android real-device validation on 2026-09-07:
+Android real-device validation:
 
 - saved media survives normal reload and remains playable: PASS
 - saved media survives closing/reopening Chrome/PWA: PASS
@@ -114,27 +116,39 @@ Android real-device validation on 2026-09-07:
 - deleting a saved item remains deleted after reload: PASS
 - existing saved recording takes survive IndexedDB version-2 upgrade: PASS
 
-## In progress: WMS branding and player visual foundation
+## Implemented branding / visual foundation (merged PRs #15 and #16)
 
-Feature branch: `feat/wms-branding-visuals`
+- approved WMS-style thick rounded diamond emblem traced into SVG
+- WMS SVG shared by PWA/app icon, header brand mark, and audio-player artwork
+- initial visual selector with `Emblem Spin` and `Minimal`
+- visual choice persists in localStorage
+- concise Japanese section descriptions
+- service-worker cache version refreshed for branding changes
 
-Implemented on the branch:
+Future visual modes remain candidates, not implemented yet: album art, wave ring, spectrum, VU meter and other visualizers.
 
-- new vector WMS emblem: thick neon diamond frame with integrated WMS monogram
-- shared SVG used as the PWA/app icon source
-- header brand mark uses the same SVG
-- audio-player artwork uses the same WMS emblem
-- initial player visual-mode selector with `Emblem Spin` and `Minimal`
-- visual-mode selection persists in localStorage
-- concise Japanese one-line descriptions under the English section labels
-- service-worker shell cache bumped so new branding assets replace old cached versions cleanly
+## In progress: persistent queue reorder and resume position (PR #17)
 
-Planned future visual modes remain candidates, not implemented yet: album art, wave ring, spectrum, VU meter and other visualizers.
+Implemented on `feat/reorder-resume` and automated build/typecheck PASS:
+
+- ↑ / ↓ queue-order controls
+- currently selected track remains selected while rows move
+- saved-library order is persisted back to IndexedDB
+- temporary imports can be reordered for the current session
+- saved-media playback position is stored locally
+- saved media restores its previous position when reopened
+- near-start / near-end positions are ignored
+- track completion clears its stored resume point
+- deleting saved media also clears its stored resume point
+- automatic next-track playback intentionally starts the next track at 0:00 instead of applying an old resume point
+
+Android real-device validation for these new behaviors is pending.
 
 ## Real-device validation still required
 
-- WMS SVG appearance in Android Chrome/PWA and installed-app icon surfaces
-- `Emblem Spin` / `Minimal` visual switching and persistence after reload
+- persistent queue order after reload/PWA restart
+- saved-media resume position after pause/reload/PWA restart
+- automatic next-track playback still starts at 0:00 with resume enabled
 - longer multi-file sessions
 - lock-screen Previous specifically
 - local video in longer playlists
@@ -147,8 +161,6 @@ Planned future visual modes remain candidates, not implemented yet: album art, w
 ## Not implemented yet
 
 - saved named playlists
-- playlist reorder beyond current import/save/delete/Clear-temp flow
-- resume position
 - markers/bookmarks
 - sample-accurate synchronized recording
 - playback + microphone digital mixdown
@@ -175,9 +187,8 @@ Planned future visual modes remain candidates, not implemented yet: album art, w
 
 ## Immediate next step
 
-1. validate the WMS SVG and the two initial visual modes on Android Chrome/PWA
-2. after PASS, add saved named playlists
-3. add resume position and basic reorder behavior
-4. then continue to the official YouTube IFrame provider
+1. validate PR #17 queue reorder and resume behavior on Android Chrome/PWA
+2. after PASS, implement saved named playlists
+3. then add markers/bookmarks or continue to the official YouTube IFrame provider based on product priority
 
 Do not describe planned work as implemented work.
