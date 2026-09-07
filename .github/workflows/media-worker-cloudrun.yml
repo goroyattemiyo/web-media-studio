@@ -34,7 +34,7 @@ jobs:
             MAX_DURATION_SECONDS=1800
             MAX_SOURCE_BYTES=786432000
           flags: >-
-            --allow-unauthenticated
+            --service-account=${{ vars.GCP_RUNTIME_SERVICE_ACCOUNT || 'wms-media-worker-runtime@project-23377501-df9e-4686-987.iam.gserviceaccount.com' }}
             --concurrency=1
             --cpu=1
             --memory=1Gi
