@@ -57,13 +57,17 @@ Worker は次を検証します。
 - `email_verified=true`
 - メールアドレスが `ALLOWED_GOOGLE_EMAILS` に含まれる
 
-ローカル開発では Google 認証と `WMS_WORKER_API_KEY` の両方が未設定なら認証なしで動きます。
+ローカル開発では Google 認証が未設定なら認証なしで動きます。本番 Cloud Run では Google 認証を必須にします。
 
-## 3. API-key から Google login への移行
+## 3. YouTube側の取得制限
 
-Google login の実機検証が終わるまで、既存 `WMS_WORKER_API_KEY` を移行用フォールバックとして残しています。Google login が PC / Android で PASS したら API-key 経路を削除します。
+Cloud Run から YouTube へアクセスした際、YouTube 側が Bot 確認や追加認証を要求する場合があります。この worker は Cookie、Proxy、YouTube アカウント認証、Bot 判定回避を追加しません。
 
-フロントエンドは `VITE_GOOGLE_CLIENT_ID` を使って Google Identity Services の公式 Sign in with Google UI を表示します。ID token は公開リポジトリへ保存せず、WMS の現在のブラウザセッションだけに保持します。
+そのため、yt-dlp が次のようなアクセス制限を返した場合は、内部エラー文や Cookie 利用手順をそのままフロントエンドへ返さず、HTTP 409 と次の案内へ変換します。
+
+> YouTube側で取得が制限されました。この動画はCloud処理から直接Local化できません。手元の音声・動画ファイルをLocal Libraryへ追加してください。
+
+この制限は Google login の成功・失敗とは別です。Google login は WMS → Worker の利用者認証、YouTube 側の制限は Worker → YouTube の取得可否です。
 
 ## 4. 環境変数
 
@@ -71,7 +75,6 @@ Cloud Run:
 
 - `GOOGLE_CLIENT_ID` — Web application OAuth client ID
 - `ALLOWED_GOOGLE_EMAILS` — 許可する Google メールアドレス。複数はカンマ区切り
-- `WMS_WORKER_API_KEY` — 移行期間のみ
 - `ALLOWED_ORIGINS=https://goroyattemiyo.github.io`
 - `MAX_DURATION_SECONDS=1800`
 - `MAX_SOURCE_BYTES=786432000`
@@ -84,14 +87,10 @@ GitHub Pages build:
 
 ## 5. Google Cloud / GitHub setup
 
-Repository variable:
+Repository variables:
 
 - `GOOGLE_CLIENT_ID`
 - `ALLOWED_GOOGLE_EMAILS`
-
-Repository secret:
-
-- `WMS_WORKER_API_KEY` — Google認証移行が終わるまで
 
 Google Cloud Console では OAuth 2.0 Client ID を **Web application** として作り、Authorized JavaScript origins に次を登録します。
 
@@ -130,6 +129,7 @@ docker run --rm -p 8080:8080 wms-media-worker
 - max instances 2
 - 1 CPU / 1 GiB
 - Google auth config を Repository variables から注入
+- 旧 `WMS_WORKER_API_KEY` は Cloud Run へ設定しない
 
 ## 8. Colab からの移植対応表
 
