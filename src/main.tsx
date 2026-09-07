@@ -7,6 +7,7 @@ import './recorder.css'
 import './ffmpeg-tools.css'
 import './library.css'
 import './tool-descriptions.css'
+import './player-visuals.css'
 
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
