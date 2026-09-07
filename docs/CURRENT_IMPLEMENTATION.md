@@ -4,7 +4,7 @@ Last updated: 2026-09-07 JST
 
 ## Repository state
 
-The repository foundation, player bootstrap, Recorder MVP, IndexedDB recording persistence, FFmpeg video-to-audio tools, local playlist improvements, and Android background/Media Session validation are merged to `main`.
+The repository foundation, player bootstrap, Recorder MVP, IndexedDB recording persistence, FFmpeg video-to-audio tools, local playlist improvements, Android background/Media Session validation, and persistent local media-library implementation are merged to `main`.
 
 Public URL:
 
@@ -12,7 +12,7 @@ Public URL:
 
 Recorder, recording persistence, FFmpeg extraction/conversion, Android multi-file import, continuous playback, screen-off playback, installed-PWA background playback, and tested lock-screen controls have passed the requested Android real-device checks.
 
-Persistent local media storage is now being implemented on `feat/persistent-media-library` and must pass reload/PWA-restart tests before it is considered device-confirmed.
+Persistent local media storage shipped in merged PR #12. Its code path passes TypeScript typecheck, Vite production build, and GitHub Pages deployment. Reload/PWA-restart behavior still requires Android real-device confirmation before this phase is marked device-confirmed.
 
 ## Implemented player foundation
 
@@ -71,7 +71,6 @@ Android real-device checks passed for FFmpeg initial load, Original extraction, 
 - audio/video filtering
 - natural sorting
 - relative path display when provided by the picker
-- playlist Clear behavior
 - continuous next-track playback
 - next/previous while playback is running
 
@@ -92,11 +91,7 @@ Confirmed on the tested Android Chrome/PWA environment:
 
 These results apply only to the tested Android environment and do not imply identical behavior on iOS or every Android device/browser.
 
-## In progress: persistent local media library
-
-Feature branch: `feat/persistent-media-library`
-
-Implemented on the branch:
+## Implemented: persistent local media library (merged PR #12)
 
 - shared IndexedDB schema upgraded from version 1 to version 2
 - existing `recording-takes` data preserved during schema upgrade
@@ -108,25 +103,14 @@ Implemented on the branch:
 - saved media restored automatically at app startup
 - per-item Delete removes the persistent Blob from IndexedDB
 - Clear temp removes only unsaved imports and leaves saved media intact
-- mobile-MVP 250 MB per-item save guard
-- mobile-MVP 500 MB saved-media soft limit
+- 250 MB per-item mobile-MVP save guard
+- 500 MB saved-media soft limit
 - browser quota check before saving when StorageManager estimate is available
 - best-effort request for persistent browser storage
 - saved count, saved bytes, quota estimate and storage-protection status UI
-- all media remains local to the browser; there is no application-server upload
+- no application-server upload
 
-This phase is not considered device-confirmed until the following Android checks pass:
-
-1. import several files and Save them
-2. reload the page and confirm saved items return and play
-3. close/reopen Chrome or installed PWA and confirm saved items return and play
-4. import an extra unsaved item, use Clear temp, and confirm saved items remain
-5. Delete one saved item, reload, and confirm it does not return
-6. confirm existing saved recording takes still load after the IndexedDB version upgrade
-
-## Automated checks
-
-Latest merged `main` Pages workflow before this feature branch:
+Automated validation for PR #12 and merged Pages deployment:
 
 - dependency install: PASS
 - TypeScript typecheck: PASS
@@ -135,11 +119,17 @@ Latest merged `main` Pages workflow before this feature branch:
 - Pages artifact upload: PASS
 - Deploy to GitHub Pages: PASS
 
-Feature-branch typecheck/build must pass before merge.
+## Persistent-library real-device validation still required
 
-## Real-device validation still required
+1. import several files and Save them
+2. reload the page and confirm saved items return and play
+3. close/reopen Chrome or installed PWA and confirm saved items return and play
+4. import an extra unsaved item, use Clear temp, and confirm saved items remain
+5. Delete one saved item, reload, and confirm it does not return
+6. confirm existing saved recording takes still load after the IndexedDB version-2 upgrade
 
-- persistent media library workflow listed above
+## Other real-device validation still required
+
 - longer multi-file sessions
 - lock-screen Previous specifically
 - local video in longer playlists
@@ -152,7 +142,7 @@ Feature-branch typecheck/build must pass before merge.
 ## Not implemented yet
 
 - saved named playlists
-- playlist reorder/remove/add UI beyond current import/save/delete/Clear-temp flow
+- playlist reorder beyond current import/save/delete/Clear-temp flow
 - resume position
 - markers/bookmarks
 - sample-accurate synchronized recording
@@ -178,11 +168,9 @@ Feature-branch typecheck/build must pass before merge.
 
 ## Immediate next step
 
-1. run typecheck/build for `feat/persistent-media-library`
-2. merge after green CI
-3. deploy to Pages
-4. perform the six Android persistence checks above
-5. after PASS, add saved named playlists and resume position
-6. then continue to the official YouTube IFrame provider
+1. perform the six Android persistent-library checks above
+2. after PASS, add saved named playlists
+3. add resume position and basic reorder behavior
+4. then continue to the official YouTube IFrame provider
 
 Do not describe planned work as implemented work.
