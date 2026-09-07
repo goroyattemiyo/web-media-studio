@@ -23,10 +23,18 @@ _ALLOWED_HOSTS = {
     "www.youtube-nocookie.com",
 }
 _VIDEO_ID_RE = re.compile(r"^[A-Za-z0-9_-]{11}$")
+_YOUTUBE_RESTRICTION_MESSAGE = (
+    "YouTube側で取得が制限されました。この動画はCloud処理から直接Local化できません。"
+    "手元の音声・動画ファイルをLocal Libraryへ追加してください。"
+)
 
 
 class ExtractionError(RuntimeError):
     """Raised when a media source cannot be processed safely."""
+
+
+class YouTubeAccessRestrictedError(ExtractionError):
+    """Raised when YouTube rejects the worker request before media can be read."""
 
 
 @dataclass(slots=True)
@@ -105,6 +113,20 @@ def _find_output(work_dir: Path, audio_format: AudioFormat) -> Path:
     return candidates[0]
 
 
+def _normalize_extraction_error(exc: Exception) -> ExtractionError:
+    message = str(exc)
+    lowered = message.lower().replace("’", "'")
+    restriction_markers = (
+        "sign in to confirm you're not a bot",
+        "cookies-from-browser",
+        "use --cookies",
+        "po token",
+    )
+    if any(marker in lowered for marker in restriction_markers):
+        return YouTubeAccessRestrictedError(_YOUTUBE_RESTRICTION_MESSAGE)
+    return ExtractionError(message)
+
+
 def extract_audio(
     source: str,
     *,
@@ -160,7 +182,7 @@ def extract_audio(
         raise
     except Exception as exc:
         shutil.rmtree(work_dir, ignore_errors=True)
-        raise ExtractionError(str(exc)) from exc
+        raise _normalize_extraction_error(exc) from exc
 
 
 def cleanup_result(result: ExtractionResult) -> None:

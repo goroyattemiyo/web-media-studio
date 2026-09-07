@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import hmac
 import os
 import re
 from pathlib import Path
@@ -15,11 +14,16 @@ from google.auth.transport.requests import Request as GoogleAuthRequest
 from google.oauth2 import id_token as google_id_token
 from pydantic import BaseModel, Field
 
-from .extractor import ExtractionError, cleanup_result, extract_audio
+from .extractor import (
+    ExtractionError,
+    YouTubeAccessRestrictedError,
+    cleanup_result,
+    extract_audio,
+)
 
 app = FastAPI(
     title="WMS Media Worker",
-    version="0.2.0",
+    version="0.3.0",
     description="Media preprocessing worker for Web Media Studio.",
 )
 
@@ -35,7 +39,7 @@ app.add_middleware(
     allow_origins=_allowed_origins,
     allow_credentials=False,
     allow_methods=["GET", "POST", "OPTIONS"],
-    allow_headers=["Authorization", "Content-Type", "X-WMS-Worker-Key"],
+    allow_headers=["Authorization", "Content-Type"],
     expose_headers=["Content-Disposition", "X-WMS-Title", "X-WMS-Duration"],
 )
 
@@ -61,11 +65,6 @@ def _google_client_id() -> str:
 def _allowed_google_emails() -> set[str]:
     raw = os.getenv("ALLOWED_GOOGLE_EMAILS", "")
     return {value.strip().lower() for value in raw.split(",") if value.strip()}
-
-
-def _legacy_key_matches(provided: str | None) -> bool:
-    expected = os.getenv("WMS_WORKER_API_KEY", "").strip()
-    return bool(expected and provided and hmac.compare_digest(provided, expected))
 
 
 def _verify_google_token(authorization: str | None) -> AuthenticatedUser:
@@ -110,25 +109,11 @@ def _verify_google_token(authorization: str | None) -> AuthenticatedUser:
     )
 
 
-def _authorize(
-    authorization: str | None,
-    x_wms_worker_key: str | None,
-) -> AuthenticatedUser | None:
-    # Google auth is the preferred production path. The API key remains as a
-    # temporary migration fallback until the Google login flow is verified on devices.
-    if authorization and authorization.startswith("Bearer "):
-        return _verify_google_token(authorization)
-
-    if _legacy_key_matches(x_wms_worker_key):
-        return None
-
+def _authorize(authorization: str | None) -> AuthenticatedUser | None:
     if _google_client_id() or _allowed_google_emails():
         return _verify_google_token(authorization)
 
-    if os.getenv("WMS_WORKER_API_KEY", "").strip():
-        raise HTTPException(status_code=401, detail="Invalid worker API key.")
-
-    # Local development remains authless when neither auth mechanism is configured.
+    # Local development remains authless when Google auth is not configured.
     return None
 
 
@@ -147,13 +132,12 @@ def health() -> dict[str, str]:
 @app.get("/auth/me", response_model=AuthenticatedUser)
 def auth_me(
     authorization: str | None = Header(default=None),
-    x_wms_worker_key: str | None = Header(default=None),
 ) -> AuthenticatedUser:
-    user = _authorize(authorization, x_wms_worker_key)
+    user = _authorize(authorization)
     if user is None:
         raise HTTPException(
-            status_code=409,
-            detail="Legacy API-key authentication does not expose a Google user.",
+            status_code=503,
+            detail="Google authentication is not configured on the worker.",
         )
     return user
 
@@ -163,9 +147,8 @@ def extract(
     request: ExtractRequest,
     background_tasks: BackgroundTasks,
     authorization: str | None = Header(default=None),
-    x_wms_worker_key: str | None = Header(default=None),
 ):
-    _authorize(authorization, x_wms_worker_key)
+    _authorize(authorization)
 
     if request.bitrate not in _ALLOWED_BITRATES:
         raise HTTPException(status_code=422, detail="Unsupported MP3 bitrate.")
@@ -176,6 +159,8 @@ def extract(
             audio_format=request.format,
             bitrate=request.bitrate,
         )
+    except YouTubeAccessRestrictedError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
     except ExtractionError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 

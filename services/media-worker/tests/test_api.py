@@ -1,46 +1,25 @@
 from fastapi.testclient import TestClient
 
 import wms_media_worker.main as main_module
-from wms_media_worker.extractor import ExtractionResult
+from wms_media_worker.extractor import (
+    ExtractionResult,
+    YouTubeAccessRestrictedError,
+)
 
 client = TestClient(main_module.app)
 
 
 def clear_auth_env(monkeypatch):
-    monkeypatch.delenv("WMS_WORKER_API_KEY", raising=False)
     monkeypatch.delenv("GOOGLE_CLIENT_ID", raising=False)
     monkeypatch.delenv("ALLOWED_GOOGLE_EMAILS", raising=False)
 
 
-def test_health():
-    response = client.get("/health")
-    assert response.status_code == 200
-    assert response.json() == {"status": "ok"}
-
-
-def test_api_key(monkeypatch):
-    clear_auth_env(monkeypatch)
-    monkeypatch.setenv("WMS_WORKER_API_KEY", "secret")
-    response = client.post(
-        "/extract",
-        json={"url": "dQw4w9WgXcQ", "format": "mp3", "bitrate": "192"},
-    )
-    assert response.status_code == 401
-
-
-def test_google_auth_requires_bearer(monkeypatch):
-    clear_auth_env(monkeypatch)
+def configure_google_auth(monkeypatch):
     monkeypatch.setenv("GOOGLE_CLIENT_ID", "client.apps.googleusercontent.com")
     monkeypatch.setenv("ALLOWED_GOOGLE_EMAILS", "allowed@example.com")
 
-    response = client.get("/auth/me")
-    assert response.status_code == 401
 
-
-def test_google_auth_allows_configured_email(monkeypatch):
-    clear_auth_env(monkeypatch)
-    monkeypatch.setenv("GOOGLE_CLIENT_ID", "client.apps.googleusercontent.com")
-    monkeypatch.setenv("ALLOWED_GOOGLE_EMAILS", "allowed@example.com")
+def mock_allowed_google_user(monkeypatch):
     monkeypatch.setattr(
         main_module.google_id_token,
         "verify_oauth2_token",
@@ -52,6 +31,37 @@ def test_google_auth_allows_configured_email(monkeypatch):
         },
     )
 
+
+def test_health():
+    response = client.get("/health")
+    assert response.status_code == 200
+    assert response.json() == {"status": "ok"}
+
+
+def test_google_auth_requires_bearer(monkeypatch):
+    clear_auth_env(monkeypatch)
+    configure_google_auth(monkeypatch)
+
+    response = client.get("/auth/me")
+    assert response.status_code == 401
+
+
+def test_extract_requires_google_auth_when_configured(monkeypatch):
+    clear_auth_env(monkeypatch)
+    configure_google_auth(monkeypatch)
+
+    response = client.post(
+        "/extract",
+        json={"url": "dQw4w9WgXcQ", "format": "mp3", "bitrate": "192"},
+    )
+    assert response.status_code == 401
+
+
+def test_google_auth_allows_configured_email(monkeypatch):
+    clear_auth_env(monkeypatch)
+    configure_google_auth(monkeypatch)
+    mock_allowed_google_user(monkeypatch)
+
     response = client.get(
         "/auth/me",
         headers={"Authorization": "Bearer valid-token"},
@@ -62,8 +72,7 @@ def test_google_auth_allows_configured_email(monkeypatch):
 
 def test_google_auth_rejects_other_email(monkeypatch):
     clear_auth_env(monkeypatch)
-    monkeypatch.setenv("GOOGLE_CLIENT_ID", "client.apps.googleusercontent.com")
-    monkeypatch.setenv("ALLOWED_GOOGLE_EMAILS", "allowed@example.com")
+    configure_google_auth(monkeypatch)
     monkeypatch.setattr(
         main_module.google_id_token,
         "verify_oauth2_token",
@@ -79,6 +88,26 @@ def test_google_auth_rejects_other_email(monkeypatch):
         headers={"Authorization": "Bearer valid-token"},
     )
     assert response.status_code == 403
+
+
+def test_youtube_access_restriction_is_friendly(monkeypatch):
+    clear_auth_env(monkeypatch)
+
+    def blocked_extract_audio(url, *, audio_format, bitrate):
+        raise YouTubeAccessRestrictedError(
+            "YouTube側で取得が制限されました。この動画はCloud処理から直接Local化できません。"
+            "手元の音声・動画ファイルをLocal Libraryへ追加してください。"
+        )
+
+    monkeypatch.setattr(main_module, "extract_audio", blocked_extract_audio)
+
+    response = client.post(
+        "/extract",
+        json={"url": "dQw4w9WgXcQ", "format": "mp3", "bitrate": "192"},
+    )
+    assert response.status_code == 409
+    assert "YouTube側で取得が制限されました" in response.json()["detail"]
+    assert "cookies" not in response.json()["detail"].lower()
 
 
 def test_extract_returns_file(monkeypatch, tmp_path):
