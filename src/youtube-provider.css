@@ -143,13 +143,22 @@
   font-size: 9px;
 }
 
-.youtube-transport {
+.youtube-transport,
+.youtube-playback-options {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 7px;
 }
 
-.youtube-transport button {
+.youtube-transport {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.youtube-playback-options {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.youtube-transport button,
+.youtube-playback-options button {
   min-height: 40px;
   border: 1px solid var(--color-border);
   border-radius: 12px;
@@ -159,7 +168,14 @@
   font-weight: 800;
 }
 
+.youtube-playback-options button.is-active {
+  border-color: rgba(var(--color-accent-rgb), .42);
+  background: rgba(var(--color-accent-rgb), .13);
+  color: var(--color-accent);
+}
+
 .youtube-transport button:disabled,
+.youtube-playback-options button:disabled,
 .youtube-url-form button:disabled,
 .youtube-mix-controls select:disabled,
 .youtube-mix-controls input:disabled {
@@ -183,6 +199,31 @@
 
 .youtube-mix-controls select {
   padding: 0 8px;
+}
+
+.youtube-screenoff-note {
+  display: grid;
+  gap: 5px;
+  padding: 10px 11px;
+  border: 1px solid rgba(var(--color-accent-rgb), .22);
+  border-radius: 12px;
+  background: rgba(var(--color-accent-rgb), .05);
+}
+
+.youtube-screenoff-note strong {
+  color: var(--color-text);
+  font-size: 10px;
+}
+
+.youtube-screenoff-note span,
+.youtube-screenoff-note small {
+  color: var(--color-text-muted);
+  font-size: 9px;
+  line-height: 1.6;
+}
+
+.youtube-screenoff-note small {
+  color: var(--color-accent);
 }
 
 .youtube-status-row {
@@ -223,7 +264,7 @@
 
 .youtube-capabilities {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 7px;
 }
 
@@ -265,7 +306,8 @@
     min-height: 200px;
   }
 
-  .youtube-transport {
+  .youtube-transport,
+  .youtube-playback-options {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
@@ -274,6 +316,6 @@
   }
 
   .youtube-capabilities {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
