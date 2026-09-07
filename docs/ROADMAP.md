@@ -40,22 +40,34 @@ Desktop regression coverage is still useful but is not blocking ongoing mobile-f
 
 ## Phase 2 — Library and playlists
 
-Status: partially implemented. Multi-file playlist behavior works on Android; persistent local media/library state is still missing.
+Status: persistent media Blob storage is implemented on `feat/persistent-media-library`; Android persistence validation is pending.
 
 - [~] directory import — progressive enhancement only; tested Android picker does not provide true whole-directory import
 - [x] media filtering
-- [~] IndexedDB storage — recording takes are persistent; media-library Blob storage not yet implemented
-- [ ] saved playlists
-- [ ] reorder/remove/add controls beyond import/Clear
+- [~] IndexedDB media storage — feature implementation complete; device validation pending
+- [ ] saved named playlists
+- [~] reorder/remove/add controls — import, Save, Delete and Clear-temp implemented; reorder remains
 - [ ] resume position
 - [ ] markers/bookmarks
 - [x] remaining skins
 - [x] Android multi-file import
 - [x] continuous next-track playback
+- [x] explicit per-item Save and Save-all actions
+- [x] saved-media automatic restore on app startup
+- [x] saved-media Delete persistence
+- [x] storage usage/quota guard UI
+
+Persistent-library MVP guards:
+
+- 250 MB per saved item
+- 500 MB saved-media soft limit
+- browser quota check before save when StorageManager estimate is available
 
 Exit criteria:
 
-- selected local media can become a persistent library/playlist view: NOT YET MET
+- saved local media survives reload/PWA restart and remains playable: DEVICE TEST PENDING
+- deleted saved media stays deleted after reload: DEVICE TEST PENDING
+- saved named playlists can be restored: NOT YET MET
 
 ## Phase 3 — Recording
 
@@ -112,6 +124,8 @@ Exit criteria:
 
 ## Phase 6 — YouTube provider
 
+Start after persistent local library + saved playlists are stable.
+
 - [ ] URL parsing
 - [ ] official IFrame Player API integration
 - [ ] transport adapter
@@ -157,11 +171,9 @@ Only after the core media app is stable:
 
 ## Current priority
 
-Complete the missing Phase 2 persistence work before expanding providers:
-
-1. persistent local media library in IndexedDB
-2. saved named playlists
-3. basic reorder/remove/resume behavior
+1. pass Android persistent-media reload/PWA-restart validation
+2. add saved named playlists
+3. add reorder and resume-position behavior
 4. then Phase 6 official YouTube provider
 
 ## Version targets
