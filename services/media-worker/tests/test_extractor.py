@@ -1,6 +1,12 @@
 import pytest
 
-from wms_media_worker.extractor import ExtractionError, _check_limits, normalize_source
+from wms_media_worker.extractor import (
+    ExtractionError,
+    YouTubeAccessRestrictedError,
+    _check_limits,
+    _normalize_extraction_error,
+    normalize_source,
+)
 
 
 def test_video_id_normalizes_to_watch_url():
@@ -27,3 +33,22 @@ def test_source_size_guard(monkeypatch):
     monkeypatch.setenv("MAX_SOURCE_BYTES", "100")
     with pytest.raises(ExtractionError):
         _check_limits({"duration": 1, "filesize_approx": 101})
+
+
+def test_bot_challenge_is_translated_without_cookie_instructions():
+    error = _normalize_extraction_error(
+        RuntimeError(
+            "ERROR: [youtube] abc: Sign in to confirm you're not a bot. "
+            "Use --cookies-from-browser or --cookies for the authentication."
+        )
+    )
+
+    assert isinstance(error, YouTubeAccessRestrictedError)
+    assert "YouTube側で取得が制限されました" in str(error)
+    assert "cookies" not in str(error).lower()
+
+
+def test_unrelated_extraction_error_keeps_original_message():
+    error = _normalize_extraction_error(RuntimeError("network timeout"))
+    assert type(error) is ExtractionError
+    assert str(error) == "network timeout"
