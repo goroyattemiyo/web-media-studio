@@ -8,6 +8,7 @@ import {
   MEDIA_LIBRARY_MAX_ITEM_BYTES,
   MEDIA_LIBRARY_SOFT_LIMIT_BYTES,
   saveMediaLibraryItems,
+  saveMediaLibraryOrder,
   StoredMediaLibraryItem,
 } from './mediaLibraryDb'
 
@@ -33,6 +34,8 @@ type StorageEstimate = {
   quota: number
 }
 
+type ResumePositions = Record<string, number>
+
 const themes: Array<{ id: ThemeId; label: string }> = [
   { id: 'midnight-neon', label: 'Midnight Neon' },
   { id: 'obsidian', label: 'Obsidian' },
@@ -47,6 +50,7 @@ const playerVisualModes: Array<{ id: PlayerVisualMode; label: string }> = [
 ]
 
 const speedPresets = [0.5, 0.75, 0.8, 0.9, 1, 1.1, 1.25, 1.5, 2]
+const RESUME_POSITIONS_KEY = 'wms-resume-positions'
 
 function formatTime(value: number) {
   if (!Number.isFinite(value) || value < 0) return '00:00'
@@ -74,6 +78,19 @@ function mediaPath(file: File) {
 
 function errorMessage(error: unknown) {
   return error instanceof Error ? error.message : 'Unexpected local-storage error.'
+}
+
+function loadResumePositions(): ResumePositions {
+  try {
+    const raw = window.localStorage.getItem(RESUME_POSITIONS_KEY)
+    if (!raw) return {}
+    const parsed = JSON.parse(raw) as Record<string, unknown>
+    return Object.fromEntries(
+      Object.entries(parsed).filter((entry): entry is [string, number] => typeof entry[1] === 'number' && Number.isFinite(entry[1]) && entry[1] >= 0),
+    )
+  } catch {
+    return {}
+  }
 }
 
 function App() {
@@ -109,6 +126,7 @@ function App() {
   const folderInputRef = useRef<HTMLInputElement | null>(null)
   const objectUrlsRef = useRef<string[]>([])
   const autoPlayOnLoadRef = useRef(false)
+  const resumePositionsRef = useRef<ResumePositions>(loadResumePositions())
   const currentItem = items[currentIndex] ?? null
   const persistedCount = items.filter((item) => item.persisted).length
   const temporaryCount = items.length - persistedCount
@@ -139,6 +157,30 @@ function App() {
     if (navigator.storage?.persisted) {
       setStoragePersistent(await navigator.storage.persisted())
     }
+  }
+
+  const writeResumePositions = () => {
+    try {
+      window.localStorage.setItem(RESUME_POSITIONS_KEY, JSON.stringify(resumePositionsRef.current))
+    } catch {
+      // Resume is a convenience feature; playback should continue if localStorage is unavailable.
+    }
+  }
+
+  const persistResumePosition = (item: MediaItem | null, position: number, force = false) => {
+    if (!item?.persisted || !Number.isFinite(position) || position < 0) return
+    const previous = resumePositionsRef.current[item.id] ?? 0
+    if (!force && Math.abs(previous - position) < 5) return
+    resumePositionsRef.current = { ...resumePositionsRef.current, [item.id]: position }
+    writeResumePositions()
+  }
+
+  const clearResumePosition = (item: MediaItem | null) => {
+    if (!item?.persisted || !(item.id in resumePositionsRef.current)) return
+    const next = { ...resumePositionsRef.current }
+    delete next[item.id]
+    resumePositionsRef.current = next
+    writeResumePositions()
   }
 
   useEffect(() => {
@@ -402,6 +444,7 @@ function App() {
     try {
       if (removalIndex === currentIndex) mediaRef.current?.pause()
       await deleteMediaLibraryItem(item.id)
+      clearResumePosition(item)
       URL.revokeObjectURL(item.url)
       objectUrlsRef.current = objectUrlsRef.current.filter((url) => url !== item.url)
       setItems((previous) => previous.filter((candidate) => candidate.id !== item.id))
@@ -434,6 +477,27 @@ function App() {
     setDuration(0)
     setIsPlaying(false)
     setLibraryStatus('一時追加したメディアだけをクリアしました。保存済みライブラリは残っています。')
+  }
+
+  const moveItem = (index: number, direction: -1 | 1) => {
+    const targetIndex = index + direction
+    if (targetIndex < 0 || targetIndex >= items.length) return
+
+    const next = [...items]
+    const [moved] = next.splice(index, 1)
+    next.splice(targetIndex, 0, moved)
+    const currentId = currentItem?.id ?? null
+
+    setItems(next)
+    if (currentId) setCurrentIndex(next.findIndex((item) => item.id === currentId))
+    setLibraryStatus('曲順を変更しました。保存済み曲の順番は次回起動時にも保持されます。')
+
+    const persistedIds = next.filter((item) => item.persisted).map((item) => item.id)
+    if (persistedIds.length > 1) {
+      void saveMediaLibraryOrder(persistedIds).catch((error) => {
+        setLibraryError(`曲順を保存できませんでした: ${errorMessage(error)}`)
+      })
+    }
   }
 
   const togglePlayback = async () => {
@@ -487,6 +551,7 @@ function App() {
 
   const handleEnded = () => {
     const media = mediaRef.current
+    clearResumePosition(currentItem)
     if (repeatMode === 'one' && media) {
       media.currentTime = 0
       void media.play()
@@ -498,6 +563,7 @@ function App() {
   const handleTimeUpdate = (media: HTMLMediaElement) => {
     if (aPoint !== null && bPoint !== null && media.currentTime >= bPoint) media.currentTime = aPoint
     setCurrentTime(media.currentTime)
+    persistResumePosition(currentItem, media.currentTime)
 
     if ('mediaSession' in navigator && Number.isFinite(media.duration) && media.duration > 0) {
       try {
@@ -532,10 +598,21 @@ function App() {
 
   const mediaEvents = {
     onLoadedMetadata: (media: HTMLMediaElement) => {
-      setDuration(Number.isFinite(media.duration) ? media.duration : 0)
+      const mediaDuration = Number.isFinite(media.duration) ? media.duration : 0
+      const shouldAutoPlay = autoPlayOnLoadRef.current
+      setDuration(mediaDuration)
       media.volume = volume
       media.playbackRate = playbackRate
-      if (autoPlayOnLoadRef.current) {
+
+      if (!shouldAutoPlay && currentItem?.persisted) {
+        const savedPosition = resumePositionsRef.current[currentItem.id] ?? 0
+        if (savedPosition >= 5 && (!mediaDuration || savedPosition < mediaDuration - 5)) {
+          media.currentTime = savedPosition
+          setCurrentTime(savedPosition)
+        }
+      }
+
+      if (shouldAutoPlay) {
         autoPlayOnLoadRef.current = false
         void media.play().catch(() => {
           // Autoplay may still be blocked by the browser in some contexts.
@@ -546,6 +623,7 @@ function App() {
   }
 
   const libraryFillPercent = Math.min(100, (savedBytes / MEDIA_LIBRARY_SOFT_LIMIT_BYTES) * 100)
+  const savedResumePosition = currentItem?.persisted ? resumePositionsRef.current[currentItem.id] ?? 0 : 0
 
   return (
     <div className="app-shell">
@@ -586,7 +664,10 @@ function App() {
                 onLoadedMetadata={(event) => mediaEvents.onLoadedMetadata(event.currentTarget)}
                 onTimeUpdate={(event) => mediaEvents.onTimeUpdate(event.currentTarget)}
                 onPlay={() => setIsPlaying(true)}
-                onPause={() => setIsPlaying(false)}
+                onPause={(event) => {
+                  setIsPlaying(false)
+                  persistResumePosition(currentItem, event.currentTarget.currentTime, true)
+                }}
                 onEnded={handleEnded}
               />
             ) : currentItem ? (
@@ -602,7 +683,10 @@ function App() {
                   onLoadedMetadata={(event) => mediaEvents.onLoadedMetadata(event.currentTarget)}
                   onTimeUpdate={(event) => mediaEvents.onTimeUpdate(event.currentTarget)}
                   onPlay={() => setIsPlaying(true)}
-                  onPause={() => setIsPlaying(false)}
+                  onPause={(event) => {
+                    setIsPlaying(false)
+                    persistResumePosition(currentItem, event.currentTarget.currentTime, true)
+                  }}
                   onEnded={handleEnded}
                 />
               </>
@@ -620,6 +704,7 @@ function App() {
               <p className="source-label">{currentItem?.persisted ? 'SAVED LIBRARY' : currentItem?.source === 'folder' ? 'FOLDER MEDIA' : currentItem ? 'LOCAL MEDIA' : 'NO SOURCE'}</p>
               <h2>{currentItem?.name ?? 'Choose a file to begin'}</h2>
               {currentItem?.relativePath && <p className="track-path">{currentItem.relativePath}</p>}
+              {currentItem?.persisted && savedResumePosition >= 5 && <span className="resume-chip">前回位置 {formatTime(savedResumePosition)} を保存中</span>}
             </div>
             <span className="track-count">{items.length ? `${currentIndex + 1} / ${items.length}` : '0 / 0'}</span>
           </div>
@@ -740,12 +825,16 @@ function App() {
                   >
                     {item.persisted ? 'Delete' : 'Save'}
                   </button>
+                  <div className="queue-order-actions" aria-label={`${item.name} の曲順変更`}>
+                    <button type="button" disabled={index === 0} onClick={() => moveItem(index, -1)} aria-label={`${item.name}を上へ`}>↑</button>
+                    <button type="button" disabled={index === items.length - 1} onClick={() => moveItem(index, 1)} aria-label={`${item.name}を下へ`}>↓</button>
+                  </div>
                 </div>
               )) : (
                 <div className="playlist-empty"><strong>まだ曲がありません</strong><span>Androidでは「Multiple files」で複数選択するのがおすすめです。保存した曲は次回起動時にも復元されます。</span></div>
               )}
             </div>
-            {items.length > 0 && <p className="playlist-note">{items.length} items · {persistedCount} saved · 保存は端末内IndexedDBです。サーバーへアップロードしません。</p>}
+            {items.length > 0 && <p className="playlist-note">{items.length} items · {persistedCount} saved · ↑↓で曲順変更 · 保存済み曲は前回位置から再開します。</p>}
           </section>
 
           <section className="glass-panel device-panel">

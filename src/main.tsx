@@ -8,6 +8,7 @@ import './ffmpeg-tools.css'
 import './library.css'
 import './tool-descriptions.css'
 import './player-visuals.css'
+import './reorder-resume.css'
 
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
