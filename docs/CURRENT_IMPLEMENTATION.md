@@ -10,7 +10,9 @@ Public URL:
 
 `https://goroyattemiyo.github.io/web-media-studio/`
 
-## Implemented in the Phase 1 bootstrap
+Recorder MVP is implemented on PR #6 (`feat/recorder-mvp`) and has passed pull-request typecheck/build validation. Real-device recording validation is still required before it is marked as confirmed on Android.
+
+## Implemented in the Phase 1 player bootstrap
 
 - React + TypeScript + Vite application
 - root `index.html` configured for the GitHub Pages/Vite entry point
@@ -42,6 +44,24 @@ Public URL:
 - GitHub Pages build/deploy workflow
 - pull-request typecheck/build validation
 
+## Implemented in Recorder MVP (PR #6)
+
+- browser microphone capture using `getUserMedia`
+- `MediaRecorder` based local recording
+- music-oriented audio constraints requesting echo cancellation, noise suppression and automatic gain control off
+- mic-only recording
+- Play & Record mode that starts the selected local media and microphone recording together
+- live recording duration display
+- REC state in the bottom navigation
+- source track name and approximate start position attached to each take
+- in-memory take list
+- take playback
+- take deletion
+- take download to device
+- browser-supported recording MIME selection (`webm/opus`, `webm`, `mp4`, or `ogg/opus`)
+
+Recorder MVP deliberately does not claim sample-accurate sync. Playback audio is not digitally mixed into the take; only the microphone stream is recorded.
+
 ## Automated checks
 
 Latest `main` Pages workflow:
@@ -52,6 +72,12 @@ Latest `main` Pages workflow:
 - Configure Pages: PASS
 - Pages artifact upload: PASS
 - Deploy to GitHub Pages: PASS
+
+Recorder MVP PR #6:
+
+- dependency install: PASS
+- TypeScript typecheck: PASS
+- Vite production build: PASS
 
 ## Real-device validation
 
@@ -64,14 +90,9 @@ Observed on Android phone on 2026-09-07:
 - Service Worker capability detection: PASS
 - Media Recorder capability detection: PASS
 - Web Audio capability detection: PASS
-- Media Session reported unavailable in the browser used for the screenshot; Chrome/PWA validation is still required
-
-The first real-device screenshots also exposed two mobile layout issues:
-
-- the fixed bottom navigation can overlap content visually while scrolling
-- the horizontal quick-control row can clip the rightmost A-B control
-
-A mobile layout refinement is being applied before the next device pass.
+- first mobile layout refinement: deployed
+- Media ready/player centering refinement: deployed
+- Media Session reported unavailable in the first browser used for screenshots; direct Chrome/PWA validation is still required
 
 ## Real-device validation still required
 
@@ -82,19 +103,24 @@ Do not mark the following as supported until checked on target hardware/browser:
 - lock-screen Media Session controls
 - local video behavior
 - A-B loop behavior under actual playback
+- microphone permission prompt
+- mic-only recording -> stop -> local take playback
+- Play & Record while local media is playing
+- take download on Android Chrome/PWA
+- recording behavior while screen is locked/backgrounded
 - iPhone Safari / installed web-app behavior
 - service-worker update/offline behavior
 
-API detection in the UI is not equivalent to successful background-playback validation.
+API detection in the UI is not equivalent to successful real-device behavior.
 
 ## Not implemented yet
 
 - persistent library / IndexedDB / Dexie
+- persistent recording/take storage across reloads
 - directory import
 - saved playlists
-- microphone recording
-- synchronized play + record
-- recording/take storage
+- sample-accurate synchronized recording
+- playback + microphone digital mixdown
 - FFmpeg / ffmpeg.wasm
 - video -> audio extraction
 - audio conversion/trim
@@ -119,11 +145,12 @@ API detection in the UI is not equivalent to successful background-playback vali
 
 ## Immediate next step
 
-1. deploy the real-device mobile layout refinement
-2. re-check the A-B control layout and bottom navigation spacing
-3. open the site in Android Chrome directly (not an in-app browser)
-4. test screen-off/background playback and lock-screen controls
-5. install as a PWA and repeat the playback test
-6. fix device-specific issues before persistent library/recording work
+1. merge PR #6 after green CI
+2. deploy Recorder MVP to GitHub Pages
+3. test Android Chrome/PWA mic permission and mic-only recording
+4. test Play & Record with a local track
+5. verify take playback and device download
+6. separately test screen-off/background playback and lock-screen controls
+7. fix device-specific issues before adding IndexedDB persistence and FFmpeg
 
 Do not describe planned work as implemented work.
