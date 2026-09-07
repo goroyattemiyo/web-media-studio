@@ -10,6 +10,20 @@ import {
 } from './providers/youtube'
 
 const LAST_YOUTUBE_URL_KEY = 'wms-youtube-last-url'
+const YOUTUBE_REPEAT_ONE_KEY = 'wms-youtube-repeat-one'
+const YOUTUBE_KEEP_AWAKE_KEY = 'wms-youtube-keep-awake'
+
+type WakeLockSentinelLike = {
+  released: boolean
+  release(): Promise<void>
+  addEventListener(type: 'release', listener: () => void, options?: AddEventListenerOptions): void
+}
+
+type WakeLockNavigator = Navigator & {
+  wakeLock?: {
+    request(type: 'screen'): Promise<WakeLockSentinelLike>
+  }
+}
 
 function formatTime(value: number) {
   if (!Number.isFinite(value) || value < 0) return '00:00'
@@ -32,11 +46,89 @@ function YouTubeProviderPanel() {
   const [playbackRate, setPlaybackRate] = useState(1)
   const [availableRates, setAvailableRates] = useState<number[]>([1])
   const [title, setTitle] = useState('YouTube video')
+  const [repeatOne, setRepeatOne] = useState(() => window.localStorage.getItem(YOUTUBE_REPEAT_ONE_KEY) === '1')
+  const [keepAwakeEnabled, setKeepAwakeEnabled] = useState(() => window.localStorage.getItem(YOUTUBE_KEEP_AWAKE_KEY) === '1')
+  const [wakeLockActive, setWakeLockActive] = useState(false)
+  const [wakeLockStatus, setWakeLockStatus] = useState('')
   const playerHostRef = useRef<HTMLDivElement | null>(null)
   const playerRef = useRef<YouTubePlayer | null>(null)
+  const readyRef = useRef(false)
+  const playingRef = useRef(false)
+  const repeatOneRef = useRef(repeatOne)
+  const keepAwakeRef = useRef(keepAwakeEnabled)
+  const wakeLockRef = useRef<WakeLockSentinelLike | null>(null)
+  const wakeLockSupported = Boolean((navigator as WakeLockNavigator).wakeLock)
+
+  const releaseWakeLock = async () => {
+    const sentinel = wakeLockRef.current
+    wakeLockRef.current = null
+    setWakeLockActive(false)
+    if (!sentinel || sentinel.released) return
+
+    try {
+      await sentinel.release()
+    } catch {
+      // The browser can revoke a wake lock by itself; release failures are non-fatal.
+    }
+  }
+
+  const requestWakeLock = async () => {
+    const wakeLock = (navigator as WakeLockNavigator).wakeLock
+    if (!wakeLock || !keepAwakeRef.current || !readyRef.current || !playingRef.current || document.visibilityState !== 'visible') return
+
+    const current = wakeLockRef.current
+    if (current && !current.released) {
+      setWakeLockActive(true)
+      return
+    }
+
+    try {
+      const sentinel = await wakeLock.request('screen')
+      wakeLockRef.current = sentinel
+      setWakeLockActive(true)
+      setWakeLockStatus('再生中は画面が消えないようにしています。')
+      sentinel.addEventListener('release', () => {
+        if (wakeLockRef.current === sentinel) wakeLockRef.current = null
+        setWakeLockActive(false)
+      }, { once: true })
+    } catch (wakeError) {
+      setWakeLockActive(false)
+      setWakeLockStatus(wakeError instanceof Error ? `画面維持を開始できませんでした: ${wakeError.message}` : '画面維持を開始できませんでした。')
+    }
+  }
 
   useEffect(() => {
     setPortalTarget(document.querySelector('.side-stack'))
+  }, [])
+
+  useEffect(() => {
+    repeatOneRef.current = repeatOne
+    window.localStorage.setItem(YOUTUBE_REPEAT_ONE_KEY, repeatOne ? '1' : '0')
+  }, [repeatOne])
+
+  useEffect(() => {
+    keepAwakeRef.current = keepAwakeEnabled
+    window.localStorage.setItem(YOUTUBE_KEEP_AWAKE_KEY, keepAwakeEnabled ? '1' : '0')
+
+    if (!keepAwakeEnabled) {
+      setWakeLockStatus('')
+      void releaseWakeLock()
+    } else if (playingRef.current) {
+      void requestWakeLock()
+    }
+  }, [keepAwakeEnabled])
+
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible' && keepAwakeRef.current && playingRef.current) {
+        void requestWakeLock()
+      } else if (document.visibilityState !== 'visible') {
+        void releaseWakeLock()
+      }
+    }
+
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange)
   }, [])
 
   useEffect(() => {
@@ -58,6 +150,7 @@ function YouTubeProviderPanel() {
 
   useEffect(() => {
     return () => {
+      void releaseWakeLock()
       playerRef.current?.destroy()
       playerRef.current = null
       if (playerHostRef.current) playerHostRef.current.innerHTML = ''
@@ -70,9 +163,12 @@ function YouTubeProviderPanel() {
 
     setError(null)
     setStatus('YouTube公式プレーヤーを読み込んでいます…')
+    readyRef.current = false
+    playingRef.current = false
     setReady(false)
     setCurrentTime(startSeconds)
     setDuration(0)
+    void releaseWakeLock()
 
     try {
       const yt = await loadYouTubeIframeApi()
@@ -80,6 +176,7 @@ function YouTubeProviderPanel() {
       if (playerRef.current) {
         playerRef.current.cueVideoById(nextVideoId, startSeconds)
         setVideoId(nextVideoId)
+        readyRef.current = true
         setReady(true)
         setStatus('動画を読み込みました。再生ボタンを押してください。')
         return
@@ -101,6 +198,7 @@ function YouTubeProviderPanel() {
         },
         events: {
           onReady: (event) => {
+            readyRef.current = true
             setReady(true)
             setVideoId(nextVideoId)
             setVolume(event.target.getVolume())
@@ -111,10 +209,30 @@ function YouTubeProviderPanel() {
             setStatus('動画を読み込みました。再生ボタンを押してください。')
           },
           onStateChange: (event) => {
-            setPlayerState(youtubeStateLabel(event.data ?? -1))
+            const state = event.data ?? -1
+            const isPlaying = state === 1
+            playingRef.current = isPlaying
+            setPlayerState(youtubeStateLabel(state))
+
             const data = event.target.getVideoData()
             if (data.title) setTitle(data.title)
-            if ((event.data ?? -1) === 0) setCurrentTime(0)
+
+            if (isPlaying) {
+              if (keepAwakeRef.current) void requestWakeLock()
+            } else {
+              void releaseWakeLock()
+            }
+
+            if (state === 0) {
+              setCurrentTime(0)
+              if (repeatOneRef.current) {
+                setStatus('Repeat 1: 動画を先頭から繰り返します。')
+                event.target.seekTo(0, true)
+                event.target.playVideo()
+              } else {
+                setStatus('動画が終了しました。')
+              }
+            }
           },
           onPlaybackRateChange: (event) => {
             setPlaybackRate(event.target.getPlaybackRate())
@@ -123,6 +241,8 @@ function YouTubeProviderPanel() {
             setStatus('ブラウザが自動再生を止めました。再生ボタンを押してください。')
           },
           onError: (event) => {
+            playingRef.current = false
+            void releaseWakeLock()
             const code = event.data ?? -1
             setError(youtubeErrorMessage(code))
             setStatus('再生できませんでした。')
@@ -130,6 +250,7 @@ function YouTubeProviderPanel() {
         },
       })
     } catch (loadError) {
+      readyRef.current = false
       setError(loadError instanceof Error ? loadError.message : 'YouTubeプレーヤーを読み込めませんでした。')
       setStatus('再生できませんでした。')
     }
@@ -148,6 +269,9 @@ function YouTubeProviderPanel() {
   }
 
   const clearPlayer = () => {
+    playingRef.current = false
+    readyRef.current = false
+    void releaseWakeLock()
     playerRef.current?.destroy()
     playerRef.current = null
     if (playerHostRef.current) playerHostRef.current.innerHTML = ''
@@ -184,6 +308,15 @@ function YouTubeProviderPanel() {
   const changeRate = (next: number) => {
     setPlaybackRate(next)
     playerRef.current?.setPlaybackRate(next)
+  }
+
+  const toggleKeepAwake = () => {
+    if (!wakeLockSupported) return
+    const next = !keepAwakeRef.current
+    keepAwakeRef.current = next
+    setKeepAwakeEnabled(next)
+    if (next && playingRef.current) void requestWakeLock()
+    if (!next) void releaseWakeLock()
   }
 
   if (!portalTarget) return null
@@ -229,7 +362,7 @@ function YouTubeProviderPanel() {
               <span className="source-chip">youtube</span>
               <strong>{title}</strong>
             </div>
-            <a href={youtubeWatchUrl(videoId)} target="_blank" rel="noreferrer">YouTubeで開く ↗</a>
+            <a href={youtubeWatchUrl(videoId)} target="_blank" rel="noreferrer">YouTubeアプリ/サイトで開く ↗</a>
           </div>
 
           <div className="youtube-timeline-block">
@@ -253,6 +386,15 @@ function YouTubeProviderPanel() {
             <button type="button" disabled={!ready} onClick={() => seekBy(10)}>+10</button>
           </div>
 
+          <div className="youtube-playback-options">
+            <button type="button" className={repeatOne ? 'is-active' : ''} onClick={() => setRepeatOne((value) => !value)}>
+              Repeat {repeatOne ? '1' : 'Off'}
+            </button>
+            <button type="button" className={keepAwakeEnabled ? 'is-active' : ''} disabled={!wakeLockSupported} onClick={toggleKeepAwake}>
+              Keep screen on {wakeLockActive ? 'Active' : keepAwakeEnabled ? 'On' : 'Off'}
+            </button>
+          </div>
+
           <div className="youtube-mix-controls">
             <label>
               <span>Speed</span>
@@ -264,6 +406,12 @@ function YouTubeProviderPanel() {
               <span>Volume {Math.round(volume)}%</span>
               <input type="range" min="0" max="100" step="1" value={volume} disabled={!ready} onChange={(event) => changeVolume(Number(event.target.value))} />
             </label>
+          </div>
+
+          <div className="youtube-screenoff-note">
+            <strong>画面OFF対策</strong>
+            <span>このAndroid実機では画面OFFで埋め込み再生が停止しました。Web側から画面OFFのまま継続させるのではなく、Keep screen on で再生中の自動消灯を防ぎます。</span>
+            {wakeLockStatus && <small>{wakeLockStatus}</small>}
           </div>
         </>
       )}
@@ -277,7 +425,8 @@ function YouTubeProviderPanel() {
       <div className="youtube-capabilities">
         <span><strong>Playback</strong> 対応</span>
         <span><strong>Download</strong> 非対応</span>
-        <span><strong>Background</strong> 端末依存</span>
+        <span><strong>Screen off</strong> 実機で停止</span>
+        <span><strong>Wake lock</strong> {wakeLockSupported ? '対応' : '非対応'}</span>
       </div>
       <p className="youtube-policy-note">動画の保存・音声抽出は行いません。埋め込み不可・非公開などの動画はYouTube側の制限に従います。</p>
     </section>,
