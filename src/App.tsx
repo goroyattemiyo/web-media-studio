@@ -1,5 +1,6 @@
 import { ChangeEvent, useEffect, useMemo, useRef, useState } from 'react'
 import RecorderPanel from './RecorderPanel'
+import FFmpegToolsPanel from './FFmpegToolsPanel'
 
 type ThemeId = 'midnight-neon' | 'obsidian' | 'studio-light' | 'analog-warm' | 'cyber-blue'
 type RepeatMode = 'off' | 'all' | 'one'
@@ -428,6 +429,8 @@ function App() {
             startSourcePlayback={startCurrentPlayback}
             onRecordingChange={setRecordingActive}
           />
+
+          <FFmpegToolsPanel />
         </aside>
       </main>
 
@@ -435,7 +438,7 @@ function App() {
         <button type="button" className="is-current" onClick={() => scrollTo('player-panel')}><span>▶</span>Player</button>
         <button type="button" onClick={() => scrollTo('library-panel')}><span>≡</span>Playlist</button>
         <button type="button" className={recordingActive ? 'is-recording' : ''} onClick={() => scrollTo('recorder-panel')}><span>●</span>Record{recordingActive && <small>REC</small>}</button>
-        <button type="button" aria-disabled="true"><span>✦</span>Tools<small>FFmpeg</small></button>
+        <button type="button" onClick={() => scrollTo('ffmpeg-tools-panel')}><span>✦</span>Tools<small>FFmpeg</small></button>
         <button type="button" onClick={() => scrollTo('library-panel')}><span>▣</span>Library</button>
       </nav>
     </div>
