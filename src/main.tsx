@@ -1,7 +1,8 @@
-import { StrictMode } from 'react'
+import { StrictMode, useState } from 'react'
 import { createRoot } from 'react-dom/client'
 import App from './App'
 import YouTubeProviderPanel from './YouTubeProviderPanel'
+import YouTubeLocalizerPanel from './YouTubeLocalizerPanel'
 import './styles.css'
 import './mobile-overrides.css'
 import './recorder.css'
@@ -12,6 +13,7 @@ import './player-visuals.css'
 import './reorder-resume.css'
 import './named-playlists.css'
 import './youtube-provider.css'
+import './youtube-localizer.css'
 
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
@@ -19,9 +21,20 @@ if ('serviceWorker' in navigator) {
   })
 }
 
+function Root() {
+  const [libraryRevision, setLibraryRevision] = useState(0)
+
+  return (
+    <>
+      <App key={libraryRevision} />
+      <YouTubeProviderPanel />
+      <YouTubeLocalizerPanel onMediaLocalized={() => setLibraryRevision((value) => value + 1)} />
+    </>
+  )
+}
+
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <App />
-    <YouTubeProviderPanel />
+    <Root />
   </StrictMode>,
 )
