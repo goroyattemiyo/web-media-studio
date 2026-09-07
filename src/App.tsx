@@ -1,6 +1,15 @@
 import { ChangeEvent, useEffect, useMemo, useRef, useState } from 'react'
 import RecorderPanel from './RecorderPanel'
 import FFmpegToolsPanel from './FFmpegToolsPanel'
+import {
+  deleteMediaLibraryItem,
+  getMediaLibraryBytes,
+  listMediaLibraryItems,
+  MEDIA_LIBRARY_MAX_ITEM_BYTES,
+  MEDIA_LIBRARY_SOFT_LIMIT_BYTES,
+  saveMediaLibraryItems,
+  StoredMediaLibraryItem,
+} from './mediaLibraryDb'
 
 type ThemeId = 'midnight-neon' | 'obsidian' | 'studio-light' | 'analog-warm' | 'cyber-blue'
 type RepeatMode = 'off' | 'all' | 'one'
@@ -12,7 +21,15 @@ type MediaItem = {
   url: string
   mimeType: string
   relativePath: string | null
-  source: 'files' | 'folder'
+  source: 'files' | 'folder' | 'library'
+  blob: Blob
+  persisted: boolean
+  savedAt: number | null
+}
+
+type StorageEstimate = {
+  usage: number
+  quota: number
 }
 
 const themes: Array<{ id: ThemeId; label: string }> = [
@@ -32,8 +49,25 @@ function formatTime(value: number) {
   return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`
 }
 
+function formatBytes(value: number) {
+  if (!Number.isFinite(value) || value <= 0) return '0 MB'
+  const units = ['B', 'KB', 'MB', 'GB']
+  let amount = value
+  let unitIndex = 0
+  while (amount >= 1024 && unitIndex < units.length - 1) {
+    amount /= 1024
+    unitIndex += 1
+  }
+  const digits = unitIndex >= 2 && amount < 10 ? 1 : 0
+  return `${amount.toFixed(digits)} ${units[unitIndex]}`
+}
+
 function mediaPath(file: File) {
   return file.webkitRelativePath || file.name
+}
+
+function errorMessage(error: unknown) {
+  return error instanceof Error ? error.message : 'Unexpected local-storage error.'
 }
 
 function App() {
@@ -54,12 +88,20 @@ function App() {
   const [bPoint, setBPoint] = useState<number | null>(null)
   const [recordingActive, setRecordingActive] = useState(false)
   const [folderRoots, setFolderRoots] = useState<string[]>([])
+  const [libraryBusy, setLibraryBusy] = useState(false)
+  const [libraryError, setLibraryError] = useState<string | null>(null)
+  const [libraryStatus, setLibraryStatus] = useState('保存したメディアは次回起動時に自動復元されます。')
+  const [savedBytes, setSavedBytes] = useState(0)
+  const [storageEstimate, setStorageEstimate] = useState<StorageEstimate | null>(null)
+  const [storagePersistent, setStoragePersistent] = useState<boolean | null>(null)
 
   const mediaRef = useRef<HTMLMediaElement | null>(null)
   const folderInputRef = useRef<HTMLInputElement | null>(null)
   const objectUrlsRef = useRef<string[]>([])
   const autoPlayOnLoadRef = useRef(false)
   const currentItem = items[currentIndex] ?? null
+  const persistedCount = items.filter((item) => item.persisted).length
+  const temporaryCount = items.length - persistedCount
 
   const capabilities = useMemo(
     () => [
@@ -71,6 +113,23 @@ function App() {
     [],
   )
 
+  const refreshStorageStats = async () => {
+    const bytes = await getMediaLibraryBytes()
+    setSavedBytes(bytes)
+
+    if (navigator.storage?.estimate) {
+      const estimate = await navigator.storage.estimate()
+      setStorageEstimate({
+        usage: estimate.usage ?? 0,
+        quota: estimate.quota ?? 0,
+      })
+    }
+
+    if (navigator.storage?.persisted) {
+      setStoragePersistent(await navigator.storage.persisted())
+    }
+  }
+
   useEffect(() => {
     document.documentElement.dataset.theme = theme
     window.localStorage.setItem('wms-theme', theme)
@@ -79,6 +138,52 @@ function App() {
   useEffect(() => {
     folderInputRef.current?.setAttribute('webkitdirectory', '')
     folderInputRef.current?.setAttribute('directory', '')
+  }, [])
+
+  useEffect(() => {
+    let cancelled = false
+
+    const restoreLibrary = async () => {
+      try {
+        const storedItems = await listMediaLibraryItems()
+        if (cancelled) return
+
+        const restoredItems = storedItems.map<MediaItem>((record) => {
+          const url = URL.createObjectURL(record.blob)
+          objectUrlsRef.current.push(url)
+          return {
+            id: record.id,
+            name: record.name,
+            kind: record.kind,
+            url,
+            mimeType: record.mimeType,
+            relativePath: record.relativePath,
+            source: 'library',
+            blob: record.blob,
+            persisted: true,
+            savedAt: record.savedAt,
+          }
+        })
+
+        setItems((previous) => {
+          const existingIds = new Set(previous.map((item) => item.id))
+          const uniqueRestored = restoredItems.filter((item) => !existingIds.has(item.id))
+          return [...previous, ...uniqueRestored]
+        })
+        if (restoredItems.length) setCurrentIndex((index) => (index < 0 ? 0 : index))
+        setSavedBytes(storedItems.reduce((total, item) => total + item.size, 0))
+        setLibraryStatus(storedItems.length ? `${storedItems.length}件の保存メディアを復元しました。` : '保存したメディアは次回起動時に自動復元されます。')
+        setLibraryError(null)
+        await refreshStorageStats()
+      } catch (error) {
+        if (!cancelled) setLibraryError(`ライブラリを復元できませんでした: ${errorMessage(error)}`)
+      }
+    }
+
+    void restoreLibrary()
+    return () => {
+      cancelled = true
+    }
   }, [])
 
   useEffect(() => {
@@ -97,7 +202,7 @@ function App() {
     if (currentItem && 'mediaSession' in navigator) {
       navigator.mediaSession.metadata = new MediaMetadata({
         title: currentItem.name,
-        artist: currentItem.relativePath ? 'Folder media' : 'Local media',
+        artist: currentItem.persisted ? 'Saved library' : currentItem.relativePath ? 'Folder media' : 'Local media',
         album: 'Web Media Studio',
       })
     }
@@ -153,7 +258,7 @@ function App() {
     mediaRef.current = node
   }
 
-  const appendFiles = (files: File[], source: MediaItem['source']) => {
+  const appendFiles = (files: File[], source: 'files' | 'folder') => {
     const sorted = [...files]
       .filter((file) => file.type.startsWith('audio/') || file.type.startsWith('video/'))
       .sort((a, b) => mediaPath(a).localeCompare(mediaPath(b), undefined, { numeric: true, sensitivity: 'base' }))
@@ -164,18 +269,23 @@ function App() {
       const url = URL.createObjectURL(file)
       objectUrlsRef.current.push(url)
       return {
-        id: `${mediaPath(file)}-${file.lastModified}-${Math.random().toString(36).slice(2)}`,
+        id: `${mediaPath(file)}-${file.size}-${file.lastModified}-${Math.random().toString(36).slice(2)}`,
         name: file.name,
         kind: file.type.startsWith('video/') ? 'video' : 'audio',
         url,
         mimeType: file.type,
         relativePath: source === 'folder' ? mediaPath(file) : null,
         source,
+        blob: file,
+        persisted: false,
+        savedAt: null,
       }
     })
 
     setItems((previous) => [...previous, ...imported])
     setCurrentIndex((index) => (index < 0 ? 0 : index))
+    setLibraryStatus(`${imported.length}件を一時プレイリストへ追加しました。残したい曲は Save してください。`)
+    setLibraryError(null)
     return imported.length
   }
 
@@ -200,16 +310,115 @@ function App() {
     event.target.value = ''
   }
 
-  const clearPlaylist = () => {
+  const saveItemsToLibrary = async (targets: MediaItem[]) => {
+    const pending = targets.filter((item) => !item.persisted)
+    if (!pending.length || libraryBusy) return
+
+    setLibraryBusy(true)
+    setLibraryError(null)
+
+    try {
+      const oversized = pending.find((item) => item.blob.size > MEDIA_LIBRARY_MAX_ITEM_BYTES)
+      if (oversized) {
+        throw new Error(`${oversized.name} は ${formatBytes(MEDIA_LIBRARY_MAX_ITEM_BYTES)} の1ファイル上限を超えています。`)
+      }
+
+      const bytesToAdd = pending.reduce((total, item) => total + item.blob.size, 0)
+      const currentBytes = await getMediaLibraryBytes()
+      if (currentBytes + bytesToAdd > MEDIA_LIBRARY_SOFT_LIMIT_BYTES) {
+        throw new Error(`保存ライブラリは現在 ${formatBytes(MEDIA_LIBRARY_SOFT_LIMIT_BYTES)} までに制限しています。`)
+      }
+
+      if (navigator.storage?.estimate) {
+        const estimate = await navigator.storage.estimate()
+        const usage = estimate.usage ?? 0
+        const quota = estimate.quota ?? 0
+        if (quota > 0 && usage + bytesToAdd > quota * 0.9) {
+          throw new Error('ブラウザの保存容量が少なくなっています。不要な保存メディアを削除してから再試行してください。')
+        }
+      }
+
+      if (navigator.storage?.persist) {
+        try {
+          await navigator.storage.persist()
+        } catch {
+          // Persistence is a browser-controlled enhancement; IndexedDB remains usable when denied.
+        }
+      }
+
+      const baseSavedAt = Date.now()
+      const savedAtById = new Map<string, number>()
+      const records: StoredMediaLibraryItem[] = pending.map((item, index) => {
+        const savedAt = baseSavedAt + index
+        savedAtById.set(item.id, savedAt)
+        return {
+          id: item.id,
+          name: item.name,
+          kind: item.kind,
+          mimeType: item.mimeType,
+          relativePath: item.relativePath,
+          savedAt,
+          size: item.blob.size,
+          blob: item.blob,
+        }
+      })
+
+      await saveMediaLibraryItems(records)
+      setItems((previous) => previous.map((item) => {
+        const savedAt = savedAtById.get(item.id)
+        return savedAt === undefined ? item : { ...item, persisted: true, savedAt }
+      }))
+      setLibraryStatus(`${pending.length}件を端末内ライブラリへ保存しました。`)
+      await refreshStorageStats()
+    } catch (error) {
+      setLibraryError(`保存できませんでした: ${errorMessage(error)}`)
+    } finally {
+      setLibraryBusy(false)
+    }
+  }
+
+  const deleteSavedItem = async (item: MediaItem) => {
+    if (!item.persisted || libraryBusy) return
+
+    const removalIndex = items.findIndex((candidate) => candidate.id === item.id)
+    setLibraryBusy(true)
+    setLibraryError(null)
+
+    try {
+      if (removalIndex === currentIndex) mediaRef.current?.pause()
+      await deleteMediaLibraryItem(item.id)
+      URL.revokeObjectURL(item.url)
+      objectUrlsRef.current = objectUrlsRef.current.filter((url) => url !== item.url)
+      setItems((previous) => previous.filter((candidate) => candidate.id !== item.id))
+      setCurrentIndex((index) => {
+        const nextLength = Math.max(0, items.length - 1)
+        if (!nextLength) return -1
+        if (index > removalIndex) return index - 1
+        if (index === removalIndex) return Math.min(removalIndex, nextLength - 1)
+        return index
+      })
+      setLibraryStatus(`${item.name} を保存ライブラリから削除しました。`)
+      await refreshStorageStats()
+    } catch (error) {
+      setLibraryError(`削除できませんでした: ${errorMessage(error)}`)
+    } finally {
+      setLibraryBusy(false)
+    }
+  }
+
+  const clearTemporaryItems = () => {
     mediaRef.current?.pause()
-    objectUrlsRef.current.forEach((url) => URL.revokeObjectURL(url))
-    objectUrlsRef.current = []
-    setItems([])
-    setCurrentIndex(-1)
+    const temporaryUrls = new Set(items.filter((item) => !item.persisted).map((item) => item.url))
+    temporaryUrls.forEach((url) => URL.revokeObjectURL(url))
+    objectUrlsRef.current = objectUrlsRef.current.filter((url) => !temporaryUrls.has(url))
+    const savedItems = items.filter((item) => item.persisted)
+    setItems(savedItems)
+    setCurrentIndex(savedItems.length ? 0 : -1)
     setFolderRoots([])
     setCurrentTime(0)
     setDuration(0)
     setIsPlaying(false)
+    setLibraryStatus('一時追加したメディアだけをクリアしました。保存済みライブラリは残っています。')
   }
 
   const togglePlayback = async () => {
@@ -321,6 +530,8 @@ function App() {
     onTimeUpdate: (media: HTMLMediaElement) => handleTimeUpdate(media),
   }
 
+  const libraryFillPercent = Math.min(100, (savedBytes / MEDIA_LIBRARY_SOFT_LIMIT_BYTES) * 100)
+
   return (
     <div className="app-shell">
       <header className="topbar">
@@ -384,7 +595,7 @@ function App() {
 
           <div className="track-heading">
             <div>
-              <p className="source-label">{currentItem?.source === 'folder' ? 'FOLDER MEDIA' : currentItem ? 'LOCAL MEDIA' : 'NO SOURCE'}</p>
+              <p className="source-label">{currentItem?.persisted ? 'SAVED LIBRARY' : currentItem?.source === 'folder' ? 'FOLDER MEDIA' : currentItem ? 'LOCAL MEDIA' : 'NO SOURCE'}</p>
               <h2>{currentItem?.name ?? 'Choose a file to begin'}</h2>
               {currentItem?.relativePath && <p className="track-path">{currentItem.relativePath}</p>}
             </div>
@@ -451,12 +662,28 @@ function App() {
         <aside className="side-stack">
           <section id="library-panel" className="glass-panel library-panel">
             <div className="section-heading library-heading">
-              <div><p className="eyebrow">LOCAL LIBRARY</p><h2>Folder playlist</h2></div>
+              <div><p className="eyebrow">LOCAL LIBRARY</p><h2>Persistent media</h2></div>
               <div className="library-actions">
-                <label className="import-button">＋ Files<input type="file" accept="audio/*,video/*" multiple onChange={importFiles} /></label>
+                <label className="import-button">＋ Multiple files<input type="file" accept="audio/*,video/*" multiple onChange={importFiles} /></label>
                 <label className="import-button folder-button">▣ Folder<input ref={folderInputRef} type="file" multiple onChange={importFolder} /></label>
-                {items.length > 0 && <button className="clear-library-button" type="button" onClick={clearPlaylist}>Clear</button>}
+                {temporaryCount > 0 && <button className="save-library-button" type="button" disabled={libraryBusy} onClick={() => void saveItemsToLibrary(items)}>Save {temporaryCount}</button>}
+                {temporaryCount > 0 && <button className="clear-library-button" type="button" disabled={libraryBusy} onClick={clearTemporaryItems}>Clear temp</button>}
               </div>
+            </div>
+
+            <div className="library-storage-card">
+              <div className="library-storage-copy">
+                <strong>{persistedCount} saved</strong>
+                <span>{formatBytes(savedBytes)} / {formatBytes(MEDIA_LIBRARY_SOFT_LIMIT_BYTES)}</span>
+              </div>
+              <div className="library-storage-meter" aria-label={`Library storage ${Math.round(libraryFillPercent)} percent`}>
+                <span style={{ width: `${libraryFillPercent}%` }} />
+              </div>
+              <div className="library-storage-meta">
+                <span>{storagePersistent === true ? 'Storage protected' : storagePersistent === false ? 'Browser-managed storage' : 'Storage status checking'}</span>
+                {storageEstimate && storageEstimate.quota > 0 && <span>Origin {formatBytes(storageEstimate.usage)} / {formatBytes(storageEstimate.quota)}</span>}
+              </div>
+              {libraryError ? <p className="library-message is-error">{libraryError}</p> : <p className="library-message">{libraryStatus}</p>}
             </div>
 
             {folderRoots.length > 0 && (
@@ -467,27 +694,36 @@ function App() {
 
             <div className="playlist-list">
               {items.length ? items.map((item, index) => (
-                <button
-                  type="button"
-                  key={item.id}
-                  className={`playlist-item ${index === currentIndex ? 'is-current' : ''}`}
-                  onClick={() => {
-                    autoPlayOnLoadRef.current = Boolean(mediaRef.current && !mediaRef.current.paused)
-                    setCurrentIndex(index)
-                  }}
-                >
-                  <span className="playlist-index">{String(index + 1).padStart(2, '0')}</span>
-                  <span className="playlist-copy">
-                    <span className="playlist-name">{item.name}</span>
-                    {item.relativePath && <small>{item.relativePath}</small>}
-                  </span>
-                  <span className="source-chip">{item.source === 'folder' ? 'folder' : item.kind}</span>
-                </button>
+                <div className="playlist-row" key={item.id}>
+                  <button
+                    type="button"
+                    className={`playlist-item ${index === currentIndex ? 'is-current' : ''}`}
+                    onClick={() => {
+                      autoPlayOnLoadRef.current = Boolean(mediaRef.current && !mediaRef.current.paused)
+                      setCurrentIndex(index)
+                    }}
+                  >
+                    <span className="playlist-index">{String(index + 1).padStart(2, '0')}</span>
+                    <span className="playlist-copy">
+                      <span className="playlist-name">{item.name}</span>
+                      {item.relativePath && <small>{item.relativePath}</small>}
+                    </span>
+                    <span className="source-chip">{item.persisted ? 'saved' : item.source === 'folder' ? 'folder' : item.kind}</span>
+                  </button>
+                  <button
+                    type="button"
+                    className={`library-item-action ${item.persisted ? 'is-delete' : 'is-save'}`}
+                    disabled={libraryBusy}
+                    onClick={() => item.persisted ? void deleteSavedItem(item) : void saveItemsToLibrary([item])}
+                  >
+                    {item.persisted ? 'Delete' : 'Save'}
+                  </button>
+                </div>
               )) : (
-                <div className="playlist-empty"><strong>まだ曲がありません</strong><span>「Folder」でフォルダ全体を読み込むと、音声・動画だけを自然順でプレイリスト化します。</span></div>
+                <div className="playlist-empty"><strong>まだ曲がありません</strong><span>Androidでは「Multiple files」で複数選択するのがおすすめです。保存した曲は次回起動時にも復元されます。</span></div>
               )}
             </div>
-            {items.length > 0 && <p className="playlist-note">{items.length} items · 曲終了時は次の項目へ連続再生します。フォルダの実ファイル自体はサーバーへ送信しません。</p>}
+            {items.length > 0 && <p className="playlist-note">{items.length} items · {persistedCount} saved · 保存は端末内IndexedDBです。サーバーへアップロードしません。</p>}
           </section>
 
           <section className="glass-panel device-panel">
