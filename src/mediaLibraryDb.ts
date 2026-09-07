@@ -46,6 +46,33 @@ export async function saveMediaLibraryItems(items: StoredMediaLibraryItem[]): Pr
   }
 }
 
+export async function saveMediaLibraryOrder(orderedIds: string[]): Promise<void> {
+  if (!orderedIds.length) return
+
+  const database = await openAppDatabase()
+  try {
+    const transaction = database.transaction(MEDIA_LIBRARY_STORE, 'readwrite')
+    const store = transaction.objectStore(MEDIA_LIBRARY_STORE)
+    const request = store.getAll()
+
+    const records = await new Promise<StoredMediaLibraryItem[]>((resolve, reject) => {
+      request.onsuccess = () => resolve(request.result as StoredMediaLibraryItem[])
+      request.onerror = () => reject(request.error ?? new Error('Saved media order could not be read.'))
+    })
+
+    const rank = new Map(orderedIds.map((id, index) => [id, index]))
+    const base = Date.now()
+    records.forEach((record) => {
+      const index = rank.get(record.id)
+      if (index !== undefined) store.put({ ...record, savedAt: base + index })
+    })
+
+    await waitForTransaction(transaction)
+  } finally {
+    database.close()
+  }
+}
+
 export async function deleteMediaLibraryItem(id: string): Promise<void> {
   const database = await openAppDatabase()
   try {
