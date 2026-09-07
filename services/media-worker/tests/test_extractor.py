@@ -5,7 +5,9 @@ from wms_media_worker.extractor import (
     YouTubeAccessRestrictedError,
     _check_limits,
     _normalize_extraction_error,
+    _youtube_provider_opts,
     normalize_source,
+    youtube_po_token_mode,
 )
 
 
@@ -33,6 +35,30 @@ def test_source_size_guard(monkeypatch):
     monkeypatch.setenv("MAX_SOURCE_BYTES", "100")
     with pytest.raises(ExtractionError):
         _check_limits({"duration": 1, "filesize_approx": 101})
+
+
+def test_po_token_mode_is_off_by_default(monkeypatch):
+    monkeypatch.delenv("YOUTUBE_PO_TOKEN_MODE", raising=False)
+    assert youtube_po_token_mode() == "off"
+    assert _youtube_provider_opts() == {}
+
+
+def test_bgutil_mweb_provider_opts(monkeypatch):
+    monkeypatch.setenv("YOUTUBE_PO_TOKEN_MODE", "bgutil-script-mweb")
+    monkeypatch.setenv("BGUTIL_SERVER_HOME", "/opt/provider/server")
+
+    assert _youtube_provider_opts() == {
+        "extractor_args": {
+            "youtube": {"player_client": ["mweb"]},
+            "youtubepot-bgutilscript": {"server_home": ["/opt/provider/server"]},
+        }
+    }
+
+
+def test_unknown_po_token_mode_is_rejected(monkeypatch):
+    monkeypatch.setenv("YOUTUBE_PO_TOKEN_MODE", "unknown")
+    with pytest.raises(ExtractionError):
+        _youtube_provider_opts()
 
 
 def test_bot_challenge_is_translated_without_cookie_instructions():
