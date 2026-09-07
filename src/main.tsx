@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client'
 import App from './App'
 import YouTubeProviderPanel from './YouTubeProviderPanel'
 import YouTubeLocalizerPanel from './YouTubeLocalizerPanel'
+import ToolDeckEnhancer from './ToolDeckEnhancer'
 import './styles.css'
 import './mobile-overrides.css'
 import './recorder.css'
@@ -14,6 +15,7 @@ import './reorder-resume.css'
 import './named-playlists.css'
 import './youtube-provider.css'
 import './youtube-localizer.css'
+import './ui-v2.css'
 
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
@@ -29,6 +31,7 @@ function Root() {
       <App key={libraryRevision} />
       <YouTubeProviderPanel />
       <YouTubeLocalizerPanel onMediaLocalized={() => setLibraryRevision((value) => value + 1)} />
+      <ToolDeckEnhancer />
     </>
   )
 }

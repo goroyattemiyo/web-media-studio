@@ -1,0 +1,535 @@
+/* WMS UI v2 — one tool per horizontal snap card, with optional local backdrop. */
+
+html,
+body {
+  overscroll-behavior-x: none;
+}
+
+body {
+  overflow-x: hidden;
+}
+
+#root {
+  position: relative;
+  z-index: 1;
+}
+
+.app-shell {
+  width: 100%;
+  max-width: 100%;
+  padding-left: 0;
+  padding-right: 0;
+  padding-bottom: calc(132px + env(safe-area-inset-bottom));
+}
+
+.topbar {
+  width: min(calc(100% - 28px), 980px);
+  max-width: 980px;
+  margin-bottom: 12px;
+  padding-inline: 2px;
+}
+
+.content-grid {
+  width: 100%;
+  max-width: none;
+  margin: 0;
+  display: flex !important;
+  grid-template-columns: none !important;
+  align-items: stretch !important;
+  gap: 14px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scroll-snap-type: x mandatory;
+  scroll-padding-inline: max(4vw, 16px);
+  overscroll-behavior-x: contain;
+  scrollbar-width: none;
+  padding: 4px max(4vw, 16px) 16px;
+  -webkit-overflow-scrolling: touch;
+}
+
+.content-grid::-webkit-scrollbar,
+.tool-deck-nav::-webkit-scrollbar {
+  display: none;
+}
+
+.side-stack {
+  display: contents !important;
+}
+
+.content-grid > .glass-panel,
+.side-stack > .glass-panel {
+  flex: 0 0 min(92vw, 860px);
+  width: min(92vw, 860px);
+  max-width: 860px;
+  height: min(780px, calc(100dvh - 196px));
+  min-height: min(440px, calc(100dvh - 196px));
+  overflow-x: hidden;
+  overflow-y: auto;
+  scroll-snap-align: center;
+  scroll-snap-stop: always;
+  scroll-margin-inline: max(4vw, 16px);
+  scrollbar-width: thin;
+  scrollbar-color: rgba(var(--color-accent-rgb), .28) transparent;
+}
+
+.content-grid > .glass-panel::-webkit-scrollbar,
+.side-stack > .glass-panel::-webkit-scrollbar {
+  width: 5px;
+}
+
+.content-grid > .glass-panel::-webkit-scrollbar-thumb,
+.side-stack > .glass-panel::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: rgba(var(--color-accent-rgb), .28);
+}
+
+.player-panel { order: 1; }
+#library-panel { order: 2; }
+#youtube-provider-panel { order: 3; }
+#youtube-localizer-panel { order: 4; }
+#recorder-panel { order: 5; }
+#ffmpeg-tools-panel { order: 6; }
+.device-panel { order: 7; }
+
+.glass-panel {
+  background: color-mix(in srgb, var(--color-surface) 88%, transparent);
+  backdrop-filter: blur(26px) saturate(128%);
+  -webkit-backdrop-filter: blur(26px) saturate(128%);
+}
+
+/* The previous vertically-scrolling navigation remains in App for compatibility, but UI v2 owns navigation. */
+.bottom-nav {
+  display: none !important;
+}
+
+.tool-deck-nav {
+  position: fixed;
+  z-index: 80;
+  left: 50%;
+  bottom: max(8px, env(safe-area-inset-bottom));
+  width: min(calc(100% - 18px), 660px);
+  transform: translateX(-50%);
+  display: flex;
+  align-items: stretch;
+  gap: 4px;
+  overflow-x: auto;
+  padding: 7px;
+  border: 1px solid var(--color-border);
+  border-radius: 22px;
+  background: color-mix(in srgb, var(--color-surface-strong) 88%, transparent);
+  backdrop-filter: blur(30px) saturate(135%);
+  -webkit-backdrop-filter: blur(30px) saturate(135%);
+  box-shadow: 0 18px 52px rgba(0, 0, 0, .34);
+  scrollbar-width: none;
+}
+
+.tool-deck-nav button {
+  flex: 1 0 66px;
+  min-width: 66px;
+  min-height: 54px;
+  display: grid;
+  place-items: center;
+  align-content: center;
+  gap: 4px;
+  border: 0;
+  border-radius: 15px;
+  background: transparent;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  transition: background 150ms ease, color 150ms ease, transform 120ms ease;
+}
+
+.tool-deck-nav button:active {
+  transform: scale(.96);
+}
+
+.tool-deck-nav button > span {
+  min-height: 17px;
+  font-size: 14px;
+  font-weight: 900;
+  line-height: 1;
+}
+
+.tool-deck-nav button > small {
+  font-size: 8px;
+  font-weight: 800;
+  letter-spacing: .02em;
+}
+
+.tool-deck-nav button.is-current {
+  background: rgba(var(--color-accent-rgb), .11);
+  color: var(--color-accent);
+}
+
+.tool-deck-pager {
+  position: fixed;
+  z-index: 79;
+  left: 50%;
+  bottom: calc(77px + env(safe-area-inset-bottom));
+  transform: translateX(-50%);
+  width: min(calc(100% - 32px), 360px);
+  min-height: 36px;
+  display: grid;
+  grid-template-columns: 38px minmax(0, 1fr) 38px;
+  align-items: center;
+  gap: 4px;
+  padding: 3px;
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--color-surface-strong) 82%, transparent);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  box-shadow: 0 10px 32px rgba(0, 0, 0, .22);
+}
+
+.tool-deck-pager button {
+  width: 34px;
+  height: 30px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--color-text);
+  font-size: 22px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.tool-deck-pager button:disabled {
+  opacity: .25;
+  cursor: default;
+}
+
+.tool-deck-pager > span {
+  min-width: 0;
+  display: flex;
+  justify-content: center;
+  align-items: baseline;
+  gap: 8px;
+  text-align: center;
+}
+
+.tool-deck-pager strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 10px;
+}
+
+.tool-deck-pager small {
+  flex: none;
+  color: var(--color-text-muted);
+  font-size: 8px;
+  font-variant-numeric: tabular-nums;
+}
+
+.appearance-trigger {
+  flex: none;
+  min-height: 38px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 11px;
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--color-surface-strong) 82%, transparent);
+  color: var(--color-text-muted);
+  cursor: pointer;
+  font-size: 10px;
+  font-weight: 800;
+}
+
+.appearance-trigger > span {
+  color: var(--color-accent);
+  font-size: 15px;
+}
+
+.wms-user-backdrop,
+.wms-user-backdrop-scrim {
+  position: fixed;
+  z-index: 0;
+  pointer-events: none;
+}
+
+.wms-user-backdrop {
+  inset: -28px;
+  background-position: center;
+  background-size: cover;
+  background-repeat: no-repeat;
+  transform: scale(1.04);
+}
+
+.wms-user-backdrop-scrim {
+  inset: 0;
+}
+
+.appearance-sheet-layer {
+  position: fixed;
+  z-index: 120;
+  inset: 0;
+  display: grid;
+  align-items: end;
+  padding: 12px;
+  background: rgba(0, 0, 0, .44);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+}
+
+.appearance-sheet {
+  width: min(100%, 620px);
+  max-height: min(78dvh, 720px);
+  margin: 0 auto max(2px, env(safe-area-inset-bottom));
+  overflow: auto;
+  display: grid;
+  gap: 14px;
+  padding: 18px;
+  border: 1px solid var(--color-border);
+  border-radius: 26px;
+  background: color-mix(in srgb, var(--color-surface-strong) 96%, transparent);
+  color: var(--color-text);
+  box-shadow: 0 28px 80px rgba(0, 0, 0, .48);
+}
+
+.appearance-sheet-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.appearance-sheet-heading h2 {
+  margin: 0;
+  font-size: 20px;
+}
+
+.appearance-close {
+  width: 38px;
+  height: 38px;
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  background: transparent;
+  color: var(--color-text);
+  cursor: pointer;
+  font-size: 20px;
+}
+
+.appearance-setting-card {
+  display: grid;
+  gap: 10px;
+  padding: 13px;
+  border: 1px solid var(--color-border);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, .025);
+}
+
+.appearance-setting-copy {
+  display: grid;
+  gap: 4px;
+}
+
+.appearance-setting-copy strong {
+  font-size: 11px;
+}
+
+.appearance-setting-copy span,
+.appearance-status {
+  color: var(--color-text-muted);
+  font-size: 9px;
+  line-height: 1.6;
+}
+
+.appearance-actions,
+.appearance-segmented {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.appearance-file-button,
+.appearance-actions button,
+.appearance-segmented button {
+  min-height: 38px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 12px;
+  border: 1px solid var(--color-border);
+  border-radius: 11px;
+  background: var(--color-surface);
+  color: var(--color-text);
+  cursor: pointer;
+  font-size: 10px;
+  font-weight: 800;
+}
+
+.appearance-file-button {
+  border-color: rgba(var(--color-accent-rgb), .34);
+  color: var(--color-accent);
+}
+
+.appearance-file-button input {
+  display: none;
+}
+
+.appearance-range-row {
+  display: grid;
+  gap: 8px;
+  color: var(--color-text-muted);
+}
+
+.appearance-range-row > span {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 10px;
+}
+
+.appearance-range-row strong {
+  color: var(--color-text);
+}
+
+.appearance-range-row b {
+  color: var(--color-accent);
+  font-variant-numeric: tabular-nums;
+}
+
+.appearance-range-row input {
+  width: 100%;
+  accent-color: var(--color-accent);
+}
+
+.appearance-detail-toggle {
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+}
+
+.appearance-segmented {
+  flex-wrap: nowrap;
+}
+
+.appearance-segmented button.is-active {
+  border-color: rgba(var(--color-accent-rgb), .38);
+  background: rgba(var(--color-accent-rgb), .11);
+  color: var(--color-accent);
+}
+
+.appearance-status {
+  margin: 0;
+}
+
+/* Progressive disclosure: keep the one-line tool description, hide secondary technical copy by default. */
+:root[data-ui-detail='compact'] .localizer-flow,
+:root[data-ui-detail='compact'] .youtube-capabilities,
+:root[data-ui-detail='compact'] .device-note,
+:root[data-ui-detail='compact'] .section-description,
+:root[data-ui-detail='compact'] .playlist-note {
+  display: none !important;
+}
+
+@media (min-width: 980px) {
+  .content-grid > .glass-panel,
+  .side-stack > .glass-panel {
+    flex-basis: min(78vw, 900px);
+    width: min(78vw, 900px);
+    max-width: 900px;
+  }
+
+  .content-grid {
+    padding-inline: max(calc((100vw - min(78vw, 900px)) / 2), 24px);
+  }
+}
+
+@media (max-width: 620px) {
+  .app-shell {
+    padding-bottom: calc(130px + env(safe-area-inset-bottom));
+  }
+
+  .topbar {
+    width: calc(100% - 20px);
+    gap: 8px;
+  }
+
+  .topbar .theme-picker {
+    margin-left: auto;
+  }
+
+  .appearance-trigger {
+    width: 38px;
+    min-height: 38px;
+    justify-content: center;
+    padding: 0;
+  }
+
+  .appearance-trigger b {
+    display: none;
+  }
+
+  .content-grid {
+    gap: 10px;
+    padding-inline: 10px;
+    scroll-padding-inline: 10px;
+  }
+
+  .content-grid > .glass-panel,
+  .side-stack > .glass-panel {
+    flex-basis: calc(100vw - 20px);
+    width: calc(100vw - 20px);
+    max-width: calc(100vw - 20px);
+    height: calc(100dvh - 188px);
+    min-height: 0;
+    border-radius: 22px;
+    scroll-margin-inline: 10px;
+  }
+
+  .player-panel,
+  .library-panel,
+  .device-panel {
+    padding: 14px;
+  }
+
+  .tool-deck-nav {
+    width: calc(100% - 12px);
+    border-radius: 19px;
+  }
+
+  .tool-deck-nav button {
+    flex-basis: 62px;
+    min-width: 62px;
+    min-height: 50px;
+  }
+
+  .tool-deck-pager {
+    bottom: calc(73px + env(safe-area-inset-bottom));
+    width: min(calc(100% - 30px), 330px);
+  }
+
+  .appearance-sheet-layer {
+    padding: 8px;
+  }
+
+  .appearance-sheet {
+    padding: 16px;
+    border-radius: 22px;
+  }
+
+  .appearance-detail-toggle {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-height: 620px) and (orientation: landscape) {
+  .content-grid > .glass-panel,
+  .side-stack > .glass-panel {
+    height: calc(100dvh - 150px);
+  }
+
+  .tool-deck-pager {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .content-grid {
+    scroll-behavior: auto;
+  }
+}
