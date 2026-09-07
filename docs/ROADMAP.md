@@ -40,11 +40,11 @@ Desktop regression coverage is still useful but is not blocking ongoing mobile-f
 
 ## Phase 2 — Library and playlists
 
-Status: persistent media Blob storage is implemented on `feat/persistent-media-library`; Android persistence validation is pending.
+Status: persistent media Blob storage is merged in PR #12 and deployed; Android persistence validation is pending.
 
 - [~] directory import — progressive enhancement only; tested Android picker does not provide true whole-directory import
 - [x] media filtering
-- [~] IndexedDB media storage — feature implementation complete; device validation pending
+- [~] IndexedDB media storage — implementation merged/deployed; device validation pending
 - [ ] saved named playlists
 - [~] reorder/remove/add controls — import, Save, Delete and Clear-temp implemented; reorder remains
 - [ ] resume position
