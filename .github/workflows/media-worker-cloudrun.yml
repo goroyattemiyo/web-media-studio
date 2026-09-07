@@ -21,6 +21,16 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v7
 
+      - name: Validate worker secret
+        shell: bash
+        env:
+          WORKER_SECRET: ${{ secrets.WMS_WORKER_API_KEY }}
+        run: |
+          if [[ ! "${WORKER_SECRET}" =~ ^[0-9a-fA-F]{64}$ ]]; then
+            echo "::error::WMS_WORKER_API_KEY must be exactly 64 hexadecimal characters with no spaces or newlines."
+            exit 1
+          fi
+
       - name: Authenticate to Google Cloud
         uses: google-github-actions/auth@v3
         with:
@@ -35,6 +45,7 @@ jobs:
           service: wms-media-worker
           region: ${{ env.GCP_REGION }}
           source: services/media-worker
+          env_vars_update_strategy: overwrite
           env_vars: |-
             WMS_WORKER_API_KEY=${{ secrets.WMS_WORKER_API_KEY }}
             ALLOWED_ORIGINS=https://goroyattemiyo.github.io
