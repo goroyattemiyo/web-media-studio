@@ -10,9 +10,7 @@ Public URL:
 
 `https://goroyattemiyo.github.io/web-media-studio/`
 
-Recorder, recording persistence, FFmpeg extraction/conversion, Android multi-file import, continuous playback, screen-off playback, installed-PWA background playback, and tested lock-screen controls have passed the requested Android real-device checks.
-
-Persistent local media storage shipped in merged PR #12. Its code path passes TypeScript typecheck, Vite production build, and GitHub Pages deployment. Reload/PWA-restart behavior still requires Android real-device confirmation before this phase is marked device-confirmed.
+Recorder, recording persistence, FFmpeg extraction/conversion, Android multi-file import, continuous playback, screen-off playback, installed-PWA background playback, tested lock-screen controls, and persistent local media-library behavior have passed the requested Android real-device checks.
 
 ## Implemented player foundation
 
@@ -39,7 +37,7 @@ Persistent local media storage shipped in merged PR #12. Its code path passes Ty
 - source track/start-position metadata
 - take playback, deletion and download
 
-Recorder MVP does not claim sample-accurate synchronization and does not digitally mix playback audio into the take.
+Recorder MVP does not claim sample-accurate synchronization and does not digitally mix playback audio into the take. Current intended use is karaoke-style vocal practice, instrument practice, and quick performance-note recording while a source track plays.
 
 ## Implemented recording persistence (merged PR #7)
 
@@ -96,9 +94,7 @@ These results apply only to the tested Android environment and do not imply iden
 - shared IndexedDB schema upgraded from version 1 to version 2
 - existing `recording-takes` data preserved during schema upgrade
 - new `media-library` object store
-- imported audio/video keeps its Blob in memory until explicitly saved
-- per-item Save action
-- Save-all-current-temporary-items action
+- per-item Save and Save-all actions
 - saved media Blob + metadata stored locally in IndexedDB
 - saved media restored automatically at app startup
 - per-item Delete removes the persistent Blob from IndexedDB
@@ -110,26 +106,35 @@ These results apply only to the tested Android environment and do not imply iden
 - saved count, saved bytes, quota estimate and storage-protection status UI
 - no application-server upload
 
-Automated validation for PR #12 and merged Pages deployment:
+Android real-device validation on 2026-09-07:
 
-- dependency install: PASS
-- TypeScript typecheck: PASS
-- Vite production build: PASS
-- Configure Pages: PASS
-- Pages artifact upload: PASS
-- Deploy to GitHub Pages: PASS
+- saved media survives normal reload and remains playable: PASS
+- saved media survives closing/reopening Chrome/PWA: PASS
+- Clear temp removes only unsaved items: PASS
+- deleting a saved item remains deleted after reload: PASS
+- existing saved recording takes survive IndexedDB version-2 upgrade: PASS
 
-## Persistent-library real-device validation still required
+## In progress: WMS branding and player visual foundation
 
-1. import several files and Save them
-2. reload the page and confirm saved items return and play
-3. close/reopen Chrome or installed PWA and confirm saved items return and play
-4. import an extra unsaved item, use Clear temp, and confirm saved items remain
-5. Delete one saved item, reload, and confirm it does not return
-6. confirm existing saved recording takes still load after the IndexedDB version-2 upgrade
+Feature branch: `feat/wms-branding-visuals`
 
-## Other real-device validation still required
+Implemented on the branch:
 
+- new vector WMS emblem: thick neon diamond frame with integrated WMS monogram
+- shared SVG used as the PWA/app icon source
+- header brand mark uses the same SVG
+- audio-player artwork uses the same WMS emblem
+- initial player visual-mode selector with `Emblem Spin` and `Minimal`
+- visual-mode selection persists in localStorage
+- concise Japanese one-line descriptions under the English section labels
+- service-worker shell cache bumped so new branding assets replace old cached versions cleanly
+
+Planned future visual modes remain candidates, not implemented yet: album art, wave ring, spectrum, VU meter and other visualizers.
+
+## Real-device validation still required
+
+- WMS SVG appearance in Android Chrome/PWA and installed-app icon surfaces
+- `Emblem Spin` / `Minimal` visual switching and persistence after reload
 - longer multi-file sessions
 - lock-screen Previous specifically
 - local video in longer playlists
@@ -148,9 +153,9 @@ Automated validation for PR #12 and merged Pages deployment:
 - sample-accurate synchronized recording
 - playback + microphone digital mixdown
 - audio trim/fade/normalization tools
+- album-art/wave-ring/spectrum/VU player visuals
 - YouTube provider
 - direct URL provider
-- waveform/spectrum/EQ
 - automated browser E2E tests
 
 ## Confirmed product decisions
@@ -162,13 +167,15 @@ Automated validation for PR #12 and merged Pages deployment:
 - Android primary import path: multiple local file selection
 - Folder import is progressive enhancement
 - browser-side FFmpeg loads on demand
+- WMS diamond emblem is the primary app-brand mark
+- player visuals should be switchable rather than fixed to a single animation
 - YouTube playback will use the official embedded player/API
 - YouTube stream downloading is not a project feature
 - background behavior is platform-dependent; tested Android Chrome/PWA is confirmed working
 
 ## Immediate next step
 
-1. perform the six Android persistent-library checks above
+1. validate the WMS SVG and the two initial visual modes on Android Chrome/PWA
 2. after PASS, add saved named playlists
 3. add resume position and basic reorder behavior
 4. then continue to the official YouTube IFrame provider

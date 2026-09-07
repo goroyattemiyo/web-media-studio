@@ -29,6 +29,7 @@ Status: Android/GitHub Pages exit criteria are met for the tested device/browser
 - [x] theme system
 - [x] five skins
 - [x] GitHub Actions CI/build/deploy
+- [~] switchable player visuals — Emblem Spin / Minimal implemented; richer visualizers remain
 
 Exit criteria:
 
@@ -36,15 +37,13 @@ Exit criteria:
 - local audio playback works on tested Android Chrome/PWA: PASS
 - `main` build is green: PASS
 
-Desktop regression coverage is still useful but is not blocking ongoing mobile-first development.
-
 ## Phase 2 — Library and playlists
 
-Status: persistent media Blob storage is merged in PR #12 and deployed; Android persistence validation is pending.
+Status: persistent media Blob storage is merged in PR #12 and passes Android reload/PWA-restart validation.
 
 - [~] directory import — progressive enhancement only; tested Android picker does not provide true whole-directory import
 - [x] media filtering
-- [~] IndexedDB media storage — implementation merged/deployed; device validation pending
+- [x] IndexedDB media storage
 - [ ] saved named playlists
 - [~] reorder/remove/add controls — import, Save, Delete and Clear-temp implemented; reorder remains
 - [ ] resume position
@@ -65,8 +64,9 @@ Persistent-library MVP guards:
 
 Exit criteria:
 
-- saved local media survives reload/PWA restart and remains playable: DEVICE TEST PENDING
-- deleted saved media stays deleted after reload: DEVICE TEST PENDING
+- saved local media survives reload/PWA restart and remains playable: PASS on tested Android Chrome/PWA
+- deleted saved media stays deleted after reload: PASS
+- existing recording takes survive IndexedDB schema upgrade: PASS
 - saved named playlists can be restored: NOT YET MET
 
 ## Phase 3 — Recording
@@ -142,6 +142,8 @@ Non-goal:
 
 Candidates, prioritized after real use:
 
+- album artwork visual mode
+- wave-ring visual mode
 - waveform overview
 - spectrum analyser
 - VU meters
@@ -171,7 +173,7 @@ Only after the core media app is stable:
 
 ## Current priority
 
-1. pass Android persistent-media reload/PWA-restart validation
+1. validate WMS emblem + Emblem Spin / Minimal on Android Chrome/PWA
 2. add saved named playlists
 3. add reorder and resume-position behavior
 4. then Phase 6 official YouTube provider

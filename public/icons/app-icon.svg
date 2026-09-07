@@ -1,13 +1,41 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title desc">
+  <title id="title">Web Media Studio WMS emblem</title>
+  <desc id="desc">A thick neon diamond frame containing an integrated WMS monogram.</desc>
   <defs>
-    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#44d7ff"/>
-      <stop offset="1" stop-color="#9e66ff"/>
+    <linearGradient id="frame" x1="82" y1="62" x2="430" y2="450" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#37f3ff"/>
+      <stop offset="0.46" stop-color="#168cff"/>
+      <stop offset="1" stop-color="#9b4dff"/>
     </linearGradient>
+    <linearGradient id="letters" x1="126" y1="154" x2="392" y2="368" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#40f4ff"/>
+      <stop offset="0.52" stop-color="#1b9cff"/>
+      <stop offset="1" stop-color="#a54dff"/>
+    </linearGradient>
+    <radialGradient id="backGlow" cx="50%" cy="45%" r="62%">
+      <stop offset="0" stop-color="#124f9d" stop-opacity=".42"/>
+      <stop offset=".58" stop-color="#151d42" stop-opacity=".22"/>
+      <stop offset="1" stop-color="#05070d" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="glow" x="-35%" y="-35%" width="170%" height="170%">
+      <feGaussianBlur stdDeviation="8" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
   </defs>
-  <rect width="512" height="512" rx="120" fill="#080a12"/>
-  <rect x="54" y="54" width="404" height="404" rx="98" fill="url(#g)" opacity=".16"/>
-  <circle cx="256" cy="256" r="132" fill="none" stroke="url(#g)" stroke-width="30"/>
-  <circle cx="256" cy="256" r="48" fill="url(#g)"/>
-  <path d="M348 128v188a58 58 0 1 1-24-47V158l-120 28v154a58 58 0 1 1-24-47V166l168-38Z" fill="#f7f9ff"/>
+
+  <rect width="512" height="512" rx="112" fill="#05070d"/>
+  <rect width="512" height="512" rx="112" fill="url(#backGlow)"/>
+
+  <g filter="url(#glow)">
+    <path d="M256 62 446 252 256 450 66 252Z" fill="none" stroke="url(#frame)" stroke-width="30" stroke-linecap="round" stroke-linejoin="round"/>
+
+    <!-- W -->
+    <path d="M128 202v112l42 48 34-43 34 43V198" fill="none" stroke="url(#letters)" stroke-width="24" stroke-linecap="round" stroke-linejoin="round"/>
+
+    <!-- M -->
+    <path d="M238 360V176l55 72 55-72v184" fill="none" stroke="url(#letters)" stroke-width="27" stroke-linecap="round" stroke-linejoin="round"/>
+
+    <!-- S -->
+    <path d="M386 194c-12-15-28-22-47-22-25 0-43 14-43 34 0 20 18 31 45 39 34 10 51 25 51 51 0 28-23 48-56 48-20 0-39-8-53-22" fill="none" stroke="url(#letters)" stroke-width="24" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
 </svg>

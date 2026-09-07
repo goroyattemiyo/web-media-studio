@@ -15,32 +15,32 @@
 }
 
 .topbar .eyebrow::after {
-  content: '端末内の音声・動画を、速度変更やA-Bリピート付きで再生します。';
+  content: '音声・動画を自由に再生します。';
   max-width: 440px;
 }
 
 .track-heading .source-label::after {
-  content: '再生中・選択中のメディア情報を表示します。';
+  content: '再生中のメディアを表示します。';
   max-width: 520px;
 }
 
 .library-panel .eyebrow::after {
-  content: '曲や動画を端末内に保存し、次回起動時もそのまま使えます。';
+  content: '曲や動画を端末内に保存します。';
   max-width: 420px;
 }
 
 .device-panel .eyebrow::after {
-  content: 'この端末・ブラウザで使える主要機能を確認します。';
+  content: 'この端末で使える機能を表示します。';
   max-width: 420px;
 }
 
 .recorder-panel .eyebrow::after {
-  content: '再生中の音源に合わせて、マイク音声を録音・保存できます。';
+  content: '曲を流しながら、歌や演奏をマイク録音します。';
   max-width: 420px;
 }
 
 .ffmpeg-panel .eyebrow::after {
-  content: '動画から音声だけを抽出し、MP3・WAVなどに変換します。';
+  content: '動画から音声を取り出して変換します。';
   max-width: 420px;
 }
 
