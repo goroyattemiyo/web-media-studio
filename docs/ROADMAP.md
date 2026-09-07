@@ -4,13 +4,15 @@
 
 - [x] Create repository
 - [x] Initial commit
-- [ ] Establish requirements/architecture/status docs
-- [ ] Add development guidance
-- [ ] Create bootstrap PR
+- [x] Establish requirements/architecture/status docs
+- [x] Add development guidance
+- [x] Create bootstrap PR
 
 ## Phase 1 — App shell and player core
 
 Goal: deployed, installable PWA with a reliable local-media player.
+
+Current status: the first runnable bootstrap is implemented and passes typecheck/build. GitHub Pages deployment and real-device validation are the remaining exit work for this step.
 
 - React + TypeScript + Vite bootstrap
 - GitHub Pages base path

@@ -1,0 +1,19 @@
+{
+  "name": "Web Media Studio",
+  "short_name": "Media Studio",
+  "description": "Mobile-first media player, recorder and FFmpeg-powered audio toolkit.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#080a12",
+  "theme_color": "#080a12",
+  "orientation": "any",
+  "icons": [
+    {
+      "src": "icons/app-icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
