@@ -5,6 +5,7 @@ import './styles.css'
 import './mobile-overrides.css'
 import './recorder.css'
 import './ffmpeg-tools.css'
+import './library.css'
 
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
