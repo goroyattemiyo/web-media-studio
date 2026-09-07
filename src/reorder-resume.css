@@ -4,7 +4,7 @@
 
 .queue-order-actions {
   display: grid;
-  grid-template-columns: repeat(2, 30px);
+  grid-template-columns: repeat(3, 30px);
   gap: 5px;
 }
 
@@ -23,6 +23,10 @@
 .queue-order-actions button:disabled {
   opacity: .28;
   cursor: default;
+}
+
+.queue-order-actions .queue-remove-button {
+  color: var(--color-text-muted);
 }
 
 .resume-chip {
@@ -46,7 +50,7 @@
 
   .queue-order-actions {
     grid-column: 1 / -1;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 
   .queue-order-actions button {
