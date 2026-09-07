@@ -1,14 +1,13 @@
 import { useEffect, useRef, useState } from 'react'
+import {
+  deleteRecordingTake,
+  listRecordingTakes,
+  saveRecordingTake,
+  type StoredRecordingTake,
+} from './recordingDb'
 
-type RecordingTake = {
-  id: string
-  name: string
+type RecordingTake = Omit<StoredRecordingTake, 'blob'> & {
   url: string
-  mimeType: string
-  durationMs: number
-  sourceName: string | null
-  sourcePosition: number
-  createdAt: Date
 }
 
 type RecorderPanelProps = {
@@ -50,6 +49,19 @@ function extensionFor(mimeType: string) {
   return 'webm'
 }
 
+function makePlaybackTake(stored: StoredRecordingTake): RecordingTake {
+  return {
+    id: stored.id,
+    name: stored.name,
+    mimeType: stored.mimeType,
+    durationMs: stored.durationMs,
+    sourceName: stored.sourceName,
+    sourcePosition: stored.sourcePosition,
+    createdAt: stored.createdAt,
+    url: URL.createObjectURL(stored.blob),
+  }
+}
+
 export default function RecorderPanel({
   sourceName,
   getSourcePosition,
@@ -61,6 +73,8 @@ export default function RecorderPanel({
   const [elapsedMs, setElapsedMs] = useState(0)
   const [error, setError] = useState<string | null>(null)
   const [starting, setStarting] = useState(false)
+  const [loadingTakes, setLoadingTakes] = useState(true)
+  const [storageReady, setStorageReady] = useState(false)
 
   const recorderRef = useRef<MediaRecorder | null>(null)
   const streamRef = useRef<MediaStream | null>(null)
@@ -70,13 +84,45 @@ export default function RecorderPanel({
   const sourcePositionRef = useRef(0)
   const timerRef = useRef<number | null>(null)
   const takeUrlsRef = useRef<string[]>([])
+  const takeCountRef = useRef(0)
 
   useEffect(() => {
     onRecordingChange?.(isRecording)
   }, [isRecording, onRecordingChange])
 
   useEffect(() => {
+    let cancelled = false
+
+    const restoreTakes = async () => {
+      if (!('indexedDB' in window)) {
+        setLoadingTakes(false)
+        setStorageReady(false)
+        return
+      }
+
+      try {
+        const storedTakes = await listRecordingTakes()
+        if (cancelled) return
+
+        const restored = storedTakes.map(makePlaybackTake)
+        takeUrlsRef.current = restored.map((take) => take.url)
+        takeCountRef.current = restored.length
+        setTakes(restored)
+        setStorageReady(true)
+      } catch {
+        if (!cancelled) {
+          setError('保存済み録音を読み込めませんでした。録音はこの画面では利用できますが、再読み込み後に残らない可能性があります。')
+          setStorageReady(false)
+        }
+      } finally {
+        if (!cancelled) setLoadingTakes(false)
+      }
+    }
+
+    void restoreTakes()
+
     return () => {
+      cancelled = true
       if (timerRef.current !== null) window.clearInterval(timerRef.current)
       if (recorderRef.current?.state !== 'inactive') recorderRef.current?.stop()
       streamRef.current?.getTracks().forEach((track) => track.stop())
@@ -137,38 +183,53 @@ export default function RecorderPanel({
       })
 
       recorder.addEventListener('stop', () => {
-        stopTimer()
-        const durationMs = Math.max(0, Date.now() - startedAtRef.current)
-        const finalMime = recorder.mimeType || mimeType || 'audio/webm'
-        const blob = new Blob(chunksRef.current, { type: finalMime })
+        void (async () => {
+          stopTimer()
+          const durationMs = Math.max(0, Date.now() - startedAtRef.current)
+          const finalMime = recorder.mimeType || mimeType || 'audio/webm'
+          const blob = new Blob(chunksRef.current, { type: finalMime })
 
-        if (blob.size > 0) {
-          const url = URL.createObjectURL(blob)
-          takeUrlsRef.current.push(url)
-          const now = new Date()
-          const stamp = now.toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
-          const takeNumber = takes.length + 1
-
-          setTakes((previous) => [
-            {
-              id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
+          if (blob.size > 0) {
+            const now = Date.now()
+            const stamp = new Date(now).toLocaleTimeString('ja-JP', {
+              hour: '2-digit',
+              minute: '2-digit',
+              second: '2-digit',
+            })
+            const takeNumber = takeCountRef.current + 1
+            const storedTake: StoredRecordingTake = {
+              id: `${now}-${Math.random().toString(36).slice(2)}`,
               name: `Take ${String(takeNumber).padStart(2, '0')} · ${stamp}`,
-              url,
               mimeType: finalMime,
               durationMs,
               sourceName: sourceNameRef.current,
               sourcePosition: sourcePositionRef.current,
               createdAt: now,
-            },
-            ...previous,
-          ])
-        }
+              blob,
+            }
 
-        chunksRef.current = []
-        recorderRef.current = null
-        releaseMic()
-        setElapsedMs(durationMs)
-        setIsRecording(false)
+            if ('indexedDB' in window) {
+              try {
+                await saveRecordingTake(storedTake)
+                setStorageReady(true)
+              } catch {
+                setStorageReady(false)
+                setError('録音は作成できましたが、端末内への永続保存に失敗しました。Save to device で退避してください。')
+              }
+            }
+
+            const playbackTake = makePlaybackTake(storedTake)
+            takeUrlsRef.current.push(playbackTake.url)
+            takeCountRef.current += 1
+            setTakes((previous) => [playbackTake, ...previous])
+          }
+
+          chunksRef.current = []
+          recorderRef.current = null
+          releaseMic()
+          setElapsedMs(durationMs)
+          setIsRecording(false)
+        })()
       })
 
       recorder.addEventListener('error', () => {
@@ -202,15 +263,24 @@ export default function RecorderPanel({
     recorder.stop()
   }
 
-  const removeTake = (id: string) => {
-    setTakes((previous) => {
-      const target = previous.find((take) => take.id === id)
-      if (target) {
-        URL.revokeObjectURL(target.url)
-        takeUrlsRef.current = takeUrlsRef.current.filter((url) => url !== target.url)
+  const removeTake = async (id: string) => {
+    setError(null)
+    const target = takes.find((take) => take.id === id)
+    if (!target) return
+
+    if ('indexedDB' in window) {
+      try {
+        await deleteRecordingTake(id)
+      } catch {
+        setError('端末内の録音を削除できませんでした。再読み込み後に再表示される可能性があります。')
+        return
       }
-      return previous.filter((take) => take.id !== id)
-    })
+    }
+
+    URL.revokeObjectURL(target.url)
+    takeUrlsRef.current = takeUrlsRef.current.filter((url) => url !== target.url)
+    takeCountRef.current = Math.max(0, takeCountRef.current - 1)
+    setTakes((previous) => previous.filter((take) => take.id !== id))
   }
 
   return (
@@ -221,7 +291,7 @@ export default function RecorderPanel({
           <h2>Practice takes</h2>
         </div>
         <span className={`record-status ${isRecording ? 'is-recording' : ''}`}>
-          {isRecording ? 'REC' : 'READY'}
+          {isRecording ? 'REC' : storageReady ? 'SAVED' : 'READY'}
         </span>
       </div>
 
@@ -259,22 +329,26 @@ export default function RecorderPanel({
       </div>
 
       {error && <p className="record-error" role="alert">{error}</p>}
-      <p className="record-note">伴奏を録音へ直接ミックスせず、端末マイクだけを保存します。練習録音ではイヤホン推奨です。</p>
+      <p className="record-note">
+        伴奏を録音へ直接ミックスせず、端末マイクだけを保存します。録音テイクはIndexedDB対応ブラウザではこの端末内に保存され、再読み込み後も復元します。
+      </p>
 
       <div className="take-list">
         <div className="take-list-heading">
           <strong>Saved takes</strong>
-          <span>{takes.length}</span>
+          <span>{loadingTakes ? '…' : takes.length}</span>
         </div>
 
-        {takes.length ? takes.map((take) => (
+        {loadingTakes ? (
+          <div className="take-empty">端末内の録音を読み込んでいます…</div>
+        ) : takes.length ? takes.map((take) => (
           <article className="take-card" key={take.id}>
             <div className="take-meta">
               <div>
                 <strong>{take.name}</strong>
                 <span>{formatDuration(take.durationMs)} · {take.mimeType.split(';')[0]}</span>
               </div>
-              <button type="button" onClick={() => removeTake(take.id)} aria-label={`${take.name}を削除`}>×</button>
+              <button type="button" onClick={() => void removeTake(take.id)} aria-label={`${take.name}を削除`}>×</button>
             </div>
             {take.sourceName && (
               <p className="take-source">{take.sourceName} · {formatPosition(take.sourcePosition)} から</p>
@@ -289,7 +363,7 @@ export default function RecorderPanel({
             </a>
           </article>
         )) : (
-          <div className="take-empty">録音を停止すると、この端末上にテイクが表示されます。</div>
+          <div className="take-empty">録音を停止すると、この端末内にテイクを保存します。</div>
         )}
       </div>
     </section>
