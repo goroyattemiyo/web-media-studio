@@ -152,7 +152,7 @@ Non-goal:
 
 ## Phase 6B — Authorized YouTube -> Local worker
 
-Status: Google-authenticated Localize flow is implemented. PR #29 adds a controlled PO Token experiment, but production Cloud Run has not yet been redeployed with it.
+Status: Google-authenticated Localize flow and the PR #29 PO Token experiment are implemented and deployed, but production retests still fail. The Cloud Run path is therefore `LIMITED` / experimental rather than a reliable product path.
 
 - [x] Google Sign-In client flow
 - [x] Google ID token verification in worker
@@ -160,15 +160,18 @@ Status: Google-authenticated Localize flow is implemented. PR #29 adds a control
 - [x] sanitized `LIMITED` response for YouTube cloud restrictions
 - [x] PR #29 PO Token experiment configuration: bgutil provider + Node + mweb + env flag
 - [x] PR #29 worker CI / container validation
-- [x] confirm deployment status after PR #29 — latest manual Cloud Run run is pre-PR #29, so production reflection is NOT complete
-- [ ] manually deploy current `main` to Cloud Run
-- [ ] retry the same previously blocked video and record `SUCCESS` vs `LIMITED`
+- [x] deploy PR #29 configuration to Cloud Run — run #6 success from `main`
+- [x] production retest of the previously blocked video — FAIL
+- [x] production retest with a separate copyright-free video — FAIL
+- [~] root-cause assessment — Cloud Run/datacenter egress or YouTube cloud-origin restriction is the stronger hypothesis, but exact backend error evidence from the retests is still incomplete
+- [ ] identify a compliant and reliable server-side route before re-enabling this as a normal product path
 
 Guardrails:
 
 - no YouTube account cookies
 - no proxy rotation as an automatic workaround
 - no DRM bypass or authentication bypass
+- do not imply that PO Token solved the production restriction
 
 ## Phase 7 — Advanced player/audio features
 
@@ -207,9 +210,9 @@ Only after the core media app is stable:
 
 1. validate Android unavailable-state UX and Local Player / YouTube playback arbitration from PR #32
 2. validate desktop Chrome/Edge Tab audio end-to-end
-3. manually run `Deploy Media Worker to Cloud Run` from current `main`
-4. retry the same previously blocked video after the Cloud Run deployment
-5. if Cloud Run remains `LIMITED`, investigate datacenter-egress restriction without introducing account-cookie/proxy shortcuts
+3. keep Cloud Run Localize clearly marked `LIMITED` rather than spending more time on the current PO Token path
+4. use the official IFrame player for YouTube playback and current-tab capture for authorized desktop capture where supported
+5. revisit server-side YouTube Localize only if a compliant reliable route becomes available
 6. markers/bookmarks and richer visualizers after the provider boundary is stable
 
 ## Version targets

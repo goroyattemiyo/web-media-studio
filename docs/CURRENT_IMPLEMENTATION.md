@@ -226,7 +226,11 @@ PR typecheck/build CI: PASS. GitHub Pages post-merge build/deploy: PASS. Real-de
 - PR #29 added the controlled PO Token experiment using `bgutil-ytdlp-pot-provider==1.3.2`, Node, pinned provider source, `mweb`, and `YOUTUBE_PO_TOKEN_MODE=bgutil-script-mweb`
 - PR #29 CI passed its Python tests, Docker build/start, health, FFmpeg, Node, provider plugin and provider script checks
 
-Production deployment status for PR #29 is now confirmed as **not yet deployed**. The latest `Deploy Media Worker to Cloud Run` workflow run is run #5, started at 2026-09-08 08:27 JST from commit `1530b7630fd06ea92502ff8008bd5c08258d9429`, before PR #29 merged at 09:00 JST. That deployed workflow revision does not contain `YOUTUBE_PO_TOKEN_MODE=bgutil-script-mweb`. Therefore the same-video PO Token production retest must wait until a new manual Cloud Run deployment is run from current `main`.
+PR #29 production deployment is confirmed. Cloud Run workflow run #6 deployed `main` commit `658636f3d7fc25d685329dcdc795a383c3bd73f6` on 2026-09-08 11:51-11:55 JST and completed successfully. The deployment log shows `YOUTUBE_PO_TOKEN_MODE=bgutil-script-mweb` in the Cloud Run environment and labels the deployed revision with the same commit SHA. The reported service URL is `https://wms-media-worker-pcdbs5armq-an.a.run.app`.
+
+Post-deploy production validation failed for both the previously blocked video and a separate copyright-free video. This means the PO Token experiment did not restore the YouTube -> Localize flow in the tested Cloud Run environment. Because two content types fail after the same production deployment, a video-specific copyright/restriction explanation is no longer the leading hypothesis; Cloud Run/datacenter egress or YouTube's cloud-origin access restrictions are the stronger suspected cause. The exact backend error code for these two retests has not yet been recorded, so the cause is still an evidence-based hypothesis rather than a proven root cause.
+
+Current decision: do not escalate to YouTube account cookies, proxy rotation, DRM bypass, or authentication-bypass techniques. Keep the official YouTube IFrame player as the supported playback path, and prefer current-tab audio capture on compatible desktop browsers for user-authorized local capture. Treat the Cloud Run Localize path as `LIMITED` / experimental until a compliant, reliable server-side route is identified.
 
 ## Real-device validation still required
 
@@ -275,8 +279,8 @@ Production deployment status for PR #29 is now confirmed as **not yet deployed**
 
 1. validate Android unavailable-state UX and Local Player / YouTube playback arbitration on the deployed PR #32 build
 2. validate Tab audio end-to-end on desktop Chrome/Edge
-3. manually run `Deploy Media Worker to Cloud Run` from current `main` so PR #29 is actually deployed
-4. retry the same previously blocked video and record `SUCCESS` vs `LIMITED`
-5. if the same video remains `LIMITED`, treat Cloud Run/datacenter egress restriction as the stronger suspected cause rather than adding account cookies or proxy rotation
+3. keep Cloud Run Localize visibly `LIMITED` instead of implying that PO Token solved the issue
+4. use the official IFrame player for YouTube playback and desktop current-tab capture for authorized local capture where supported
+5. only revisit server-side YouTube Localize if a compliant, reliable path that does not depend on account-cookie/proxy/bypass techniques becomes available
 
 Do not describe planned work as implemented work.
