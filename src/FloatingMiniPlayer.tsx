@@ -9,6 +9,14 @@ type MiniState = {
   canNext: boolean
 }
 
+function hasLocalSource() {
+  return Boolean(document.querySelector<HTMLMediaElement>('#player-panel audio, #player-panel video'))
+}
+
+function hasYouTubeSource() {
+  return Boolean(document.querySelector('#youtube-provider-panel .youtube-track-info strong'))
+}
+
 function readLocalState(): Omit<MiniState, 'source'> {
   const media = document.querySelector<HTMLMediaElement>('#player-panel audio, #player-panel video')
   const title = document.querySelector<HTMLElement>('#player-panel .track-heading h2')?.textContent?.trim() || 'Local Player'
@@ -34,10 +42,10 @@ function readYouTubeState(): Omit<MiniState, 'source'> {
 }
 
 function snapshot(source: PlaybackSource | null): MiniState {
-  if (source === 'youtube') return { source, ...readYouTubeState() }
-  if (source === 'local') return { source, ...readLocalState() }
-  const local = readLocalState()
-  if (local.title !== 'Local Player') return { source: 'local', ...local }
+  if (source === 'youtube' && hasYouTubeSource()) return { source, ...readYouTubeState() }
+  if (source === 'local' && hasLocalSource()) return { source, ...readLocalState() }
+  if (hasLocalSource()) return { source: 'local', ...readLocalState() }
+  if (hasYouTubeSource()) return { source: 'youtube', ...readYouTubeState() }
   return { source: null, title: '再生する曲を選んでください', playing: false, canPrevious: false, canNext: false }
 }
 
@@ -120,7 +128,7 @@ export default function FloatingMiniPlayer() {
   }
 
   const openQueue = () => {
-    document.querySelector<HTMLElement>('.unified-play-queue')?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    document.querySelector<HTMLElement>('.unified-play-queue')?.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'center' })
   }
 
   const openPlaylist = () => click('.player-playlist-trigger')
