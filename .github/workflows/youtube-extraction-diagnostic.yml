@@ -15,6 +15,14 @@ on:
         options:
           - 'NO'
           - 'YES'
+      extraction_mode:
+        description: 'Extraction path to diagnose'
+        required: true
+        default: 'standard-deno-ejs'
+        type: choice
+        options:
+          - 'standard-deno-ejs'
+          - 'po-token-mweb'
 
 permissions:
   contents: read
@@ -26,6 +34,7 @@ jobs:
     env:
       SOURCE_URL: ${{ inputs.url }}
       RIGHTS_CONFIRMED: ${{ inputs.rights_confirmed }}
+      EXTRACTION_MODE: ${{ inputs.extraction_mode }}
       OUTPUT_DIR: diagnostic-output
     steps:
       - name: Checkout
@@ -43,6 +52,18 @@ jobs:
             echo "::error::A YouTube URL or video ID is required."
             exit 1
           fi
+          case "${EXTRACTION_MODE}" in
+            standard-deno-ejs)
+              echo "YOUTUBE_PO_TOKEN_MODE=off" >> "${GITHUB_ENV}"
+              ;;
+            po-token-mweb)
+              echo "YOUTUBE_PO_TOKEN_MODE=bgutil-script-mweb" >> "${GITHUB_ENV}"
+              ;;
+            *)
+              echo "::error::Unknown extraction mode: ${EXTRACTION_MODE}"
+              exit 1
+              ;;
+          esac
           mkdir -p "${OUTPUT_DIR}"
 
       - name: Build the same worker image used by Cloud Run
@@ -61,11 +82,15 @@ jobs:
             echo "runner_os=${RUNNER_OS}"
             echo "runner_arch=${RUNNER_ARCH}"
             echo "github_sha=${GITHUB_SHA}"
+            echo "extraction_mode=${EXTRACTION_MODE}"
+            echo "youtube_po_token_mode=${YOUTUBE_PO_TOKEN_MODE}"
             docker run --rm --entrypoint sh wms-media-worker-diagnostic:local -c '
               python --version
+              deno --version
               node --version
               ffmpeg -version | head -n 1
               python -m yt_dlp --version
+              python -c "import importlib.metadata as m; print(\"yt-dlp-ejs=\" + m.version(\"yt-dlp-ejs\")); print(\"bgutil-ytdlp-pot-provider=\" + m.version(\"bgutil-ytdlp-pot-provider\"))"
             '
           } 2>&1 | tee "${OUTPUT_DIR}/environment.log"
 
@@ -77,7 +102,7 @@ jobs:
           set +e
           docker run --rm \
             --user root \
-            --env YOUTUBE_PO_TOKEN_MODE=bgutil-script-mweb \
+            --env YOUTUBE_PO_TOKEN_MODE="${YOUTUBE_PO_TOKEN_MODE}" \
             --env BGUTIL_SERVER_HOME=/opt/bgutil-ytdlp-pot-provider/server \
             --env MAX_DURATION_SECONDS=1800 \
             --env MAX_SOURCE_BYTES=786432000 \
@@ -93,6 +118,8 @@ jobs:
 
           {
             echo "exit_code=${status}"
+            echo "extraction_mode=${EXTRACTION_MODE}"
+            echo "youtube_po_token_mode=${YOUTUBE_PO_TOKEN_MODE}"
             if [[ "${status}" -eq 0 ]]; then
               echo "result=SUCCESS"
             else

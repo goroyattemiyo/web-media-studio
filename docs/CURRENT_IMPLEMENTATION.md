@@ -4,7 +4,7 @@ Last updated: 2026-09-08 JST
 
 ## Repository state
 
-The repository foundation, player bootstrap, Recorder MVP, IndexedDB recording persistence, FFmpeg video-to-audio tools, local playlist improvements, Android background/Media Session validation, persistent local media library, WMS branding, switchable player visuals, persistent queue reorder, resume-position behavior, saved named playlists, YouTube official IFrame playback, Google-authenticated Localize worker integration, UI v2 tool deck, PO Token worker experiment, current-tab recording, clearer Tab audio capability UX, and Local Player / YouTube playback arbitration are merged to `main`.
+The repository foundation, player bootstrap, Recorder MVP, IndexedDB recording persistence, FFmpeg video-to-audio tools, local playlist improvements, Android background/Media Session validation, persistent local media library, WMS branding, switchable player visuals, persistent queue reorder, resume-position behavior, saved named playlists, YouTube official IFrame playback, Google-authenticated Localize worker integration, UI v2 tool deck, PO Token worker experiment, current-tab recording, clearer Tab audio capability UX, Local Player / YouTube playback arbitration, and the revised Deno + EJS standard-client worker runtime are present in the current implementation line.
 
 Public URL:
 
@@ -228,27 +228,44 @@ PR typecheck/build CI: PASS. GitHub Pages post-merge build/deploy: PASS. Real-de
 
 PR #29 production deployment is confirmed. Cloud Run workflow run #6 deployed `main` commit `658636f3d7fc25d685329dcdc795a383c3bd73f6` on 2026-09-08 11:51-11:55 JST and completed successfully. The deployment log shows `YOUTUBE_PO_TOKEN_MODE=bgutil-script-mweb` in the Cloud Run environment and labels the deployed revision with the same commit SHA. The reported service URL is `https://wms-media-worker-pcdbs5armq-an.a.run.app`.
 
-Post-deploy production validation failed for both the previously blocked video and a separate copyright-free video. This means the PO Token experiment did not restore the YouTube -> Localize flow in the tested Cloud Run environment. Because two content types fail after the same production deployment, a video-specific copyright/restriction explanation is no longer the leading hypothesis; Cloud Run/datacenter egress or YouTube's cloud-origin access restrictions are the stronger suspected cause. The exact backend error code for these two retests has not yet been recorded, so the cause is still an evidence-based hypothesis rather than a proven root cause.
+Post-deploy production validation failed for both the previously blocked video and a separate copyright-free video. This means the PO Token experiment did not restore the YouTube -> Localize flow in the tested Cloud Run environment.
 
-Current decision: do not escalate to YouTube account cookies, proxy rotation, DRM bypass, or authentication-bypass techniques. Keep the official YouTube IFrame player as the supported playback path, and prefer current-tab audio capture on compatible desktop browsers for user-authorized local capture. Treat the Cloud Run Localize path as `LIMITED` / experimental until a compliant, reliable server-side route is identified.
+The subsequent execution-environment diagnostics changed the assessment:
+
+- GitHub Actions run `34200169939` used a GitHub-hosted Ubuntu runner in Azure `westus`. Docker/runtime setup passed, but YouTube rejected the extraction with `Sign in to confirm you're not a bot`.
+- a fresh Google Colab probe using yt-dlp `2026.08.19`, Deno `2.9.6`, and EJS `0.8.0` successfully loaded the player data and enumerated multiple audio-only formats
+- the same Colab session then reproduced the WMS forced `mweb` path and failed because usable `mweb` HTTPS formats required a GVS PO Token, leaving no requested audio format
+
+Therefore Cloud Run/datacenter egress is not the only relevant variable. The previous WMS runtime also lagged yt-dlp's current JS challenge requirements and forced a client with stronger PO Token requirements.
+
+The revised worker runtime now uses:
+
+- `yt-dlp[default]==2026.8.19` so the matching EJS package is installed
+- Deno `2.9.6` in the worker image as the primary yt-dlp JavaScript runtime
+- yt-dlp's normal client selection when `YOUTUBE_PO_TOKEN_MODE=off`
+- `YOUTUBE_PO_TOKEN_MODE=off` as the Cloud Run deployment default
+- the existing Node + bgutil + `mweb` path only as an explicit optional fallback experiment
+
+Cloud Run Localize remains `LIMITED` / experimental until this revised runtime is deployed and an authorized production test succeeds. Format discovery in Colab is evidence of a viable extraction path in that environment, not evidence of a completed MP3 download.
+
+Current decision: do not escalate to YouTube account cookies, proxy rotation, DRM bypass, or authentication-bypass techniques. Keep the official YouTube IFrame player as the supported playback path, and prefer current-tab audio capture on compatible desktop browsers for user-authorized local capture.
 
 ## GitHub Actions extraction diagnostic
 
-A manual-only diagnostic workflow exists at `.github/workflows/youtube-extraction-diagnostic.yml` to isolate the execution-environment variable.
+A manual-only diagnostic workflow exists at `.github/workflows/youtube-extraction-diagnostic.yml` to isolate execution-environment and extraction-path differences.
 
-It intentionally reuses:
+It reuses:
 
 - `services/media-worker/Dockerfile`
 - the same `wms_media_worker.cli` extraction implementation
-- `YOUTUBE_PO_TOKEN_MODE=bgutil-script-mweb`
 - the same 30-minute and source-size guards used by the Cloud Run worker
 - MP3 192 kbps output
 
-The diagnostic is not connected to the WMS browser UI. It requires an explicit rights/permission confirmation before running and uploads logs plus any successful MP3 as a 3-day GitHub Actions artifact. No account cookies, proxies, DRM bypass, or authentication bypass are added.
+The diagnostic now defaults to `standard-deno-ejs`, which sets `YOUTUBE_PO_TOKEN_MODE=off` and leaves yt-dlp client selection unforced. An optional `po-token-mweb` mode preserves the previous experiment for explicit comparison.
 
-The GitHub-hosted-runner extraction result is not yet validated. A success would strengthen the hypothesis that execution environment / egress is the key difference from Cloud Run; a failure with the same restriction would show that the problem is broader than the Cloud Run service itself.
+The diagnostic is not connected to the WMS browser UI. It requires an explicit rights/permission confirmation before running and uploads logs plus any successful media output as a 3-day GitHub Actions artifact. No account cookies, proxies, DRM bypass, or authentication bypass are added.
 
-See `docs/GITHUB_ACTIONS_YOUTUBE_DIAGNOSTIC.md` for the manual test procedure.
+See `docs/GITHUB_ACTIONS_YOUTUBE_DIAGNOSTIC.md` and `docs/COLAB_YOUTUBE_DENO_EJS_RESULT_2026-09-08.md`.
 
 ## Real-device validation still required
 
@@ -295,10 +312,11 @@ See `docs/GITHUB_ACTIONS_YOUTUBE_DIAGNOSTIC.md` for the manual test procedure.
 
 ## Immediate next step
 
-1. run the manual GitHub Actions extraction diagnostic with an authorized test video and compare it against the failed Cloud Run result
-2. validate Android unavailable-state UX and Local Player / YouTube playback arbitration on the deployed PR #32 build
-3. validate Tab audio end-to-end on desktop Chrome/Edge
-4. keep Cloud Run Localize visibly `LIMITED` instead of implying that PO Token solved the issue
-5. only revisit a production server-side YouTube Localize backend after a compliant, reliable route is demonstrated
+1. pass worker CI for the revised Deno + EJS + standard-client runtime
+2. deploy the revised worker to Cloud Run and confirm `YOUTUBE_PO_TOKEN_MODE=off`
+3. retest an authorized video and capture the exact production backend result
+4. keep Cloud Run Localize visibly `LIMITED` until the revised production path is proven reliable
+5. validate Android unavailable-state UX and Local Player / YouTube playback arbitration on the deployed PR #32 build
+6. validate Tab audio end-to-end on desktop Chrome/Edge
 
 Do not describe planned work as implemented work.

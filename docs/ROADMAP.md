@@ -152,7 +152,7 @@ Non-goal:
 
 ## Phase 6B — Authorized YouTube -> Local worker
 
-Status: Google-authenticated Localize flow and the PR #29 PO Token experiment are implemented and deployed, but production retests still fail. The Cloud Run path is therefore `LIMITED` / experimental rather than a reliable product path.
+Status: Google-authenticated Localize flow is implemented but remains `LIMITED` / experimental. The first PO Token/mweb production experiment failed. A fresh Colab comparison then showed that standard yt-dlp with Deno + EJS could enumerate playable audio formats while the forced WMS `mweb` path failed separately. The worker is therefore being revised to use the current standard yt-dlp JavaScript path by default and keep PO Token/mweb as an explicit fallback experiment only.
 
 - [x] Google Sign-In client flow
 - [x] Google ID token verification in worker
@@ -163,9 +163,16 @@ Status: Google-authenticated Localize flow and the PR #29 PO Token experiment ar
 - [x] deploy PR #29 configuration to Cloud Run — run #6 success from `main`
 - [x] production retest of the previously blocked video — FAIL
 - [x] production retest with a separate copyright-free video — FAIL
-- [~] root-cause assessment — Cloud Run/datacenter egress or YouTube cloud-origin restriction is the stronger hypothesis, but exact backend error evidence from the retests is still incomplete
-- [x] add a manual GitHub-hosted-runner extraction diagnostic using the same worker Dockerfile, CLI and PO Token mode
-- [ ] run the GitHub Actions diagnostic against an authorized test video and compare the result with Cloud Run
+- [x] run the original GitHub Actions diagnostic — FAIL with explicit `Sign in to confirm you're not a bot` on the tested Azure-hosted runner
+- [x] run a fresh Colab standard-yt-dlp probe with Deno + EJS — PASS for metadata/player data/audio-format discovery
+- [x] reproduce the WMS `mweb` path in Colab — FAIL because usable `mweb` media formats required a GVS PO Token
+- [x] revise worker image to include Deno and `yt-dlp[default]` / EJS
+- [x] change Cloud Run configuration candidate to `YOUTUBE_PO_TOKEN_MODE=off`
+- [x] change the GitHub diagnostic default to `standard-deno-ejs`, retaining `po-token-mweb` as an optional comparison
+- [~] root-cause assessment — both execution-environment restrictions and the previous forced-client configuration matter; neither should be treated as the sole proven cause
+- [ ] pass worker CI with Deno/EJS runtime verification
+- [ ] deploy the revised standard-client worker to Cloud Run
+- [ ] production retest with an authorized test video after revised deployment
 - [ ] identify a compliant and reliable server-side route before re-enabling this as a normal product path
 
 GitHub Actions diagnostic guardrails:
@@ -182,6 +189,7 @@ General guardrails:
 - no proxy rotation as an automatic workaround
 - no DRM bypass or authentication bypass
 - do not imply that PO Token solved the production restriction
+- do not describe format discovery alone as a completed media download
 
 ## Phase 7 — Advanced player/audio features
 
@@ -218,13 +226,14 @@ Only after the core media app is stable:
 
 ## Current priority
 
-1. run the GitHub Actions extraction diagnostic with an authorized test video and compare it with the failed Cloud Run result
-2. validate Android unavailable-state UX and Local Player / YouTube playback arbitration from PR #32
-3. validate desktop Chrome/Edge Tab audio end-to-end
-4. keep Cloud Run Localize clearly marked `LIMITED` while the execution-environment hypothesis is tested
-5. use the official IFrame player for normal YouTube playback and current-tab capture for authorized desktop capture where supported
-6. only revisit a production server-side Localize backend after a compliant, reliable route is demonstrated
-7. markers/bookmarks and richer visualizers after the provider boundary is stable
+1. pass PR CI for the revised Deno + EJS + standard-client worker path
+2. deploy the revised worker to Cloud Run and verify `YOUTUBE_PO_TOKEN_MODE=off`
+3. retest an authorized video and capture the exact backend result
+4. keep Cloud Run Localize clearly marked `LIMITED` until the revised production path is proven reliable
+5. validate Android unavailable-state UX and Local Player / YouTube playback arbitration from PR #32
+6. validate desktop Chrome/Edge Tab audio end-to-end
+7. use the official IFrame player for normal YouTube playback and current-tab capture for authorized desktop capture where supported
+8. markers/bookmarks and richer visualizers after the provider boundary is stable
 
 ## Version targets
 

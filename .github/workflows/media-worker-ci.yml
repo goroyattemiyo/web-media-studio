@@ -7,12 +7,14 @@ on:
       - "services/media-worker/**"
       - ".github/workflows/media-worker-ci.yml"
       - ".github/workflows/youtube-extraction-diagnostic.yml"
+      - ".github/workflows/media-worker-cloudrun.yml"
   push:
     branches: [main]
     paths:
       - "services/media-worker/**"
       - ".github/workflows/media-worker-ci.yml"
       - ".github/workflows/youtube-extraction-diagnostic.yml"
+      - ".github/workflows/media-worker-cloudrun.yml"
   workflow_dispatch:
 
 permissions:
@@ -58,10 +60,17 @@ jobs:
           docker logs wms-media-worker-test
           exit 1
 
+      - name: Verify primary yt-dlp runtime
+        run: |
+          docker exec wms-media-worker-test deno --version
+          docker exec wms-media-worker-test python -m yt_dlp --version
+          docker exec wms-media-worker-test python -c "import importlib.metadata as m; print(m.version('yt-dlp-ejs'))"
+          docker exec wms-media-worker-test sh -c 'test "${YOUTUBE_PO_TOKEN_MODE}" = "off"'
+
       - name: Show FFmpeg version
         run: docker exec wms-media-worker-test ffmpeg -version | head -n 1
 
-      - name: Verify PO token runtime
+      - name: Verify optional PO token fallback runtime
         run: |
           docker exec wms-media-worker-test node --version
           docker exec wms-media-worker-test python -c "import importlib.metadata as m; print(m.version('bgutil-ytdlp-pot-provider'))"
