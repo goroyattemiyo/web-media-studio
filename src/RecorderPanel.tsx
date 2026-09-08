@@ -5,16 +5,24 @@ import {
   saveRecordingTake,
   type StoredRecordingTake,
 } from './recordingDb'
+import {
+  MEDIA_LIBRARY_MAX_ITEM_BYTES,
+  saveMediaLibraryItems,
+  type StoredMediaLibraryItem,
+} from './mediaLibraryDb'
 
 type RecordingTake = Omit<StoredRecordingTake, 'blob'> & {
   url: string
 }
+
+type CaptureMode = 'mic' | 'tab' | 'mix'
 
 type RecorderPanelProps = {
   sourceName: string | null
   getSourcePosition: () => number
   startSourcePlayback: () => Promise<void>
   onRecordingChange?: (recording: boolean) => void
+  onMediaLibraryChanged?: () => void
 }
 
 function formatDuration(milliseconds: number) {
@@ -62,29 +70,51 @@ function makePlaybackTake(stored: StoredRecordingTake): RecordingTake {
   }
 }
 
+function microphoneConstraints(): MediaTrackConstraints {
+  return {
+    echoCancellation: false,
+    noiseSuppression: false,
+    autoGainControl: false,
+  }
+}
+
+function captureModeLabel(mode: CaptureMode) {
+  if (mode === 'tab') return 'Current tab audio'
+  if (mode === 'mix') return 'Current tab + microphone'
+  return 'Microphone'
+}
+
 export default function RecorderPanel({
   sourceName,
   getSourcePosition,
   startSourcePlayback,
   onRecordingChange,
+  onMediaLibraryChanged,
 }: RecorderPanelProps) {
   const [takes, setTakes] = useState<RecordingTake[]>([])
+  const [captureMode, setCaptureMode] = useState<CaptureMode>('mic')
   const [isRecording, setIsRecording] = useState(false)
   const [elapsedMs, setElapsedMs] = useState(0)
   const [error, setError] = useState<string | null>(null)
+  const [notice, setNotice] = useState<string | null>(null)
   const [starting, setStarting] = useState(false)
   const [loadingTakes, setLoadingTakes] = useState(true)
   const [storageReady, setStorageReady] = useState(false)
 
   const recorderRef = useRef<MediaRecorder | null>(null)
-  const streamRef = useRef<MediaStream | null>(null)
+  const recordingStreamRef = useRef<MediaStream | null>(null)
+  const captureStreamsRef = useRef<MediaStream[]>([])
+  const mixContextRef = useRef<AudioContext | null>(null)
   const chunksRef = useRef<Blob[]>([])
   const startedAtRef = useRef(0)
   const sourceNameRef = useRef<string | null>(null)
   const sourcePositionRef = useRef(0)
+  const captureModeRef = useRef<CaptureMode>('mic')
   const timerRef = useRef<number | null>(null)
   const takeUrlsRef = useRef<string[]>([])
   const takeCountRef = useRef(0)
+
+  const tabCaptureSupported = Boolean(navigator.mediaDevices?.getDisplayMedia)
 
   useEffect(() => {
     onRecordingChange?.(isRecording)
@@ -125,7 +155,9 @@ export default function RecorderPanel({
       cancelled = true
       if (timerRef.current !== null) window.clearInterval(timerRef.current)
       if (recorderRef.current?.state !== 'inactive') recorderRef.current?.stop()
-      streamRef.current?.getTracks().forEach((track) => track.stop())
+      recordingStreamRef.current?.getTracks().forEach((track) => track.stop())
+      captureStreamsRef.current.forEach((stream) => stream.getTracks().forEach((track) => track.stop()))
+      void mixContextRef.current?.close()
       takeUrlsRef.current.forEach((url) => URL.revokeObjectURL(url))
     }
   }, [])
@@ -137,38 +169,124 @@ export default function RecorderPanel({
     }
   }
 
-  const releaseMic = () => {
-    streamRef.current?.getTracks().forEach((track) => track.stop())
-    streamRef.current = null
+  const releaseCapture = () => {
+    recordingStreamRef.current?.getTracks().forEach((track) => track.stop())
+    recordingStreamRef.current = null
+    captureStreamsRef.current.forEach((stream) => stream.getTracks().forEach((track) => track.stop()))
+    captureStreamsRef.current = []
+    const context = mixContextRef.current
+    mixContextRef.current = null
+    if (context && context.state !== 'closed') void context.close()
   }
 
-  const startRecording = async (playSource: boolean) => {
+  const getMicStream = async () => {
+    if (!navigator.mediaDevices?.getUserMedia) throw new Error('MIC_UNAVAILABLE')
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: microphoneConstraints() })
+    captureStreamsRef.current.push(stream)
+    return stream
+  }
+
+  const getTabStream = async () => {
+    if (!navigator.mediaDevices?.getDisplayMedia) throw new Error('TAB_UNAVAILABLE')
+    const stream = await navigator.mediaDevices.getDisplayMedia({
+      video: true,
+      audio: true,
+    })
+    captureStreamsRef.current.push(stream)
+
+    if (!stream.getAudioTracks().length) {
+      stream.getTracks().forEach((track) => track.stop())
+      captureStreamsRef.current = captureStreamsRef.current.filter((item) => item !== stream)
+      throw new Error('NO_TAB_AUDIO')
+    }
+    return stream
+  }
+
+  const buildRecordingStream = async (mode: CaptureMode): Promise<MediaStream> => {
+    if (mode === 'mic') return getMicStream()
+
+    const tabStream = await getTabStream()
+    if (mode === 'tab') return new MediaStream(tabStream.getAudioTracks())
+
+    const micStream = await getMicStream()
+    const context = new AudioContext()
+    mixContextRef.current = context
+    const destination = context.createMediaStreamDestination()
+    context.createMediaStreamSource(tabStream).connect(destination)
+    context.createMediaStreamSource(micStream).connect(destination)
+    if (context.state === 'suspended') await context.resume()
+    return destination.stream
+  }
+
+  const saveTabCaptureToLibrary = async (
+    storedTake: StoredRecordingTake,
+    mode: CaptureMode,
+  ) => {
+    if (mode === 'mic') return false
+    if (storedTake.blob.size > MEDIA_LIBRARY_MAX_ITEM_BYTES) {
+      setError('録音は作成できましたが、Local Libraryの1ファイル上限を超えたためLibraryには追加していません。')
+      return false
+    }
+
+    const extension = extensionFor(storedTake.mimeType)
+    const label = mode === 'mix' ? 'Tab + mic capture' : 'Tab audio capture'
+    const libraryItem: StoredMediaLibraryItem = {
+      id: `recording-${storedTake.id}`,
+      name: `${label} · ${new Date(storedTake.createdAt).toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}.${extension}`,
+      kind: 'audio',
+      mimeType: storedTake.mimeType,
+      relativePath: null,
+      savedAt: storedTake.createdAt,
+      size: storedTake.blob.size,
+      blob: storedTake.blob,
+    }
+
+    try {
+      await saveMediaLibraryItems([libraryItem])
+      setNotice('タブ音声をLocal Libraryへ追加しました。Playerから画面OFF再生できます。')
+      onMediaLibraryChanged?.()
+      return true
+    } catch {
+      setError('録音は作成できましたが、Local Libraryへの追加に失敗しました。Save to deviceで退避してください。')
+      return false
+    }
+  }
+
+  const startRecording = async (mode: CaptureMode, playSource: boolean) => {
     if (isRecording || starting) return
     setStarting(true)
     setError(null)
+    setNotice(null)
 
-    if (!navigator.mediaDevices?.getUserMedia || !('MediaRecorder' in window)) {
-      setError('このブラウザではマイク録音を利用できません。Chrome / PWA で確認してください。')
+    if (!('MediaRecorder' in window)) {
+      setError('このブラウザではMediaRecorderを利用できません。PC版Chrome / Edgeまたは対応PWAで確認してください。')
+      setStarting(false)
+      return
+    }
+
+    if ((mode === 'tab' || mode === 'mix') && !tabCaptureSupported) {
+      setError('このブラウザではタブ音声キャプチャを利用できません。PC版Chrome / Edgeで確認してください。')
       setStarting(false)
       return
     }
 
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        audio: {
-          echoCancellation: false,
-          noiseSuppression: false,
-          autoGainControl: false,
-        },
-      })
+      captureModeRef.current = mode
+      const stream = await buildRecordingStream(mode)
+      recordingStreamRef.current = stream
 
-      streamRef.current = stream
-      sourceNameRef.current = sourceName
-      sourcePositionRef.current = getSourcePosition()
+      if (!stream.getAudioTracks().length) throw new Error('NO_AUDIO')
 
-      if (playSource && sourceName) {
-        await startSourcePlayback()
+      if (mode === 'mic') {
+        sourceNameRef.current = playSource && sourceName ? sourceName : null
         sourcePositionRef.current = getSourcePosition()
+        if (playSource && sourceName) {
+          await startSourcePlayback()
+          sourcePositionRef.current = getSourcePosition()
+        }
+      } else {
+        sourceNameRef.current = captureModeLabel(mode)
+        sourcePositionRef.current = 0
       }
 
       const mimeType = chooseMimeType()
@@ -177,6 +295,15 @@ export default function RecorderPanel({
       chunksRef.current = []
       startedAtRef.current = Date.now()
       setElapsedMs(0)
+
+      captureStreamsRef.current.forEach((captureStream) => {
+        captureStream.getTracks().forEach((track) => {
+          track.addEventListener('ended', () => {
+            const activeRecorder = recorderRef.current
+            if (activeRecorder && activeRecorder.state !== 'inactive') activeRecorder.stop()
+          }, { once: true })
+        })
+      })
 
       recorder.addEventListener('dataavailable', (event) => {
         if (event.data.size > 0) chunksRef.current.push(event.data)
@@ -197,9 +324,11 @@ export default function RecorderPanel({
               second: '2-digit',
             })
             const takeNumber = takeCountRef.current + 1
+            const mode = captureModeRef.current
+            const prefix = mode === 'tab' ? 'Tab' : mode === 'mix' ? 'Mix' : 'Take'
             const storedTake: StoredRecordingTake = {
               id: `${now}-${Math.random().toString(36).slice(2)}`,
-              name: `Take ${String(takeNumber).padStart(2, '0')} · ${stamp}`,
+              name: `${prefix} ${String(takeNumber).padStart(2, '0')} · ${stamp}`,
               mimeType: finalMime,
               durationMs,
               sourceName: sourceNameRef.current,
@@ -214,7 +343,7 @@ export default function RecorderPanel({
                 setStorageReady(true)
               } catch {
                 setStorageReady(false)
-                setError('録音は作成できましたが、端末内への永続保存に失敗しました。Save to device で退避してください。')
+                setError('録音は作成できましたが、端末内への永続保存に失敗しました。Save to deviceで退避してください。')
               }
             }
 
@@ -222,20 +351,21 @@ export default function RecorderPanel({
             takeUrlsRef.current.push(playbackTake.url)
             takeCountRef.current += 1
             setTakes((previous) => [playbackTake, ...previous])
+            await saveTabCaptureToLibrary(storedTake, mode)
           }
 
           chunksRef.current = []
           recorderRef.current = null
-          releaseMic()
+          releaseCapture()
           setElapsedMs(durationMs)
           setIsRecording(false)
         })()
       })
 
       recorder.addEventListener('error', () => {
-        setError('録音中にエラーが発生しました。マイク権限とブラウザ状態を確認してください。')
+        setError('録音中にエラーが発生しました。共有・マイク権限とブラウザ状態を確認してください。')
         stopTimer()
-        releaseMic()
+        releaseCapture()
         setIsRecording(false)
       })
 
@@ -245,12 +375,19 @@ export default function RecorderPanel({
         setElapsedMs(Date.now() - startedAtRef.current)
       }, 200)
     } catch (cause) {
-      releaseMic()
+      releaseCapture()
       const name = cause instanceof DOMException ? cause.name : ''
-      if (name === 'NotAllowedError') {
-        setError('マイク権限が許可されていません。サイト設定からマイクを許可してください。')
+      const message = cause instanceof Error ? cause.message : ''
+      if (message === 'NO_TAB_AUDIO') {
+        setError('共有した画面に音声トラックがありません。「このタブ」を選び、「タブの音声を共有」をONにして再試行してください。')
+      } else if (message === 'TAB_UNAVAILABLE') {
+        setError('タブ音声キャプチャはこのブラウザでは利用できません。PC版Chrome / Edgeで確認してください。')
+      } else if (message === 'MIC_UNAVAILABLE') {
+        setError('このブラウザではマイク録音を利用できません。')
+      } else if (name === 'NotAllowedError') {
+        setError(mode === 'mic' ? 'マイク権限が許可されていません。サイト設定からマイクを許可してください。' : '画面共有がキャンセルされたか許可されませんでした。現在のタブを選択して音声共有を有効にしてください。')
       } else {
-        setError('マイクを開始できませんでした。別のブラウザまたはPWAでも確認してください。')
+        setError(mode === 'mic' ? 'マイクを開始できませんでした。別のブラウザまたはPWAでも確認してください。' : 'タブ音声録音を開始できませんでした。PC版Chrome / Edgeで「このタブ」と音声共有を選択してください。')
       }
     } finally {
       setStarting(false)
@@ -287,18 +424,34 @@ export default function RecorderPanel({
     <section id="recorder-panel" className="glass-panel recorder-panel">
       <div className="section-heading compact">
         <div>
-          <p className="eyebrow">MIC RECORDER</p>
-          <h2>Practice takes</h2>
+          <p className="eyebrow">LOCAL RECORDER</p>
+          <h2>Mic / tab audio</h2>
         </div>
         <span className={`record-status ${isRecording ? 'is-recording' : ''}`}>
           {isRecording ? 'REC' : storageReady ? 'SAVED' : 'READY'}
         </span>
       </div>
 
+      <div className="record-mode-picker" role="group" aria-label="録音ソース">
+        <button type="button" className={captureMode === 'mic' ? 'is-active' : ''} disabled={isRecording || starting} onClick={() => setCaptureMode('mic')}>
+          <strong>Mic</strong><span>マイク</span>
+        </button>
+        <button type="button" className={captureMode === 'tab' ? 'is-active' : ''} disabled={isRecording || starting || !tabCaptureSupported} onClick={() => setCaptureMode('tab')}>
+          <strong>Tab audio</strong><span>PCタブ音声</span>
+        </button>
+        <button type="button" className={captureMode === 'mix' ? 'is-active' : ''} disabled={isRecording || starting || !tabCaptureSupported} onClick={() => setCaptureMode('mix')}>
+          <strong>Tab + Mic</strong><span>ミックス</span>
+        </button>
+      </div>
+
       <div className="record-source-card">
         <span>Source</span>
-        <strong>{sourceName ?? 'No playback source'}</strong>
-        <small>{sourceName ? `current ${formatPosition(getSourcePosition())}` : 'マイク単体で録音できます'}</small>
+        <strong>{captureMode === 'mic' ? sourceName ?? 'Microphone only' : captureModeLabel(captureMode)}</strong>
+        <small>
+          {captureMode === 'mic'
+            ? sourceName ? `local player current ${formatPosition(getSourcePosition())}` : 'マイク単体で録音できます'
+            : tabCaptureSupported ? 'PCで現在のタブ＋「タブの音声を共有」を選択' : 'この端末ではタブ音声キャプチャ未対応'}
+        </small>
       </div>
 
       <div className={`record-clock ${isRecording ? 'is-recording' : ''}`}>
@@ -308,19 +461,30 @@ export default function RecorderPanel({
 
       <div className="record-actions">
         {!isRecording ? (
-          <>
-            <button type="button" onClick={() => void startRecording(false)} disabled={starting}>
-              {starting ? 'Starting…' : '● Record mic'}
-            </button>
+          captureMode === 'mic' ? (
+            <>
+              <button type="button" onClick={() => void startRecording('mic', false)} disabled={starting}>
+                {starting ? 'Starting…' : '● Record mic'}
+              </button>
+              <button
+                type="button"
+                className="record-primary"
+                onClick={() => void startRecording('mic', true)}
+                disabled={starting || !sourceName}
+              >
+                ▶ + ● Play & Record
+              </button>
+            </>
+          ) : (
             <button
               type="button"
-              className="record-primary"
-              onClick={() => void startRecording(true)}
-              disabled={starting || !sourceName}
+              className="record-primary record-tab-primary"
+              onClick={() => void startRecording(captureMode, false)}
+              disabled={starting || !tabCaptureSupported}
             >
-              ▶ + ● Play & Record
+              {starting ? 'Choose tab…' : captureMode === 'mix' ? '▣ Record tab + mic' : '▣ Record current tab audio'}
             </button>
-          </>
+          )
         ) : (
           <button type="button" className="record-stop" onClick={stopRecording}>
             ■ Stop & Save
@@ -329,8 +493,9 @@ export default function RecorderPanel({
       </div>
 
       {error && <p className="record-error" role="alert">{error}</p>}
+      {notice && <p className="record-notice">{notice}</p>}
       <p className="record-note">
-        伴奏を録音へ直接ミックスせず、端末マイクだけを保存します。録音テイクはIndexedDB対応ブラウザではこの端末内に保存され、再読み込み後も復元します。
+        Tab audioはPC版Chrome / Edge向けです。YouTubeを公式プレーヤーで再生しながら「このタブ」と「タブの音声を共有」を選ぶと、再生音を端末内で録音できます。Tab / Tab + Mic録音はSaved takesに加えてLocal Libraryにも保存します。Androidではブラウザ実装により利用できない場合があります。保存・録音は権利または許可のあるコンテンツに限ってください。
       </p>
 
       <div className="take-list">
@@ -351,7 +516,7 @@ export default function RecorderPanel({
               <button type="button" onClick={() => void removeTake(take.id)} aria-label={`${take.name}を削除`}>×</button>
             </div>
             {take.sourceName && (
-              <p className="take-source">{take.sourceName} · {formatPosition(take.sourcePosition)} から</p>
+              <p className="take-source">{take.sourceName}{take.sourcePosition > 0 ? ` · ${formatPosition(take.sourcePosition)} から` : ''}</p>
             )}
             <audio controls preload="metadata" src={take.url} />
             <a
