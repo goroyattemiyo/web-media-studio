@@ -1,0 +1,58 @@
+/* Recorder/FFmpeg results use the same Player-first actions as other WMS sources. */
+.wms-result-source-unified > audio {
+  display: none !important;
+}
+
+.wms-result-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.wms-result-actions button {
+  min-height: 42px;
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  padding: 0 10px;
+  font: inherit;
+  font-size: 10px;
+  font-weight: 850;
+  cursor: pointer;
+}
+
+.wms-result-actions button:disabled {
+  opacity: .55;
+  cursor: wait;
+}
+
+.wms-result-actions .common-source-play {
+  border-color: rgba(var(--color-accent-rgb), .42) !important;
+  background: var(--color-accent) !important;
+  color: color-mix(in srgb, var(--color-bg) 88%, black) !important;
+}
+
+.wms-result-actions .common-source-queue {
+  border-color: rgba(var(--color-accent-rgb), .3) !important;
+  background: rgba(var(--color-accent-rgb), .1) !important;
+  color: var(--color-accent) !important;
+}
+
+.wms-result-source-unified .take-download,
+.wms-result-source-unified.ffmpeg-result > a,
+.ffmpeg-result.wms-result-source-unified > a {
+  margin-top: 2px;
+  opacity: .72;
+  font-size: 9px;
+}
+
+@media (max-width: 620px) {
+  .wms-result-actions {
+    gap: 6px;
+  }
+
+  .wms-result-actions button {
+    min-height: 40px;
+    font-size: 9.5px;
+  }
+}
