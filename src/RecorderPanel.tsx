@@ -25,6 +25,12 @@ type RecorderPanelProps = {
   onMediaLibraryChanged?: () => void
 }
 
+type TabCaptureSupport = {
+  supported: boolean
+  status: string
+  detail: string
+}
+
 function formatDuration(milliseconds: number) {
   const totalSeconds = Math.floor(milliseconds / 1000)
   const minutes = Math.floor(totalSeconds / 60)
@@ -84,6 +90,30 @@ function captureModeLabel(mode: CaptureMode) {
   return 'Microphone'
 }
 
+function detectTabCaptureSupport(): TabCaptureSupport {
+  if (!window.isSecureContext) {
+    return {
+      supported: false,
+      status: 'HTTPS接続が必要です',
+      detail: 'タブ音声キャプチャには安全なHTTPS接続が必要です。GitHub PagesなどのHTTPS環境で開いてください。',
+    }
+  }
+
+  if (!navigator.mediaDevices?.getDisplayMedia) {
+    return {
+      supported: false,
+      status: 'この端末では利用できません',
+      detail: 'この端末・ブラウザには画面共有APIがありません。Android Chrome / PWAなどでは利用できない場合があります。PC版Chrome / Edgeでの利用を推奨します。',
+    }
+  }
+
+  return {
+    supported: true,
+    status: '利用可能',
+    detail: '画面共有APIを検出しました。録音開始後に「このタブ」と「タブの音声を共有」を選択してください。',
+  }
+}
+
 export default function RecorderPanel({
   sourceName,
   getSourcePosition,
@@ -114,7 +144,8 @@ export default function RecorderPanel({
   const takeUrlsRef = useRef<string[]>([])
   const takeCountRef = useRef(0)
 
-  const tabCaptureSupported = Boolean(navigator.mediaDevices?.getDisplayMedia)
+  const tabCaptureSupport = detectTabCaptureSupport()
+  const tabCaptureSupported = tabCaptureSupport.supported
 
   useEffect(() => {
     onRecordingChange?.(isRecording)
@@ -265,7 +296,7 @@ export default function RecorderPanel({
     }
 
     if ((mode === 'tab' || mode === 'mix') && !tabCaptureSupported) {
-      setError('このブラウザではタブ音声キャプチャを利用できません。PC版Chrome / Edgeで確認してください。')
+      setError(`タブ音声キャプチャを利用できません。${tabCaptureSupport.detail}`)
       setStarting(false)
       return
     }
@@ -381,7 +412,7 @@ export default function RecorderPanel({
       if (message === 'NO_TAB_AUDIO') {
         setError('共有した画面に音声トラックがありません。「このタブ」を選び、「タブの音声を共有」をONにして再試行してください。')
       } else if (message === 'TAB_UNAVAILABLE') {
-        setError('タブ音声キャプチャはこのブラウザでは利用できません。PC版Chrome / Edgeで確認してください。')
+        setError(`タブ音声キャプチャを利用できません。${tabCaptureSupport.detail}`)
       } else if (message === 'MIC_UNAVAILABLE') {
         setError('このブラウザではマイク録音を利用できません。')
       } else if (name === 'NotAllowedError') {
@@ -436,12 +467,31 @@ export default function RecorderPanel({
         <button type="button" className={captureMode === 'mic' ? 'is-active' : ''} disabled={isRecording || starting} onClick={() => setCaptureMode('mic')}>
           <strong>Mic</strong><span>マイク</span>
         </button>
-        <button type="button" className={captureMode === 'tab' ? 'is-active' : ''} disabled={isRecording || starting || !tabCaptureSupported} onClick={() => setCaptureMode('tab')}>
-          <strong>Tab audio</strong><span>PCタブ音声</span>
+        <button
+          type="button"
+          className={captureMode === 'tab' ? 'is-active' : ''}
+          disabled={isRecording || starting || !tabCaptureSupported}
+          onClick={() => setCaptureMode('tab')}
+          aria-describedby="tab-capture-status"
+          title={!tabCaptureSupported ? tabCaptureSupport.detail : undefined}
+        >
+          <strong>Tab audio</strong><span>{tabCaptureSupported ? 'PCタブ音声' : '利用不可'}</span>
         </button>
-        <button type="button" className={captureMode === 'mix' ? 'is-active' : ''} disabled={isRecording || starting || !tabCaptureSupported} onClick={() => setCaptureMode('mix')}>
-          <strong>Tab + Mic</strong><span>ミックス</span>
+        <button
+          type="button"
+          className={captureMode === 'mix' ? 'is-active' : ''}
+          disabled={isRecording || starting || !tabCaptureSupported}
+          onClick={() => setCaptureMode('mix')}
+          aria-describedby="tab-capture-status"
+          title={!tabCaptureSupported ? tabCaptureSupport.detail : undefined}
+        >
+          <strong>Tab + Mic</strong><span>{tabCaptureSupported ? 'ミックス' : '利用不可'}</span>
         </button>
+      </div>
+
+      <div id="tab-capture-status" className={`tab-capture-capability ${tabCaptureSupported ? 'is-supported' : 'is-unavailable'}`} role="status">
+        <strong>Tab audio · {tabCaptureSupport.status}</strong>
+        <span>{tabCaptureSupport.detail}</span>
       </div>
 
       <div className="record-source-card">
@@ -450,7 +500,7 @@ export default function RecorderPanel({
         <small>
           {captureMode === 'mic'
             ? sourceName ? `local player current ${formatPosition(getSourcePosition())}` : 'マイク単体で録音できます'
-            : tabCaptureSupported ? 'PCで現在のタブ＋「タブの音声を共有」を選択' : 'この端末ではタブ音声キャプチャ未対応'}
+            : tabCaptureSupported ? 'PCで現在のタブ＋「タブの音声を共有」を選択' : '上のTab audio対応状況を確認してください'}
         </small>
       </div>
 
