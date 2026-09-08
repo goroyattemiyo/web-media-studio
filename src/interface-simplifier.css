@@ -1,0 +1,250 @@
+#library-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+#library-panel > .library-heading { order: 1; }
+#library-panel > .device-library-browser { order: 2; }
+#library-panel > .library-storage-card { order: 3; }
+#library-panel > .named-playlists-card { order: 4; }
+#library-panel > .folder-root-list { order: 5; }
+#library-panel > .playlist-list,
+#library-panel > .playlist-note { order: 6; }
+
+#library-panel .library-actions {
+  display: none !important;
+}
+
+#library-panel .library-storage-meta {
+  display: none;
+}
+
+.device-library-browser {
+  display: grid;
+  gap: 10px;
+}
+
+.device-library-actions {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 44px;
+  gap: 8px;
+}
+
+.device-library-primary,
+.device-library-more {
+  min-height: 46px;
+  border: 1px solid rgba(var(--color-accent-rgb), .3);
+  border-radius: 14px;
+  background: rgba(var(--color-accent-rgb), .1);
+  color: var(--color-text);
+  cursor: pointer;
+}
+
+.device-library-primary {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  font-size: 13px;
+}
+
+.device-library-primary span {
+  color: var(--color-accent);
+  font-size: 18px;
+}
+
+.device-library-more-wrap {
+  position: relative;
+}
+
+.device-library-more {
+  width: 44px;
+  font-size: 20px;
+  color: var(--color-text-muted);
+}
+
+.device-library-menu {
+  position: absolute;
+  z-index: 25;
+  top: calc(100% + 6px);
+  right: 0;
+  min-width: 190px;
+  display: grid;
+  gap: 4px;
+  padding: 6px;
+  border: 1px solid var(--color-border);
+  border-radius: 13px;
+  background: var(--color-surface-strong);
+  box-shadow: 0 18px 48px rgba(0,0,0,.28);
+}
+
+.device-library-menu button {
+  min-height: 38px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  color: var(--color-text);
+  text-align: left;
+  cursor: pointer;
+}
+
+.device-library-menu button:hover,
+.device-library-menu button:active {
+  background: rgba(var(--color-accent-rgb), .08);
+}
+
+.device-library-list-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.device-library-list-heading strong {
+  font-size: 13px;
+}
+
+.device-library-list-heading span {
+  color: var(--color-text-muted);
+  font-size: 11px;
+}
+
+.device-library-list {
+  max-height: min(38vh, 330px);
+  display: grid;
+  gap: 6px;
+  overflow: auto;
+}
+
+.device-library-list button,
+.device-library-empty {
+  width: 100%;
+  min-height: 46px;
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--color-surface-strong) 76%, transparent);
+  color: var(--color-text);
+  cursor: pointer;
+}
+
+.device-library-list button {
+  display: grid;
+  grid-template-columns: 24px minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+  padding: 0 10px;
+  text-align: left;
+}
+
+.device-library-list button span {
+  color: var(--color-accent);
+  font-size: 11px;
+}
+
+.device-library-list button strong {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
+}
+
+.device-library-empty {
+  padding: 16px;
+  color: var(--color-text-muted);
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+/* YouTube source input becomes the obvious primary action. */
+.youtube-url-form.wms-paste-simplified {
+  grid-template-columns: minmax(0, 1fr) 40px;
+  gap: 8px;
+}
+
+.youtube-paste-prompt {
+  grid-column: 1 / -1;
+  order: -2;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 0 2px;
+}
+
+.youtube-paste-prompt > span {
+  font-size: 18px;
+}
+
+.youtube-paste-prompt div {
+  display: grid;
+  gap: 1px;
+}
+
+.youtube-paste-prompt strong {
+  font-size: 13px;
+}
+
+.youtube-paste-prompt small {
+  color: var(--color-text-muted);
+  font-size: 11px;
+}
+
+.youtube-url-form.wms-paste-simplified input {
+  min-height: 54px;
+  padding: 0 15px;
+  border-width: 1.5px;
+  border-color: rgba(var(--color-accent-rgb), .34);
+  border-radius: 15px;
+  background: color-mix(in srgb, var(--color-surface-strong) 88%, transparent);
+  font-size: 13px;
+  box-shadow: inset 0 0 0 1px rgba(var(--color-accent-rgb), .03);
+}
+
+.youtube-url-form.wms-paste-simplified input::placeholder {
+  color: color-mix(in srgb, var(--color-text-muted) 82%, transparent);
+}
+
+.youtube-url-form.wms-paste-simplified button[type='submit'] {
+  display: none;
+}
+
+.youtube-url-form.wms-paste-simplified .secondary {
+  width: 40px;
+  min-width: 40px;
+  padding: 0;
+  font-size: 0;
+}
+
+.youtube-url-form.wms-paste-simplified .secondary::after {
+  content: '×';
+  font-size: 17px;
+}
+
+/* Technical readouts are available through Info instead of occupying the card. */
+.youtube-capabilities,
+.youtube-policy-note,
+.youtube-screenoff-note,
+.device-note,
+#recorder-panel .record-note,
+#recorder-panel .tab-capture-capability span,
+#recorder-panel .record-source-card small,
+#ffmpeg-tools-panel .ffmpeg-note {
+  display: none !important;
+}
+
+@media (max-width: 620px) {
+  .device-library-list {
+    max-height: 34vh;
+  }
+
+  .youtube-url-form.wms-paste-simplified {
+    grid-template-columns: minmax(0, 1fr) 40px;
+  }
+
+  .youtube-url-form.wms-paste-simplified input {
+    grid-column: auto;
+    min-height: 56px;
+  }
+}
