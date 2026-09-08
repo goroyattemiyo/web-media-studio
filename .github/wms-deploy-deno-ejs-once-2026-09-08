@@ -1,0 +1,2 @@
+One-shot deployment marker for the Deno + EJS standard YouTube extraction worker.
+Remove together with the temporary push trigger after Cloud Run deployment confirmation.
