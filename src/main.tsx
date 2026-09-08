@@ -5,6 +5,7 @@ import YouTubeProviderPanel from './YouTubeProviderPanel'
 import YouTubePlaylistActions from './YouTubePlaylistActions'
 import UnifiedPlaylistSources from './UnifiedPlaylistSources'
 import ToolDeckEnhancer from './ToolDeckEnhancer'
+import SkinVisualEnhancer from './SkinVisualEnhancer'
 import { installPlaybackArbitration } from './playbackArbiter'
 import './styles.css'
 import './mobile-overrides.css'
@@ -14,6 +15,7 @@ import './ffmpeg-tools.css'
 import './library.css'
 import './tool-descriptions.css'
 import './player-visuals.css'
+import './skin-visual-enhancer.css'
 import './reorder-resume.css'
 import './named-playlists.css'
 import './youtube-provider.css'
@@ -39,6 +41,7 @@ function Root() {
       <YouTubePlaylistActions />
       <UnifiedPlaylistSources />
       <ToolDeckEnhancer />
+      <SkinVisualEnhancer />
     </>
   )
 }
