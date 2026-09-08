@@ -196,7 +196,7 @@ Android Chrome/PWA real-device validation:
 - YouTube embed error mapping for invalid/unavailable/non-embeddable videos
 - autoplay-blocked status handling
 - capability display: playback supported, download unsupported, screen-off limitation explicit
-- Screen Wake Lock option to keep the screen on during foreground playback where available
+- Screen Wake Lock option to keep the screen on during foreground playback where supported
 - explicit UI note that Web Media Studio does not download or extract media through the official embedded player
 
 Foreground playback has been validated. On the tested Android environment, embedded YouTube playback stops when the screen turns off; WMS does not claim otherwise.
@@ -231,6 +231,24 @@ PR #29 production deployment is confirmed. Cloud Run workflow run #6 deployed `m
 Post-deploy production validation failed for both the previously blocked video and a separate copyright-free video. This means the PO Token experiment did not restore the YouTube -> Localize flow in the tested Cloud Run environment. Because two content types fail after the same production deployment, a video-specific copyright/restriction explanation is no longer the leading hypothesis; Cloud Run/datacenter egress or YouTube's cloud-origin access restrictions are the stronger suspected cause. The exact backend error code for these two retests has not yet been recorded, so the cause is still an evidence-based hypothesis rather than a proven root cause.
 
 Current decision: do not escalate to YouTube account cookies, proxy rotation, DRM bypass, or authentication-bypass techniques. Keep the official YouTube IFrame player as the supported playback path, and prefer current-tab audio capture on compatible desktop browsers for user-authorized local capture. Treat the Cloud Run Localize path as `LIMITED` / experimental until a compliant, reliable server-side route is identified.
+
+## GitHub Actions extraction diagnostic
+
+A manual-only diagnostic workflow exists at `.github/workflows/youtube-extraction-diagnostic.yml` to isolate the execution-environment variable.
+
+It intentionally reuses:
+
+- `services/media-worker/Dockerfile`
+- the same `wms_media_worker.cli` extraction implementation
+- `YOUTUBE_PO_TOKEN_MODE=bgutil-script-mweb`
+- the same 30-minute and source-size guards used by the Cloud Run worker
+- MP3 192 kbps output
+
+The diagnostic is not connected to the WMS browser UI. It requires an explicit rights/permission confirmation before running and uploads logs plus any successful MP3 as a 3-day GitHub Actions artifact. No account cookies, proxies, DRM bypass, or authentication bypass are added.
+
+The GitHub-hosted-runner extraction result is not yet validated. A success would strengthen the hypothesis that execution environment / egress is the key difference from Cloud Run; a failure with the same restriction would show that the problem is broader than the Cloud Run service itself.
+
+See `docs/GITHUB_ACTIONS_YOUTUBE_DIAGNOSTIC.md` for the manual test procedure.
 
 ## Real-device validation still required
 
@@ -277,10 +295,10 @@ Current decision: do not escalate to YouTube account cookies, proxy rotation, DR
 
 ## Immediate next step
 
-1. validate Android unavailable-state UX and Local Player / YouTube playback arbitration on the deployed PR #32 build
-2. validate Tab audio end-to-end on desktop Chrome/Edge
-3. keep Cloud Run Localize visibly `LIMITED` instead of implying that PO Token solved the issue
-4. use the official IFrame player for YouTube playback and desktop current-tab capture for authorized local capture where supported
-5. only revisit server-side YouTube Localize if a compliant, reliable path that does not depend on account-cookie/proxy/bypass techniques becomes available
+1. run the manual GitHub Actions extraction diagnostic with an authorized test video and compare it against the failed Cloud Run result
+2. validate Android unavailable-state UX and Local Player / YouTube playback arbitration on the deployed PR #32 build
+3. validate Tab audio end-to-end on desktop Chrome/Edge
+4. keep Cloud Run Localize visibly `LIMITED` instead of implying that PO Token solved the issue
+5. only revisit a production server-side YouTube Localize backend after a compliant, reliable route is demonstrated
 
 Do not describe planned work as implemented work.
