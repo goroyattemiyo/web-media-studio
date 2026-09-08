@@ -4,6 +4,7 @@ import App from './App'
 import YouTubeProviderPanel from './YouTubeProviderPanel'
 import YouTubeLocalizerPanel from './YouTubeLocalizerPanel'
 import ToolDeckEnhancer from './ToolDeckEnhancer'
+import { installPlaybackArbitration } from './playbackArbiter'
 import './styles.css'
 import './mobile-overrides.css'
 import './recorder.css'
@@ -17,6 +18,8 @@ import './named-playlists.css'
 import './youtube-provider.css'
 import './youtube-localizer.css'
 import './ui-v2.css'
+
+installPlaybackArbitration()
 
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
