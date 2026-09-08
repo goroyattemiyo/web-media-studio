@@ -37,7 +37,8 @@ function currentYouTubeEntry(): StoredPlaylistEntry | null {
 async function currentLocalEntry(): Promise<StoredPlaylistEntry | null> {
   const current = document.querySelector<HTMLElement>('#library-panel .playlist-row .playlist-item.is-current')
   const row = current?.closest<HTMLElement>('.playlist-row')
-  const name = row?.querySelector<HTMLElement>('.playlist-name')?.textContent?.trim()
+  if (!row) return null
+  const name = row.querySelector<HTMLElement>('.playlist-name')?.textContent?.trim()
   if (!name) return null
   const relativePath = row.querySelector<HTMLElement>('.playlist-copy small')?.textContent?.trim() || null
   const records = await listMediaLibraryItems()
