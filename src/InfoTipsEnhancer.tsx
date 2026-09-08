@@ -17,7 +17,7 @@ const tips: InfoTip[] = [
     summary: '再生中のメディアを操作する中心画面です。',
     bullets: [
       '再生・一時停止・前後移動・速度・音量をここで操作します。',
-      'Shuffle / Repeat / A-B loopもPlayer内で使えます。',
+      '「区間開始」→「区間終了」を押すと、その区間だけを繰り返し再生できます。区間解除で通常再生へ戻ります。',
       '下のPlay Queueから次に聴くLocal音声やYouTubeを選べます。',
     ],
   },
