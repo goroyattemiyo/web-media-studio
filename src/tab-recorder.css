@@ -1,0 +1,80 @@
+.record-mode-picker {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 7px;
+  margin-bottom: 10px;
+}
+
+.record-mode-picker button {
+  min-width: 0;
+  display: grid;
+  gap: 3px;
+  min-height: 54px;
+  padding: 8px 7px;
+  border: 1px solid var(--color-border);
+  border-radius: 13px;
+  background: color-mix(in srgb, var(--color-surface-strong) 72%, transparent);
+  color: var(--color-text-muted);
+  cursor: pointer;
+}
+
+.record-mode-picker button strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: inherit;
+  font-size: 10px;
+}
+
+.record-mode-picker button span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 8px;
+}
+
+.record-mode-picker button.is-active {
+  border-color: rgba(var(--color-accent-rgb), .38);
+  background: rgba(var(--color-accent-rgb), .1);
+  color: var(--color-accent);
+}
+
+.record-mode-picker button:disabled {
+  opacity: .34;
+  cursor: default;
+}
+
+.record-actions .record-tab-primary {
+  grid-column: 1 / -1;
+  min-height: 52px;
+}
+
+.record-notice {
+  margin: 10px 0 0;
+  padding: 10px 12px;
+  border: 1px solid rgba(69, 214, 144, .22);
+  border-radius: 12px;
+  background: rgba(69, 214, 144, .08);
+  color: #64dda0;
+  font-size: 10px;
+  line-height: 1.55;
+}
+
+@media (max-width: 520px) {
+  .record-mode-picker {
+    gap: 5px;
+  }
+
+  .record-mode-picker button {
+    min-height: 50px;
+    padding-inline: 5px;
+  }
+
+  .record-mode-picker button strong {
+    font-size: 9px;
+  }
+
+  .record-mode-picker button span {
+    font-size: 7px;
+  }
+}
