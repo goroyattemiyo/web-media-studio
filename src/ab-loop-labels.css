@@ -1,0 +1,16 @@
+#player-panel .quick-controls button[data-wms-loop-control] {
+  font-size: 0;
+}
+
+#player-panel .quick-controls button[data-wms-loop-control]::after {
+  content: attr(data-wms-loop-label);
+  font-size: 12px;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+@media (max-width: 520px) {
+  #player-panel .quick-controls button[data-wms-loop-control]::after {
+    font-size: 11px;
+  }
+}
