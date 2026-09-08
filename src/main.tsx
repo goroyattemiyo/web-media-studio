@@ -11,6 +11,8 @@ import InfoTipsEnhancer from './InfoTipsEnhancer'
 import ABLoopLabelsEnhancer from './ABLoopLabelsEnhancer'
 import LanguageEnhancer from './LanguageEnhancer'
 import ColabFirstRunGuide from './ColabFirstRunGuide'
+import SystemMessageCenter from './SystemMessageCenter'
+import InterfaceSimplifier from './InterfaceSimplifier'
 import { installPlaybackArbitration } from './playbackArbiter'
 import './styles.css'
 import './mobile-overrides.css'
@@ -21,6 +23,7 @@ import './library.css'
 import './tool-descriptions.css'
 import './player-visuals.css'
 import './skin-visual-enhancer.css'
+import './immersive-skins.css'
 import './reorder-resume.css'
 import './named-playlists.css'
 import './youtube-provider.css'
@@ -31,6 +34,8 @@ import './info-tips.css'
 import './ab-loop-labels.css'
 import './language-switch.css'
 import './colab-first-run-guide.css'
+import './system-message-center.css'
+import './interface-simplifier.css'
 import './ui-v2.css'
 
 installPlaybackArbitration()
@@ -57,6 +62,8 @@ function Root() {
       <ABLoopLabelsEnhancer />
       <LanguageEnhancer />
       <ColabFirstRunGuide />
+      <SystemMessageCenter />
+      <InterfaceSimplifier />
     </>
   )
 }

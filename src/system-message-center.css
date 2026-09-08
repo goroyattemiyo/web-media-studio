@@ -1,0 +1,93 @@
+.topbar {
+  flex-wrap: wrap;
+}
+
+.system-message-center {
+  flex: 0 0 100%;
+  min-width: 0;
+  min-height: 38px;
+  display: grid;
+  grid-template-columns: 8px auto minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+  padding: 9px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: 13px;
+  background: color-mix(in srgb, var(--color-surface-strong) 90%, transparent);
+  color: var(--color-text);
+  text-align: left;
+  cursor: pointer;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, .1);
+}
+
+.system-message-center b {
+  color: var(--color-accent);
+  font-size: 10px;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+}
+
+.system-message-center > span:last-child {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.system-message-center.is-expanded > span:last-child {
+  overflow: visible;
+  white-space: normal;
+}
+
+.system-message-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--color-accent);
+  box-shadow: 0 0 10px rgba(var(--color-accent-rgb), .6);
+}
+
+.system-message-center.is-success .system-message-dot {
+  background: #53e6a2;
+  box-shadow: 0 0 10px rgba(83, 230, 162, .65);
+}
+
+.system-message-center.is-error {
+  border-color: color-mix(in srgb, var(--color-danger) 38%, var(--color-border));
+}
+
+.system-message-center.is-error b,
+.system-message-center.is-error .system-message-dot {
+  color: var(--color-danger);
+  background: var(--color-danger);
+}
+
+/* Dynamic status text is mirrored into the system bar above. */
+.library-message,
+.playlist-manager-message,
+.unified-play-queue-status,
+#youtube-provider-panel .youtube-download-status,
+#youtube-provider-panel .youtube-status-row,
+#youtube-provider-panel .youtube-error,
+#youtube-provider-panel .youtube-queue-status,
+#recorder-panel .record-notice,
+#recorder-panel .record-error,
+#ffmpeg-tools-panel .ffmpeg-message,
+#ffmpeg-tools-panel .ffmpeg-error {
+  display: none !important;
+}
+
+@media (max-width: 620px) {
+  .system-message-center {
+    min-height: 42px;
+    grid-template-columns: 8px minmax(48px, auto) minmax(0, 1fr);
+    padding: 9px 10px;
+    border-radius: 12px;
+  }
+
+  .system-message-center > span:last-child {
+    font-size: 11px;
+  }
+}
