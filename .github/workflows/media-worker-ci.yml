@@ -6,11 +6,13 @@ on:
     paths:
       - "services/media-worker/**"
       - ".github/workflows/media-worker-ci.yml"
+      - ".github/workflows/youtube-extraction-diagnostic.yml"
   push:
     branches: [main]
     paths:
       - "services/media-worker/**"
       - ".github/workflows/media-worker-ci.yml"
+      - ".github/workflows/youtube-extraction-diagnostic.yml"
   workflow_dispatch:
 
 permissions:
