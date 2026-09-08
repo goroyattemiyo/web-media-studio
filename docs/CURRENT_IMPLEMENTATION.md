@@ -226,7 +226,9 @@ PR typecheck/build CI: PASS. GitHub Pages post-merge build/deploy: PASS. Real-de
 - PR #29 added the controlled PO Token experiment using `bgutil-ytdlp-pot-provider==1.3.2`, Node, pinned provider source, `mweb`, and `YOUTUBE_PO_TOKEN_MODE=bgutil-script-mweb`
 - PR #29 CI passed its Python tests, Docker build/start, health, FFmpeg, Node, provider plugin and provider script checks
 
-Production deployment status for PR #29 is now confirmed as **not yet deployed**. The latest `Deploy Media Worker to Cloud Run` workflow run is run #5, started at 2026-09-08 08:27 JST from commit `1530b7630fd06ea92502ff8008bd5c08258d9429`, before PR #29 merged at 09:00 JST. That deployed workflow revision does not contain `YOUTUBE_PO_TOKEN_MODE=bgutil-script-mweb`. Therefore the same-video PO Token production retest must wait until a new manual Cloud Run deployment is run from current `main`.
+PR #29 production deployment is confirmed. Cloud Run workflow run #6 deployed `main` commit `658636f3d7fc25d685329dcdc795a383c3bd73f6` on 2026-09-08 11:51-11:55 JST and completed successfully. The deployment log shows `YOUTUBE_PO_TOKEN_MODE=bgutil-script-mweb` in the Cloud Run environment and labels the deployed revision with the same commit SHA. The reported service URL is `https://wms-media-worker-pcdbs5armq-an.a.run.app`.
+
+The same-video PO Token production retest is still pending. The exact previously blocked YouTube URL/video ID is not recorded in the handoff, repository, PR #29 comments, or other accessible repository text, so it must not be guessed. A faithful `/extract` production retest also requires the allowed Google account's ID token/session; the deployment workflow itself does not provide a user login token.
 
 ## Real-device validation still required
 
@@ -275,8 +277,7 @@ Production deployment status for PR #29 is now confirmed as **not yet deployed**
 
 1. validate Android unavailable-state UX and Local Player / YouTube playback arbitration on the deployed PR #32 build
 2. validate Tab audio end-to-end on desktop Chrome/Edge
-3. manually run `Deploy Media Worker to Cloud Run` from current `main` so PR #29 is actually deployed
-4. retry the same previously blocked video and record `SUCCESS` vs `LIMITED`
-5. if the same video remains `LIMITED`, treat Cloud Run/datacenter egress restriction as the stronger suspected cause rather than adding account cookies or proxy rotation
+3. rerun the exact previously blocked video through the authenticated Localize flow now that PR #29 is deployed
+4. if the same video remains `LIMITED`, treat Cloud Run/datacenter egress restriction as the stronger suspected cause rather than adding account cookies or proxy rotation
 
 Do not describe planned work as implemented work.
