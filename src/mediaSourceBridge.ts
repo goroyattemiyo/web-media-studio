@@ -6,8 +6,27 @@ export type YouTubeSourceDetail = {
 
 const LOAD_YOUTUBE_EVENT = 'wms:load-youtube-source'
 const PLAYLIST_CHANGED_EVENT = 'wms:playlist-db-changed'
+const LAST_YOUTUBE_URL_KEY = 'wms-youtube-last-url'
 
 export function requestLoadYouTubeSource(detail: YouTubeSourceDetail) {
+  try {
+    window.localStorage.setItem(LAST_YOUTUBE_URL_KEY, detail.url)
+  } catch {
+    // The current page interaction can still continue if storage is unavailable.
+  }
+
+  const input = document.querySelector<HTMLInputElement>(
+    '#youtube-provider-panel input[aria-label="YouTube URL または動画ID"]',
+  )
+  if (input) {
+    const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set
+    if (setter) setter.call(input, detail.url)
+    else input.value = detail.url
+    input.dispatchEvent(new Event('input', { bubbles: true }))
+    input.dispatchEvent(new Event('change', { bubbles: true }))
+    window.setTimeout(() => input.closest('form')?.requestSubmit(), 0)
+  }
+
   window.dispatchEvent(new CustomEvent<YouTubeSourceDetail>(LOAD_YOUTUBE_EVENT, { detail }))
 }
 
