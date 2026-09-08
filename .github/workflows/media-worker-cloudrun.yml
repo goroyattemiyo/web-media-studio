@@ -2,10 +2,6 @@ name: Deploy Media Worker to Cloud Run
 
 on:
   workflow_dispatch:
-  push:
-    branches: [main]
-    paths:
-      - ".github/wms-deploy-deno-ejs-once-2026-09-08"
 
 permissions:
   contents: read
