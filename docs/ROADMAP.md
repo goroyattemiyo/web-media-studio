@@ -164,9 +164,19 @@ Status: Google-authenticated Localize flow and the PR #29 PO Token experiment ar
 - [x] production retest of the previously blocked video — FAIL
 - [x] production retest with a separate copyright-free video — FAIL
 - [~] root-cause assessment — Cloud Run/datacenter egress or YouTube cloud-origin restriction is the stronger hypothesis, but exact backend error evidence from the retests is still incomplete
+- [x] add a manual GitHub-hosted-runner extraction diagnostic using the same worker Dockerfile, CLI and PO Token mode
+- [ ] run the GitHub Actions diagnostic against an authorized test video and compare the result with Cloud Run
 - [ ] identify a compliant and reliable server-side route before re-enabling this as a normal product path
 
-Guardrails:
+GitHub Actions diagnostic guardrails:
+
+- manual `workflow_dispatch` only
+- not connected to the public WMS UI
+- tester must confirm ownership or permission before download/conversion
+- short-lived diagnostic artifacts only
+- a successful diagnostic does not make GitHub Actions an approved production backend
+
+General guardrails:
 
 - no YouTube account cookies
 - no proxy rotation as an automatic workaround
@@ -208,12 +218,13 @@ Only after the core media app is stable:
 
 ## Current priority
 
-1. validate Android unavailable-state UX and Local Player / YouTube playback arbitration from PR #32
-2. validate desktop Chrome/Edge Tab audio end-to-end
-3. keep Cloud Run Localize clearly marked `LIMITED` rather than spending more time on the current PO Token path
-4. use the official IFrame player for YouTube playback and current-tab capture for authorized desktop capture where supported
-5. revisit server-side YouTube Localize only if a compliant reliable route becomes available
-6. markers/bookmarks and richer visualizers after the provider boundary is stable
+1. run the GitHub Actions extraction diagnostic with an authorized test video and compare it with the failed Cloud Run result
+2. validate Android unavailable-state UX and Local Player / YouTube playback arbitration from PR #32
+3. validate desktop Chrome/Edge Tab audio end-to-end
+4. keep Cloud Run Localize clearly marked `LIMITED` while the execution-environment hypothesis is tested
+5. use the official IFrame player for normal YouTube playback and current-tab capture for authorized desktop capture where supported
+6. only revisit a production server-side Localize backend after a compliant, reliable route is demonstrated
+7. markers/bookmarks and richer visualizers after the provider boundary is stable
 
 ## Version targets
 
