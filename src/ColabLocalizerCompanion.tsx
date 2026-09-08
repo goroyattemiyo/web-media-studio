@@ -1,4 +1,5 @@
-import { MouseEvent, useEffect, useState } from 'react'
+import { useEffect, useState } from 'react'
+import type { MouseEvent } from 'react'
 import { createPortal } from 'react-dom'
 import { parseYouTubeInput, youtubeWatchUrl } from './providers/youtube'
 
