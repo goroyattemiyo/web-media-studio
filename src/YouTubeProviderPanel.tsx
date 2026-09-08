@@ -1,10 +1,18 @@
-import { FormEvent, useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import type { ChangeEvent, FormEvent, MouseEvent } from 'react'
 import { createPortal } from 'react-dom'
+import {
+  getMediaLibraryBytes,
+  MEDIA_LIBRARY_MAX_ITEM_BYTES,
+  MEDIA_LIBRARY_SOFT_LIMIT_BYTES,
+  saveMediaLibraryItems,
+  type StoredMediaLibraryItem,
+} from './mediaLibraryDb'
 import { claimPlayback, registerPlaybackSource } from './playbackArbiter'
 import {
   loadYouTubeIframeApi,
   parseYouTubeInput,
-  YouTubePlayer,
+  type YouTubePlayer,
   youtubeErrorMessage,
   youtubeStateLabel,
   youtubeWatchUrl,
@@ -13,6 +21,12 @@ import {
 const LAST_YOUTUBE_URL_KEY = 'wms-youtube-last-url'
 const YOUTUBE_REPEAT_ONE_KEY = 'wms-youtube-repeat-one'
 const YOUTUBE_KEEP_AWAKE_KEY = 'wms-youtube-keep-awake'
+const COLAB_LOCALIZER_URL =
+  'https://colab.research.google.com/github/goroyattemiyo/web-media-studio/blob/main/colab/WMS_Colab_Localizer.ipynb'
+
+type Props = {
+  onMediaImported?: () => void
+}
 
 type WakeLockSentinelLike = {
   released: boolean
@@ -33,11 +47,48 @@ function formatTime(value: number) {
   return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`
 }
 
-function YouTubeProviderPanel() {
+function formatBytes(value: number) {
+  if (!Number.isFinite(value) || value <= 0) return '0 MB'
+  const units = ['B', 'KB', 'MB', 'GB']
+  let amount = value
+  let unitIndex = 0
+  while (amount >= 1024 && unitIndex < units.length - 1) {
+    amount /= 1024
+    unitIndex += 1
+  }
+  return `${amount.toFixed(unitIndex >= 2 && amount < 10 ? 1 : 0)} ${units[unitIndex]}`
+}
+
+function importedItemId() {
+  if ('randomUUID' in crypto) return `colab-${crypto.randomUUID()}`
+  return `colab-${Date.now()}-${Math.random().toString(36).slice(2)}`
+}
+
+async function copyText(value: string) {
+  if (navigator.clipboard?.writeText) {
+    await navigator.clipboard.writeText(value)
+    return true
+  }
+
+  const textarea = document.createElement('textarea')
+  textarea.value = value
+  textarea.setAttribute('readonly', '')
+  textarea.style.position = 'fixed'
+  textarea.style.opacity = '0'
+  document.body.appendChild(textarea)
+  textarea.select()
+  const copied = document.execCommand('copy')
+  textarea.remove()
+  return copied
+}
+
+function YouTubeProviderPanel({ onMediaImported }: Props) {
   const [portalTarget, setPortalTarget] = useState<Element | null>(null)
   const [urlInput, setUrlInput] = useState(() => window.localStorage.getItem(LAST_YOUTUBE_URL_KEY) ?? '')
   const [videoId, setVideoId] = useState<string | null>(null)
   const [status, setStatus] = useState('YouTube URLを入力してください。')
+  const [downloadStatus, setDownloadStatus] = useState('Downloadは実機確認済みのColabで処理します。')
+  const [importBusy, setImportBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [ready, setReady] = useState(false)
   const [playerState, setPlayerState] = useState('Idle')
@@ -104,12 +155,10 @@ function YouTubeProviderPanel() {
 
   useEffect(() => {
     return registerPlaybackSource('youtube', () => {
-      const player = playerRef.current
-      if (!player) return
       try {
-        player.pauseVideo()
+        playerRef.current?.pauseVideo()
       } catch {
-        // The player may be between cue/destroy states; a later state change will settle playback.
+        // The player may be between cue/destroy states.
       }
     })
   }, [])
@@ -133,11 +182,8 @@ function YouTubeProviderPanel() {
 
   useEffect(() => {
     const handleVisibilityChange = () => {
-      if (document.visibilityState === 'visible' && keepAwakeRef.current && playingRef.current) {
-        void requestWakeLock()
-      } else if (document.visibilityState !== 'visible') {
-        void releaseWakeLock()
-      }
+      if (document.visibilityState === 'visible' && keepAwakeRef.current && playingRef.current) void requestWakeLock()
+      else if (document.visibilityState !== 'visible') void releaseWakeLock()
     }
 
     document.addEventListener('visibilitychange', handleVisibilityChange)
@@ -191,7 +237,7 @@ function YouTubeProviderPanel() {
         setVideoId(nextVideoId)
         readyRef.current = true
         setReady(true)
-        setStatus('動画を読み込みました。再生ボタンを押してください。')
+        setStatus('動画を読み込みました。再生・Download・Playlist追加を選べます。')
         return
       }
 
@@ -219,7 +265,7 @@ function YouTubeProviderPanel() {
             const rates = event.target.getAvailablePlaybackRates()
             setAvailableRates(rates.length ? rates : [1])
             event.target.getIframe().setAttribute('title', 'YouTube player')
-            setStatus('動画を読み込みました。再生ボタンを押してください。')
+            setStatus('動画を読み込みました。再生・Downloadを選べます。')
           },
           onStateChange: (event) => {
             const state = event.data ?? -1
@@ -249,12 +295,8 @@ function YouTubeProviderPanel() {
               }
             }
           },
-          onPlaybackRateChange: (event) => {
-            setPlaybackRate(event.target.getPlaybackRate())
-          },
-          onAutoplayBlocked: () => {
-            setStatus('ブラウザが自動再生を止めました。再生ボタンを押してください。')
-          },
+          onPlaybackRateChange: (event) => setPlaybackRate(event.target.getPlaybackRate()),
+          onAutoplayBlocked: () => setStatus('ブラウザが自動再生を止めました。再生ボタンを押してください。'),
           onError: (event) => {
             playingRef.current = false
             void releaseWakeLock()
@@ -279,7 +321,9 @@ function YouTubeProviderPanel() {
       return
     }
 
-    window.localStorage.setItem(LAST_YOUTUBE_URL_KEY, urlInput.trim())
+    const canonicalUrl = youtubeWatchUrl(parsed.videoId)
+    setUrlInput(canonicalUrl)
+    window.localStorage.setItem(LAST_YOUTUBE_URL_KEY, canonicalUrl)
     void createPlayer(parsed.videoId, parsed.startSeconds)
   }
 
@@ -298,6 +342,71 @@ function YouTubeProviderPanel() {
     setPlayerState('Idle')
     setError(null)
     setStatus('YouTube URLを入力してください。')
+  }
+
+  const currentCanonicalUrl = () => {
+    if (videoId) return youtubeWatchUrl(videoId)
+    const parsed = parseYouTubeInput(urlInput)
+    return parsed ? youtubeWatchUrl(parsed.videoId) : null
+  }
+
+  const prepareDownload = (event: MouseEvent<HTMLAnchorElement>) => {
+    const canonicalUrl = currentCanonicalUrl()
+    if (!canonicalUrl) {
+      event.preventDefault()
+      setError('先にYouTube URLを入力してください。')
+      return
+    }
+
+    window.localStorage.setItem(LAST_YOUTUBE_URL_KEY, canonicalUrl)
+    void copyText(canonicalUrl)
+      .then((copied) => {
+        setDownloadStatus(
+          copied
+            ? 'URLをコピーしました。Colabで貼り付け → 権利確認✓ → ▶でDownloadできます。'
+            : `ColabでこのURLを貼り付けてください: ${canonicalUrl}`,
+        )
+      })
+      .catch(() => setDownloadStatus(`ColabでこのURLを貼り付けてください: ${canonicalUrl}`))
+  }
+
+  const importDownloadedAudio = async (event: ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(event.target.files ?? []).filter((file) => file.type.startsWith('audio/') || /\.(mp3|m4a|wav|webm|ogg)$/i.test(file.name))
+    event.target.value = ''
+    if (!files.length || importBusy) return
+
+    setImportBusy(true)
+    setError(null)
+    try {
+      const oversized = files.find((file) => file.size > MEDIA_LIBRARY_MAX_ITEM_BYTES)
+      if (oversized) throw new Error(`${oversized.name} は1ファイル上限 ${formatBytes(MEDIA_LIBRARY_MAX_ITEM_BYTES)} を超えています。`)
+
+      const currentBytes = await getMediaLibraryBytes()
+      const incomingBytes = files.reduce((sum, file) => sum + file.size, 0)
+      if (currentBytes + incomingBytes > MEDIA_LIBRARY_SOFT_LIMIT_BYTES) {
+        throw new Error(`保存ライブラリの上限 ${formatBytes(MEDIA_LIBRARY_SOFT_LIMIT_BYTES)} を超えるため保存できません。`)
+      }
+
+      const now = Date.now()
+      const records: StoredMediaLibraryItem[] = files.map((file, index) => ({
+        id: importedItemId(),
+        name: file.name,
+        kind: 'audio',
+        mimeType: file.type || 'audio/mpeg',
+        relativePath: null,
+        savedAt: now + index,
+        size: file.size,
+        blob: file,
+      }))
+      await saveMediaLibraryItems(records)
+      setDownloadStatus(`${files.length}件をLocal Libraryへ保存しました。Playerへ反映します。`)
+      onMediaImported?.()
+      window.setTimeout(() => document.getElementById('library-panel')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 180)
+    } catch (importError) {
+      setError(importError instanceof Error ? importError.message : 'ダウンロード済み音声を読み込めませんでした。')
+    } finally {
+      setImportBusy(false)
+    }
   }
 
   const seekBy = (seconds: number) => {
@@ -347,11 +456,11 @@ function YouTubeProviderPanel() {
     <section id="youtube-provider-panel" className="glass-panel youtube-provider-panel">
       <div className="section-heading compact">
         <div>
-          <p className="eyebrow">YOUTUBE</p>
-          <p className="tool-description">YouTubeのURLを公式埋め込みプレーヤーで再生します。</p>
-          <h2>Official player</h2>
+          <p className="eyebrow">YOUTUBE MEDIA</p>
+          <p className="tool-description">同じURLから公式再生とColab Downloadを選べます。</p>
+          <h2>Play / Download</h2>
         </div>
-        <span className="youtube-official-badge">IFrame API</span>
+        <span className="youtube-official-badge">IFrame + Colab</span>
       </div>
 
       <form className="youtube-url-form" onSubmit={loadFromInput}>
@@ -360,12 +469,32 @@ function YouTubeProviderPanel() {
           inputMode="url"
           placeholder="YouTube URL または動画ID"
           value={urlInput}
-          onChange={(event) => setUrlInput(event.target.value)}
+          onChange={(event) => {
+            setUrlInput(event.target.value)
+            setError(null)
+          }}
           aria-label="YouTube URL または動画ID"
         />
         <button type="submit">Load</button>
         {videoId && <button type="button" className="secondary" onClick={clearPlayer}>Clear</button>}
       </form>
+
+      <div className="youtube-source-actions">
+        <a
+          className="youtube-download-button"
+          href={COLAB_LOCALIZER_URL}
+          target="_blank"
+          rel="noreferrer"
+          onClick={prepareDownload}
+        >
+          ↓ Download
+        </a>
+        <label className="youtube-import-button">
+          {importBusy ? 'Importing…' : '＋ Import downloaded audio'}
+          <input type="file" accept="audio/*,.mp3,.m4a,.wav,.webm,.ogg" multiple disabled={importBusy} onChange={(event) => void importDownloadedAudio(event)} />
+        </label>
+      </div>
+      <p className="youtube-download-status">{downloadStatus}</p>
 
       <div className={`youtube-player-frame ${videoId ? 'has-video' : ''}`}>
         <div ref={playerHostRef} className="youtube-player-host" />
@@ -384,7 +513,7 @@ function YouTubeProviderPanel() {
               <span className="source-chip">youtube</span>
               <strong>{title}</strong>
             </div>
-            <a href={youtubeWatchUrl(videoId)} target="_blank" rel="noreferrer">YouTubeアプリ/サイトで開く ↗</a>
+            <a href={youtubeWatchUrl(videoId)} target="_blank" rel="noreferrer">YouTubeで開く ↗</a>
           </div>
 
           <div className="youtube-timeline-block">
@@ -432,7 +561,7 @@ function YouTubeProviderPanel() {
 
           <div className="youtube-screenoff-note">
             <strong>画面OFF対策</strong>
-            <span>このAndroid実機では画面OFFで埋め込み再生が停止しました。Web側から画面OFFのまま継続させるのではなく、Keep screen on で再生中の自動消灯を防ぎます。</span>
+            <span>このAndroid実機では画面OFFで埋め込み再生が停止しました。Keep screen on で再生中の自動消灯を防ぎます。</span>
             {wakeLockStatus && <small>{wakeLockStatus}</small>}
           </div>
         </>
@@ -445,12 +574,12 @@ function YouTubeProviderPanel() {
       {error && <p className="youtube-error">{error}</p>}
 
       <div className="youtube-capabilities">
-        <span><strong>Playback</strong> 対応</span>
-        <span><strong>Download</strong> 非対応</span>
-        <span><strong>Screen off</strong> 実機で停止</span>
+        <span><strong>Playback</strong> IFrame</span>
+        <span><strong>Download</strong> Colab</span>
+        <span><strong>Import</strong> Local Library</span>
         <span><strong>Wake lock</strong> {wakeLockSupported ? '対応' : '非対応'}</span>
       </div>
-      <p className="youtube-policy-note">動画の保存・音声抽出は行いません。埋め込み不可・非公開などの動画はYouTube側の制限に従います。</p>
+      <p className="youtube-policy-note">Downloadは自分が権利を持つ、または保存・変換の許可を得ているコンテンツだけに使用してください。</p>
     </section>,
     portalTarget,
   )

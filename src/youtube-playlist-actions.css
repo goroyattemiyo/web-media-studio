@@ -1,0 +1,79 @@
+.youtube-playlist-actions {
+  display: grid;
+  gap: 8px;
+  padding: 10px 11px;
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, .02);
+}
+
+.youtube-playlist-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.youtube-playlist-heading > div {
+  display: grid;
+  gap: 3px;
+}
+
+.youtube-playlist-heading strong {
+  color: var(--color-text);
+  font-size: 10px;
+}
+
+.youtube-playlist-heading span,
+.youtube-playlist-actions small {
+  color: var(--color-text-muted);
+  font-size: 9px;
+  line-height: 1.5;
+}
+
+.youtube-playlist-heading b {
+  padding: 4px 7px;
+  border: 1px solid rgba(var(--color-accent-rgb), .28);
+  border-radius: 999px;
+  color: var(--color-accent);
+  font-size: 8px;
+  letter-spacing: .06em;
+}
+
+.youtube-playlist-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+}
+
+.youtube-playlist-row select,
+.youtube-playlist-row button {
+  min-height: 38px;
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  background: var(--color-surface-strong);
+  color: var(--color-text);
+}
+
+.youtube-playlist-row select {
+  min-width: 0;
+  padding: 0 9px;
+}
+
+.youtube-playlist-row button {
+  padding: 0 12px;
+  cursor: pointer;
+  font-weight: 800;
+}
+
+.youtube-playlist-row button:disabled,
+.youtube-playlist-row select:disabled {
+  opacity: .4;
+  cursor: default;
+}
+
+@media (max-width: 520px) {
+  .youtube-playlist-row {
+    grid-template-columns: 1fr;
+  }
+}

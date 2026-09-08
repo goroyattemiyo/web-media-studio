@@ -2,8 +2,8 @@ import { StrictMode, useState } from 'react'
 import { createRoot } from 'react-dom/client'
 import App from './App'
 import YouTubeProviderPanel from './YouTubeProviderPanel'
-import YouTubeLocalizerPanel from './YouTubeLocalizerPanel'
-import ColabLocalizerCompanion from './ColabLocalizerCompanion'
+import YouTubePlaylistActions from './YouTubePlaylistActions'
+import UnifiedPlaylistSources from './UnifiedPlaylistSources'
 import ToolDeckEnhancer from './ToolDeckEnhancer'
 import { installPlaybackArbitration } from './playbackArbiter'
 import './styles.css'
@@ -17,8 +17,8 @@ import './player-visuals.css'
 import './reorder-resume.css'
 import './named-playlists.css'
 import './youtube-provider.css'
-import './youtube-localizer.css'
-import './colab-localizer.css'
+import './youtube-playlist-actions.css'
+import './mixed-playlists.css'
 import './ui-v2.css'
 
 installPlaybackArbitration()
@@ -35,9 +35,9 @@ function Root() {
   return (
     <>
       <App key={libraryRevision} />
-      <YouTubeProviderPanel />
-      <YouTubeLocalizerPanel onMediaLocalized={() => setLibraryRevision((value) => value + 1)} />
-      <ColabLocalizerCompanion />
+      <YouTubeProviderPanel onMediaImported={() => setLibraryRevision((value) => value + 1)} />
+      <YouTubePlaylistActions />
+      <UnifiedPlaylistSources />
       <ToolDeckEnhancer />
     </>
   )
