@@ -30,6 +30,16 @@
 
 .common-source-actions button:disabled { opacity: .52; cursor: wait; }
 
+/* Library file selection already appends media to the local queue. Keep that rule visible without another button. */
+.device-library-actions::after {
+  content: '選んだ曲は再生キューへ追加されます';
+  flex: 1 1 100%;
+  color: var(--color-text-muted);
+  font-size: 8px;
+  line-height: 1.4;
+}
+html[data-language='en'] .device-library-actions::after { content: 'Selected media is added to the playback queue'; }
+
 /* Playlist membership belongs to the Player / queue, not individual source cards. */
 .player-playlist-trigger {
   flex: none;
@@ -192,6 +202,12 @@
   background: rgba(var(--color-accent-rgb), .11);
   color: var(--color-accent);
 }
+html[data-language='ja'] .settings-grid > .settings-card:first-child .settings-segmented button:first-child,
+html[data-language='en'] .settings-grid > .settings-card:first-child .settings-segmented button:last-child {
+  border-color: rgba(var(--color-accent-rgb), .4);
+  background: rgba(var(--color-accent-rgb), .12);
+  color: var(--color-accent);
+}
 .settings-background-button {
   min-height: 50px;
   place-items: center;
@@ -237,6 +253,8 @@
 .settings-capability > b.is-unavailable { background: rgba(255,95,130,.09); color: var(--color-danger); }
 
 /* Navigation: internal tool key remains device for playback-arbitration compatibility, visible name is Settings. */
+.tool-deck-nav button:last-child > span { font-size: 0; }
+.tool-deck-nav button:last-child > span::after { content: '⚙'; font-size: 14px; }
 .tool-deck-nav button:last-child small { font-size: 0; }
 .tool-deck-nav button:last-child small::after { font-size: 8px; content: '設定'; }
 html[data-language='en'] .tool-deck-nav button:last-child small::after { content: 'Settings'; }
