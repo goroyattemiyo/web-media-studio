@@ -13,6 +13,7 @@ import LanguageEnhancer from './LanguageEnhancer'
 import ColabFirstRunGuide from './ColabFirstRunGuide'
 import SystemMessageCenter from './SystemMessageCenter'
 import InterfaceSimplifier from './InterfaceSimplifier'
+import VisualPolishEnhancer from './VisualPolishEnhancer'
 import { installPlaybackArbitration } from './playbackArbiter'
 import './styles.css'
 import './mobile-overrides.css'
@@ -37,6 +38,7 @@ import './colab-first-run-guide.css'
 import './system-message-center.css'
 import './interface-simplifier.css'
 import './ui-v2.css'
+import './visual-polish.css'
 
 installPlaybackArbitration()
 
@@ -64,6 +66,7 @@ function Root() {
       <ColabFirstRunGuide />
       <SystemMessageCenter />
       <InterfaceSimplifier />
+      <VisualPolishEnhancer />
     </>
   )
 }
