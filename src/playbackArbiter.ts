@@ -6,9 +6,28 @@ type PlaybackClaimDetail = {
 }
 
 const PLAYBACK_CLAIM_EVENT = 'wms:playback-claim'
+const ACTIVE_SOURCE_EVENT = 'wms:active-playback-source'
 const playbackBus = new EventTarget()
+let activePlaybackSource: PlaybackSource | null = null
+
+export function getActivePlaybackSource() {
+  return activePlaybackSource
+}
+
+export function onActivePlaybackSourceChange(listener: (source: PlaybackSource) => void) {
+  const handle = (event: Event) => {
+    const detail = (event as CustomEvent<PlaybackClaimDetail>).detail
+    listener(detail.source)
+  }
+  playbackBus.addEventListener(ACTIVE_SOURCE_EVENT, handle)
+  return () => playbackBus.removeEventListener(ACTIVE_SOURCE_EVENT, handle)
+}
 
 export function claimPlayback(source: PlaybackSource) {
+  activePlaybackSource = source
+  playbackBus.dispatchEvent(new CustomEvent<PlaybackClaimDetail>(ACTIVE_SOURCE_EVENT, {
+    detail: { source },
+  }))
   playbackBus.dispatchEvent(new CustomEvent<PlaybackClaimDetail>(PLAYBACK_CLAIM_EVENT, {
     detail: { source },
   }))
@@ -24,13 +43,14 @@ export function registerPlaybackSource(source: PlaybackSource, pause: () => void
   return () => playbackBus.removeEventListener(PLAYBACK_CLAIM_EVENT, handleClaim)
 }
 
-export function setActivePlaybackTool(tool: PlaybackTool) {
-  if (tool === 'youtube') {
-    claimPlayback('youtube')
-    return
-  }
-
-  if (tool === 'player' || tool === 'library') claimPlayback('local')
+/**
+ * WMS tool/page navigation must never claim a playback source.
+ * Playback arbitration is driven only by an actual play action/event.
+ * This keeps Local or YouTube audio running while the user browses Library,
+ * Recorder, Tools, Settings, or another WMS card.
+ */
+export function setActivePlaybackTool(_tool: PlaybackTool) {
+  // Intentionally navigation-only. Keep for ToolDeck compatibility.
 }
 
 export function installPlaybackArbitration() {
