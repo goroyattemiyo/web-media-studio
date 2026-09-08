@@ -6,6 +6,7 @@ import YouTubeQueueActions from './YouTubeQueueActions'
 import UnifiedPlaybackQueue from './UnifiedPlaybackQueue'
 import PlayerPlaylistActions from './PlayerPlaylistActions'
 import SettingsPanel from './SettingsPanel'
+import ResultSourceActions from './ResultSourceActions'
 import ToolDeckEnhancer from './ToolDeckEnhancer'
 import SkinVisualEnhancer from './SkinVisualEnhancer'
 import InfoTipsEnhancer from './InfoTipsEnhancer'
@@ -41,6 +42,7 @@ import './interface-simplifier.css'
 import './ui-v2.css'
 import './visual-polish.css'
 import './operation-system.css'
+import './result-source-actions.css'
 
 installPlaybackArbitration()
 
@@ -70,6 +72,7 @@ function Root() {
       <InterfaceSimplifier />
       <VisualPolishEnhancer />
       <SettingsPanel />
+      <ResultSourceActions />
     </>
   )
 }
