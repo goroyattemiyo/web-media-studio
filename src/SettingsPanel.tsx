@@ -127,10 +127,11 @@ export default function SettingsPanel() {
   const capabilities = useMemo<Capability[]>(() => {
     const displayMedia = Boolean((navigator.mediaDevices as MediaDevicesWithDisplay | undefined)?.getDisplayMedia)
     const standalone = window.matchMedia?.('(display-mode: standalone)').matches ?? false
+    const microphone = 'mediaDevices' in navigator && 'getUserMedia' in navigator.mediaDevices && 'MediaRecorder' in window
     return [
       { icon: '🎧', label: '音声・動画の再生', state: 'available', tech: 'HTMLMediaElement' },
       { icon: '📱', label: 'ロック画面操作', state: 'mediaSession' in navigator ? 'limited' : 'unavailable', tech: 'Media Session', note: '表示や画面OFF継続はOS・ブラウザに依存します。' },
-      { icon: '🎙', label: 'マイク録音', state: Boolean(navigator.mediaDevices?.getUserMedia && 'MediaRecorder' in window) ? 'available' : 'unavailable', tech: 'getUserMedia / MediaRecorder' },
+      { icon: '🎙', label: 'マイク録音', state: microphone ? 'available' : 'unavailable', tech: 'getUserMedia / MediaRecorder' },
       { icon: '🖥', label: 'ブラウザタブ音声録音', state: displayMedia ? 'limited' : 'unavailable', tech: 'getDisplayMedia', note: 'PC版Chrome / Edgeが主な対応環境です。' },
       { icon: '🌈', label: '音反応ビジュアライザ', state: 'AudioContext' in window || 'webkitAudioContext' in window ? 'available' : 'limited', tech: 'Web Audio AnalyserNode' },
       { icon: '🎞', label: '動画 → 音声変換', state: 'WebAssembly' in window ? 'available' : 'unavailable', tech: 'WebAssembly / FFmpeg' },
