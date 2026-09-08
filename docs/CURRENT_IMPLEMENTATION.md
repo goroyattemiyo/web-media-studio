@@ -4,7 +4,7 @@ Last updated: 2026-09-08 JST
 
 ## Repository state
 
-The repository foundation, player bootstrap, Recorder MVP, IndexedDB recording persistence, FFmpeg video-to-audio tools, local playlist improvements, Android background/Media Session validation, persistent local media library, WMS branding, switchable player visuals, persistent queue reorder, resume-position behavior, saved named playlists, YouTube official IFrame playback, Google-authenticated Localize worker integration, UI v2 tool deck, PO Token worker experiment, and current-tab recording are merged to `main`.
+The repository foundation, player bootstrap, Recorder MVP, IndexedDB recording persistence, FFmpeg video-to-audio tools, local playlist improvements, Android background/Media Session validation, persistent local media library, WMS branding, switchable player visuals, persistent queue reorder, resume-position behavior, saved named playlists, YouTube official IFrame playback, Google-authenticated Localize worker integration, UI v2 tool deck, PO Token worker experiment, current-tab recording, clearer Tab audio capability UX, and Local Player / YouTube playback arbitration are merged to `main`.
 
 Public URL:
 
@@ -12,7 +12,7 @@ Public URL:
 
 Recorder, recording persistence, FFmpeg extraction/conversion, Android multi-file import, continuous playback, local-media screen-off playback, installed-PWA background playback, tested lock-screen controls, persistent local media-library behavior, queue-order persistence, saved-media resume behavior, and saved named playlists have passed the requested Android real-device checks.
 
-The current feature branch `feat/tab-audio-playback-arbitration` adds clearer Tab audio capability UX and Local Player / YouTube playback arbitration. CI and post-merge device validation are still required before those changes are marked fully validated.
+PR #32 (`feat: clarify tab audio support and arbitrate playback`) passed PR typecheck/build CI, was squash-merged to `main` as `e22fe2b44b3f544339024a3bb5803996dc9639a3`, and the subsequent GitHub Pages build/deploy checks completed successfully. Real-device validation of the new Tab audio unavailable-state UX and playback arbitration remains required.
 
 ## Implemented player foundation
 
@@ -64,7 +64,7 @@ Android real-device persistence checks passed.
 - missing audio-track errors explain that the current tab and tab-audio sharing must be selected
 - no Cloud Run or yt-dlp dependency for recording
 
-Platform capability is feature-detected. On the current feature branch, unsupported devices now show an explicit Tab audio status instead of only dimmed controls. Android Chrome/PWA may not expose `getDisplayMedia`; desktop Chrome/Edge remains the primary validation target for tab-audio capture.
+Platform capability is feature-detected. Since PR #32, unsupported devices show an explicit Tab audio status and reason instead of only dimmed controls. The check distinguishes an insecure context from missing `getDisplayMedia`. Android Chrome/PWA may not expose `getDisplayMedia`; desktop Chrome/Edge remains the primary validation target for tab-audio capture.
 
 ## Implemented FFmpeg video -> audio (merged PR #8)
 
@@ -201,11 +201,11 @@ Android Chrome/PWA real-device validation:
 
 Foreground playback has been validated. On the tested Android environment, embedded YouTube playback stops when the screen turns off; WMS does not claim otherwise.
 
-## Current feature branch: playback arbitration
+## Implemented playback arbitration (merged PR #32)
 
-`feat/tab-audio-playback-arbitration` introduces a small central `playbackArbiter` rather than coupling `App.tsx` and `YouTubeProviderPanel.tsx` directly.
+A small central `playbackArbiter` coordinates audible ownership without coupling `App.tsx` and `YouTubeProviderPanel.tsx` directly.
 
-Target behavior implemented on the branch:
+Implemented behavior:
 
 - a Local Player play event claims the local playback source and pauses YouTube
 - YouTube entering the playing state claims the YouTube playback source and pauses the Local Player
@@ -214,7 +214,7 @@ Target behavior implemented on the branch:
 - changing the active WMS card to Player or Library pauses YouTube
 - direct IFrame-player starts and local HTMLMediaElement starts are covered in addition to WMS buttons
 
-Typecheck/build CI and real-device regression validation remain pending until PR completion.
+PR typecheck/build CI: PASS. GitHub Pages post-merge build/deploy: PASS. Real-device regression validation remains pending.
 
 ## YouTube -> Local / Cloud Run worker
 
@@ -226,11 +226,11 @@ Typecheck/build CI and real-device regression validation remain pending until PR
 - PR #29 added the controlled PO Token experiment using `bgutil-ytdlp-pot-provider==1.3.2`, Node, pinned provider source, `mweb`, and `YOUTUBE_PO_TOKEN_MODE=bgutil-script-mweb`
 - PR #29 CI passed its Python tests, Docker build/start, health, FFmpeg, Node, provider plugin and provider script checks
 
-Production Cloud Run deployment after PR #29 and same-video retest still require confirmation. Do not describe the PO Token experiment as successful until that production check is recorded.
+Production deployment status for PR #29 is now confirmed as **not yet deployed**. The latest `Deploy Media Worker to Cloud Run` workflow run is run #5, started at 2026-09-08 08:27 JST from commit `1530b7630fd06ea92502ff8008bd5c08258d9429`, before PR #29 merged at 09:00 JST. That deployed workflow revision does not contain `YOUTUBE_PO_TOKEN_MODE=bgutil-script-mweb`. Therefore the same-video PO Token production retest must wait until a new manual Cloud Run deployment is run from current `main`.
 
 ## Real-device validation still required
 
-- Android unavailable-state UI for Tab audio after the current feature branch merges
+- Android unavailable-state UI for Tab audio after PR #32
 - desktop Chrome/Edge: Tab audio -> Saved Take -> Local Library -> local playback
 - Local Player / YouTube mutual exclusion while switching WMS cards
 - mutual exclusion when playback is started directly inside the YouTube iframe
@@ -273,10 +273,10 @@ Production Cloud Run deployment after PR #29 and same-video retest still require
 
 ## Immediate next step
 
-1. pass PR CI for Tab audio capability UX and playback arbitration, then squash merge
-2. verify GitHub Pages deployment and Android unavailable-state UX
-3. validate Tab audio end-to-end on desktop Chrome/Edge
-4. confirm whether PR #29 Cloud Run deployment ran; deploy from `main` if not, then retry the same previously blocked video
+1. validate Android unavailable-state UX and Local Player / YouTube playback arbitration on the deployed PR #32 build
+2. validate Tab audio end-to-end on desktop Chrome/Edge
+3. manually run `Deploy Media Worker to Cloud Run` from current `main` so PR #29 is actually deployed
+4. retry the same previously blocked video and record `SUCCESS` vs `LIMITED`
 5. if the same video remains `LIMITED`, treat Cloud Run/datacenter egress restriction as the stronger suspected cause rather than adding account cookies or proxy rotation
 
 Do not describe planned work as implemented work.

@@ -73,7 +73,7 @@ Exit criteria:
 
 ## Phase 3 — Recording
 
-Status: microphone MVP and persistence pass Android real-device validation. Current-tab audio capture is merged; desktop capture validation and clearer unsupported-device UX are the current follow-up.
+Status: microphone MVP and persistence pass Android real-device validation. Current-tab audio capture and clearer unsupported-device capability UX are merged; desktop capture validation remains.
 
 - [x] microphone permissions
 - [x] MediaRecorder implementation
@@ -87,7 +87,7 @@ Status: microphone MVP and persistence pass Android real-device validation. Curr
 - [x] current-tab audio capture where `getDisplayMedia` provides an audio track
 - [x] Tab + Mic mixing through Web Audio
 - [x] Tab / Tab + Mic capture saved to Saved Takes and Local Library
-- [~] unsupported-device capability UX — implemented on `feat/tab-audio-playback-arbitration`; CI/device validation pending
+- [x] unsupported-device capability UX — merged in PR #32; real-device UX validation pending
 - [ ] desktop Chrome/Edge end-to-end Tab audio validation
 
 Exit criteria:
@@ -134,12 +134,12 @@ Exit criteria:
 
 ## Phase 6 — YouTube provider
 
-Status: official-IFrame provider is merged and foreground playback is working. Playback conflict prevention is implemented on the current feature branch; a fully unified cross-provider transport/state model remains future work.
+Status: official-IFrame provider is merged and foreground playback is working. Local Player / YouTube playback conflict prevention is merged in PR #32; a fully unified cross-provider transport/state model remains future work.
 
 - [x] URL parsing — watch, youtu.be, Shorts, embed/live forms and direct video IDs
 - [x] official IFrame Player API integration — lazy loaded
 - [x] provider-local play/pause/±10/seek/volume/rate controls
-- [~] shared playback coordination — Local Player / YouTube mutual exclusion implemented on `feat/tab-audio-playback-arbitration`; CI/device validation pending
+- [x] shared playback coordination — Local Player / YouTube mutual exclusion merged in PR #32; real-device regression validation pending
 - [ ] one unified transport/state model across local and YouTube backends
 - [ ] playlist support where appropriate
 - [x] source capability display — playback yes, download no, screen-off limitation explicit
@@ -152,7 +152,7 @@ Non-goal:
 
 ## Phase 6B — Authorized YouTube -> Local worker
 
-Status: Google-authenticated Localize flow is implemented. PR #29 adds a controlled PO Token experiment, but production Cloud Run reflection and same-video result still need confirmation.
+Status: Google-authenticated Localize flow is implemented. PR #29 adds a controlled PO Token experiment, but production Cloud Run has not yet been redeployed with it.
 
 - [x] Google Sign-In client flow
 - [x] Google ID token verification in worker
@@ -160,7 +160,8 @@ Status: Google-authenticated Localize flow is implemented. PR #29 adds a control
 - [x] sanitized `LIMITED` response for YouTube cloud restrictions
 - [x] PR #29 PO Token experiment configuration: bgutil provider + Node + mweb + env flag
 - [x] PR #29 worker CI / container validation
-- [ ] confirm post-PR #29 Cloud Run deployment from `main`
+- [x] confirm deployment status after PR #29 — latest manual Cloud Run run is pre-PR #29, so production reflection is NOT complete
+- [ ] manually deploy current `main` to Cloud Run
 - [ ] retry the same previously blocked video and record `SUCCESS` vs `LIMITED`
 
 Guardrails:
@@ -204,10 +205,10 @@ Only after the core media app is stable:
 
 ## Current priority
 
-1. pass PR CI for Tab audio capability UX and Local Player / YouTube playback arbitration
-2. squash merge and verify GitHub Pages deployment
-3. validate Android unavailable-state UX and desktop Chrome/Edge Tab audio end-to-end
-4. confirm PR #29 Cloud Run deployment and retry the same previously blocked video
+1. validate Android unavailable-state UX and Local Player / YouTube playback arbitration from PR #32
+2. validate desktop Chrome/Edge Tab audio end-to-end
+3. manually run `Deploy Media Worker to Cloud Run` from current `main`
+4. retry the same previously blocked video after the Cloud Run deployment
 5. if Cloud Run remains `LIMITED`, investigate datacenter-egress restriction without introducing account-cookie/proxy shortcuts
 6. markers/bookmarks and richer visualizers after the provider boundary is stable
 
