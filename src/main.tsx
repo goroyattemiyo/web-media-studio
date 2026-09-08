@@ -9,6 +9,7 @@ import ToolDeckEnhancer from './ToolDeckEnhancer'
 import SkinVisualEnhancer from './SkinVisualEnhancer'
 import InfoTipsEnhancer from './InfoTipsEnhancer'
 import ABLoopLabelsEnhancer from './ABLoopLabelsEnhancer'
+import LanguageEnhancer from './LanguageEnhancer'
 import { installPlaybackArbitration } from './playbackArbiter'
 import './styles.css'
 import './mobile-overrides.css'
@@ -27,6 +28,7 @@ import './mixed-playlists.css'
 import './unified-play-queue.css'
 import './info-tips.css'
 import './ab-loop-labels.css'
+import './language-switch.css'
 import './ui-v2.css'
 
 installPlaybackArbitration()
@@ -51,6 +53,7 @@ function Root() {
       <SkinVisualEnhancer />
       <InfoTipsEnhancer />
       <ABLoopLabelsEnhancer />
+      <LanguageEnhancer />
     </>
   )
 }
