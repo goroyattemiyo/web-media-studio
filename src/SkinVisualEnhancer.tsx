@@ -56,8 +56,14 @@ function storedOption<T extends string>(key: string, options: Array<Option<T>>, 
 }
 
 function SkinVisualEnhancer() {
-  const [theme, setTheme] = useState<ThemeId>(() => storedOption(THEME_STORAGE_KEY, themes, 'midnight-neon'))
-  const [visualMode, setVisualMode] = useState<VisualMode>(() => storedOption(VISUAL_STORAGE_KEY, visualModes, 'emblem'))
+  const [theme, setTheme] = useState<ThemeId>(() => {
+    const legacy = storedOption('wms-theme', themes, 'midnight-neon')
+    return storedOption(THEME_STORAGE_KEY, themes, legacy)
+  })
+  const [visualMode, setVisualMode] = useState<VisualMode>(() => {
+    const legacy = storedOption('wms-player-visual', visualModes, 'emblem')
+    return storedOption(VISUAL_STORAGE_KEY, visualModes, legacy)
+  })
   const [topbarTarget, setTopbarTarget] = useState<Element | null>(null)
   const [visualTarget, setVisualTarget] = useState<HTMLElement | null>(null)
   const [playing, setPlaying] = useState(false)
@@ -75,7 +81,7 @@ function SkinVisualEnhancer() {
     } catch {
       // Keep the current-session skin when localStorage is unavailable.
     }
-  }, [theme])
+  }, [theme, topbarTarget])
 
   useEffect(() => {
     try {
