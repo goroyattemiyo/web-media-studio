@@ -22,7 +22,6 @@ const tools: ToolDefinition[] = [
   { key: 'player', selector: '#player-panel', icon: '▶', label: 'Player', shortLabel: 'Player' },
   { key: 'library', selector: '#library-panel', icon: '▣', label: 'Library', shortLabel: 'Library' },
   { key: 'youtube', selector: '#youtube-provider-panel', icon: 'YT', label: 'YouTube', shortLabel: 'YouTube' },
-  { key: 'localize', selector: '#youtube-localizer-panel', icon: '⇩', label: 'Localize', shortLabel: 'Local' },
   { key: 'record', selector: '#recorder-panel', icon: '●', label: 'Recorder', shortLabel: 'Record' },
   { key: 'tools', selector: '#ffmpeg-tools-panel', icon: '✦', label: 'Audio tools', shortLabel: 'Tools' },
   { key: 'device', selector: '.device-panel', icon: '◇', label: 'Device check', shortLabel: 'Device' },
