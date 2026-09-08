@@ -1,3 +1,5 @@
+FROM denoland/deno:bin-2.9.6 AS deno-bin
+
 FROM node:22-bookworm-slim AS pot-builder
 
 ARG BGUTIL_POT_COMMIT=7511309af023b09788dc8f2efc96cc3671291e6c
@@ -22,12 +24,18 @@ FROM python:3.12-slim
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PORT=8080 \
+    DENO_DIR=/tmp/deno-cache \
+    YOUTUBE_PO_TOKEN_MODE=off \
     BGUTIL_SERVER_HOME=/opt/bgutil-ytdlp-pot-provider/server
 
 RUN apt-get update \
     && apt-get install -y --no-install-recommends ffmpeg ca-certificates curl \
     && rm -rf /var/lib/apt/lists/*
 
+# Primary YouTube JS challenge runtime. Deno is enabled by default by yt-dlp.
+COPY --from=deno-bin /deno /usr/local/bin/deno
+
+# Keep Node + bgutil available only for the explicit PO Token fallback experiment.
 COPY --from=pot-builder /usr/local/bin/node /usr/local/bin/node
 COPY --from=pot-builder /opt/bgutil-ytdlp-pot-provider /opt/bgutil-ytdlp-pot-provider
 
