@@ -17,6 +17,7 @@ import './player-visuals.css'
 import './reorder-resume.css'
 import './named-playlists.css'
 import './youtube-provider.css'
+import './youtube-playlist-actions.css'
 import './mixed-playlists.css'
 import './ui-v2.css'
 
