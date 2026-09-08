@@ -4,7 +4,6 @@ import App from './App'
 import YouTubeProviderPanel from './YouTubeProviderPanel'
 import YouTubePlaylistActions from './YouTubePlaylistActions'
 import YouTubeQueueActions from './YouTubeQueueActions'
-import UnifiedPlaylistSources from './UnifiedPlaylistSources'
 import UnifiedPlaybackQueue from './UnifiedPlaybackQueue'
 import ToolDeckEnhancer from './ToolDeckEnhancer'
 import SkinVisualEnhancer from './SkinVisualEnhancer'
@@ -43,7 +42,6 @@ function Root() {
       <YouTubeProviderPanel onMediaImported={() => setLibraryRevision((value) => value + 1)} />
       <YouTubePlaylistActions />
       <YouTubeQueueActions />
-      <UnifiedPlaylistSources />
       <UnifiedPlaybackQueue />
       <ToolDeckEnhancer />
       <SkinVisualEnhancer />
