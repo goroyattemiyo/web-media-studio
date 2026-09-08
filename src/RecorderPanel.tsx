@@ -85,8 +85,8 @@ function microphoneConstraints(): MediaTrackConstraints {
 }
 
 function captureModeLabel(mode: CaptureMode) {
-  if (mode === 'tab') return 'Current tab audio'
-  if (mode === 'mix') return 'Current tab + microphone'
+  if (mode === 'tab') return '選択したブラウザタブの音声'
+  if (mode === 'mix') return '選択したブラウザタブ + マイク'
   return 'Microphone'
 }
 
@@ -110,7 +110,7 @@ function detectTabCaptureSupport(): TabCaptureSupport {
   return {
     supported: true,
     status: '利用可能',
-    detail: '画面共有APIを検出しました。録音開始後に「このタブ」と「タブの音声を共有」を選択してください。',
+    detail: '録音開始後に、音を流しているブラウザタブを選び、「タブの音声を共有」をONにしてください。WMS以外のタブも選べます。',
   }
 }
 
@@ -410,15 +410,15 @@ export default function RecorderPanel({
       const name = cause instanceof DOMException ? cause.name : ''
       const message = cause instanceof Error ? cause.message : ''
       if (message === 'NO_TAB_AUDIO') {
-        setError('共有した画面に音声トラックがありません。「このタブ」を選び、「タブの音声を共有」をONにして再試行してください。')
+        setError('共有したタブに音声トラックがありません。音を流しているタブを選び、「タブの音声を共有」をONにして再試行してください。')
       } else if (message === 'TAB_UNAVAILABLE') {
         setError(`タブ音声キャプチャを利用できません。${tabCaptureSupport.detail}`)
       } else if (message === 'MIC_UNAVAILABLE') {
         setError('このブラウザではマイク録音を利用できません。')
       } else if (name === 'NotAllowedError') {
-        setError(mode === 'mic' ? 'マイク権限が許可されていません。サイト設定からマイクを許可してください。' : '画面共有がキャンセルされたか許可されませんでした。現在のタブを選択して音声共有を有効にしてください。')
+        setError(mode === 'mic' ? 'マイク権限が許可されていません。サイト設定からマイクを許可してください。' : '画面共有がキャンセルされたか許可されませんでした。録音したいタブを選択して「タブの音声を共有」をONにしてください。')
       } else {
-        setError(mode === 'mic' ? 'マイクを開始できませんでした。別のブラウザまたはPWAでも確認してください。' : 'タブ音声録音を開始できませんでした。PC版Chrome / Edgeで「このタブ」と音声共有を選択してください。')
+        setError(mode === 'mic' ? 'マイクを開始できませんでした。別のブラウザまたはPWAでも確認してください。' : 'タブ音声録音を開始できませんでした。PC版Chrome / Edgeで録音したいタブと音声共有を選択してください。')
       }
     } finally {
       setStarting(false)
@@ -456,7 +456,7 @@ export default function RecorderPanel({
       <div className="section-heading compact">
         <div>
           <p className="eyebrow">LOCAL RECORDER</p>
-          <h2>Mic / tab audio</h2>
+          <h2>Mic / browser tab audio</h2>
         </div>
         <span className={`record-status ${isRecording ? 'is-recording' : ''}`}>
           {isRecording ? 'REC' : storageReady ? 'SAVED' : 'READY'}
@@ -475,7 +475,7 @@ export default function RecorderPanel({
           aria-describedby="tab-capture-status"
           title={!tabCaptureSupported ? tabCaptureSupport.detail : undefined}
         >
-          <strong>Tab audio</strong><span>{tabCaptureSupported ? 'PCタブ音声' : '利用不可'}</span>
+          <strong>ブラウザタブ</strong><span>{tabCaptureSupported ? 'タブ音声' : '利用不可'}</span>
         </button>
         <button
           type="button"
@@ -485,12 +485,12 @@ export default function RecorderPanel({
           aria-describedby="tab-capture-status"
           title={!tabCaptureSupported ? tabCaptureSupport.detail : undefined}
         >
-          <strong>Tab + Mic</strong><span>{tabCaptureSupported ? 'ミックス' : '利用不可'}</span>
+          <strong>タブ + Mic</strong><span>{tabCaptureSupported ? '音声 + マイク' : '利用不可'}</span>
         </button>
       </div>
 
       <div id="tab-capture-status" className={`tab-capture-capability ${tabCaptureSupported ? 'is-supported' : 'is-unavailable'}`} role="status">
-        <strong>Tab audio · {tabCaptureSupport.status}</strong>
+        <strong>ブラウザタブ音声 · {tabCaptureSupport.status}</strong>
         <span>{tabCaptureSupport.detail}</span>
       </div>
 
@@ -500,7 +500,7 @@ export default function RecorderPanel({
         <small>
           {captureMode === 'mic'
             ? sourceName ? `local player current ${formatPosition(getSourcePosition())}` : 'マイク単体で録音できます'
-            : tabCaptureSupported ? 'PCで現在のタブ＋「タブの音声を共有」を選択' : '上のTab audio対応状況を確認してください'}
+            : tabCaptureSupported ? '録音ボタンのあと、音を流しているタブを選んで「タブの音声を共有」をON' : '上のブラウザタブ音声の対応状況を確認してください'}
         </small>
       </div>
 
@@ -532,7 +532,7 @@ export default function RecorderPanel({
               onClick={() => void startRecording(captureMode, false)}
               disabled={starting || !tabCaptureSupported}
             >
-              {starting ? 'Choose tab…' : captureMode === 'mix' ? '▣ Record tab + mic' : '▣ Record current tab audio'}
+              {starting ? 'タブを選択…' : captureMode === 'mix' ? '▣ タブ音声 + マイクを録音' : '▣ 録音するタブを選ぶ'}
             </button>
           )
         ) : (
@@ -545,7 +545,7 @@ export default function RecorderPanel({
       {error && <p className="record-error" role="alert">{error}</p>}
       {notice && <p className="record-notice">{notice}</p>}
       <p className="record-note">
-        Tab audioはPC版Chrome / Edge向けです。YouTubeを公式プレーヤーで再生しながら「このタブ」と「タブの音声を共有」を選ぶと、再生音を端末内で録音できます。Tab / Tab + Mic録音はSaved takesに加えてLocal Libraryにも保存します。Androidではブラウザ実装により利用できない場合があります。保存・録音は権利または許可のあるコンテンツに限ってください。
+        ブラウザタブ音声はPC版Chrome / Edge向けです。先にYouTube・動画サイト・Webラジオなどで音を再生し、WMSへ切り替えて「録音するタブを選ぶ」を押してください。表示された共有画面で音を流しているタブを選び、「タブの音声を共有」をONにすると録音できます。WMS自身のYouTubeタブでも、別タブのWeb音声でも利用できます。タブ音声 / タブ + Mic録音はSaved takesに加えてLocal Libraryにも保存します。Androidではブラウザ実装により利用できない場合があります。保存・録音は権利または許可のあるコンテンツに限ってください。
       </p>
 
       <div className="take-list">
