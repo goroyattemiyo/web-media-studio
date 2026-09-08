@@ -1,0 +1,2 @@
+One-shot marker for deploying the current main revision of the WMS media worker after PR #29.
+Remove this file together with the temporary push trigger after deployment verification.
