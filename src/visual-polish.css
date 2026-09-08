@@ -1,0 +1,45 @@
+/* Small visual consistency fixes shared across skins/visualizers. */
+
+/* Visualizers should show the music visualization itself, not the WMS artwork/logo. */
+.wms-visual-enhanced .artwork-placeholder {
+  opacity: 0 !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+  transform: scale(.72) !important;
+}
+
+/* 8-bit Arcade: keep the language switch in the same square/pixel vocabulary as the skin selector. */
+:root[data-theme='pixel-arcade'] .language-switch {
+  gap: 3px;
+  padding: 3px;
+  border: 2px solid var(--color-border);
+  border-radius: 3px !important;
+  background: var(--color-surface-strong);
+  box-shadow: 4px 4px 0 #05020c;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+:root[data-theme='pixel-arcade'] .language-switch button {
+  min-height: 34px;
+  padding: 0 11px;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent;
+  box-shadow: none !important;
+  text-transform: uppercase;
+  letter-spacing: .08em;
+}
+
+:root[data-theme='pixel-arcade'] .language-switch button.is-active {
+  background: var(--color-accent);
+  color: #110521;
+  box-shadow: inset 0 0 0 2px #05020c !important;
+}
+
+@media (max-width: 620px) {
+  :root[data-theme='pixel-arcade'] .language-switch button {
+    min-height: 31px;
+    padding: 0 9px;
+  }
+}
