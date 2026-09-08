@@ -39,22 +39,24 @@ Exit criteria:
 
 ## Phase 2 — Library and playlists
 
-Status: persistent media Blob storage, queue reorder, resume position and saved named playlists are merged and pass Android Chrome/PWA validation.
+Status: persistent media Blob storage, queue reorder, resume position and saved named playlists are merged and pass Android Chrome/PWA validation. Named-playlist storage now supports backward-compatible mixed entries so saved local media IDs and YouTube URLs can coexist in the same named playlist.
 
 - [~] directory import — progressive enhancement only; tested Android picker does not provide true whole-directory import
 - [x] media filtering
 - [x] IndexedDB media storage
 - [x] saved named playlists
+- [x] mixed playlist storage — local saved-media references + YouTube URL entries
 - [x] reorder/remove/add controls — import, Save, Delete, Clear-temp, ↑/↓ reorder and queue-only × implemented
 - [x] resume position — saved-library media remembers previous playback position
 - [ ] markers/bookmarks
 - [x] remaining skins
 - [x] Android multi-file import
-- [x] continuous next-track playback
+- [x] continuous next-track playback for local media
 - [x] explicit per-item Save and Save-all actions
 - [x] saved-media automatic restore on app startup
 - [x] saved-media Delete persistence
 - [x] storage usage/quota guard UI
+- [ ] seamless automatic next/previous transitions across Local and YouTube providers
 
 Persistent-library MVP guards:
 
@@ -69,7 +71,7 @@ Exit criteria:
 - existing recording takes survive IndexedDB schema upgrade: PASS
 - saved queue order persists: PASS
 - saved media resumes from previous position: PASS
-- saved named playlists survive restart and restore expected order/items: PASS
+- saved named playlists survive restart and restore expected order/items: PASS for local-only playlists; mixed-source real-device validation pending
 
 ## Phase 3 — Recording
 
@@ -134,27 +136,31 @@ Exit criteria:
 
 ## Phase 6 — YouTube provider
 
-Status: official-IFrame provider is merged and foreground playback is working. Local Player / YouTube playback conflict prevention is merged in PR #32; a fully unified cross-provider transport/state model remains future work.
+Status: the user-facing YouTube path is being unified into one panel: official IFrame playback, Colab-based authorized Download, downloaded-audio import, and mixed-playlist URL management. Local Player / YouTube playback conflict prevention is merged in PR #32; a fully unified cross-provider transport/state model remains future work.
 
 - [x] URL parsing — watch, youtu.be, Shorts, embed/live forms and direct video IDs
 - [x] official IFrame Player API integration — lazy loaded
 - [x] provider-local play/pause/±10/seek/volume/rate controls
 - [x] shared playback coordination — Local Player / YouTube mutual exclusion merged in PR #32; real-device regression validation pending
 - [ ] one unified transport/state model across local and YouTube backends
-- [ ] playlist support where appropriate
-- [x] source capability display — playback yes, download no, screen-off limitation explicit
+- [x] mixed named-playlist storage for local media references and YouTube URLs
+- [x] YouTube URL add-to-playlist UI and saved YouTube source launcher
+- [x] authorized Download button routed to the public GitHub-hosted Colab notebook
+- [x] downloaded-audio import back into Local Library
+- [x] source capability display — official playback + Colab Download + Local import
 - [~] recording while YouTube is playing — current-tab capture path implemented where browser permissions/APIs allow; desktop validation pending
 - [x] tested Android embedded-YouTube screen-off behavior documented
+- [ ] real-device validation of the unified Play / Download / Import / mixed-playlist flow
 
 Non-goal:
 
-- using the official embedded player to download or extract media
+- using the official embedded player itself to download or extract media
 
 ## Phase 6B — Authorized YouTube -> Local worker
 
-Status: Google-authenticated Localize flow is implemented but remains `LIMITED` / experimental. The first PO Token/mweb production experiment failed. A fresh Colab comparison showed that standard yt-dlp with Deno + EJS could enumerate playable audio formats while the forced WMS `mweb` path failed separately. PR #37 revised the worker to use the standard Deno + EJS path by default, and Cloud Run run #7 successfully deployed that runtime with `YOUTUBE_PO_TOKEN_MODE=off`. Production media-extraction retest is still pending.
+Status: Cloud Run remains available only as an experimental backend. PO Token/mweb and revised Deno + EJS standard-client production tests both failed to make Cloud Run a reliable YouTube media-extraction route. The user-facing Google-authenticated Cloud Run Localize panel and its `LIMITED` UX are therefore retired. A public GitHub-hosted one-cell Colab companion using standard yt-dlp + Deno + EJS passed an end-to-end authorized MP3 download test and is now the practical user-run route.
 
-- [x] Google Sign-In client flow
+- [x] Google Sign-In client flow — historical Cloud Run experiment
 - [x] Google ID token verification in worker
 - [x] allowed-email restriction
 - [x] sanitized `LIMITED` response for YouTube cloud restrictions
@@ -167,13 +173,14 @@ Status: Google-authenticated Localize flow is implemented but remains `LIMITED` 
 - [x] run a fresh Colab standard-yt-dlp probe with Deno + EJS — PASS for metadata/player data/audio-format discovery
 - [x] reproduce the WMS `mweb` path in Colab — FAIL because usable `mweb` media formats required a GVS PO Token
 - [x] revise worker image to include Deno and `yt-dlp[default]` / EJS
-- [x] change Cloud Run configuration candidate to `YOUTUBE_PO_TOKEN_MODE=off`
+- [x] change Cloud Run configuration to `YOUTUBE_PO_TOKEN_MODE=off`
 - [x] change the GitHub diagnostic default to `standard-deno-ejs`, retaining `po-token-mweb` as an optional comparison
-- [~] root-cause assessment — both execution-environment restrictions and the previous forced-client configuration matter; neither should be treated as the sole proven cause
 - [x] pass worker CI with Deno/EJS runtime verification — PR #37 and pre-deploy PR #38 both PASS
 - [x] deploy the revised standard-client worker to Cloud Run — run #7 / `34206262952` SUCCESS from `c83affdfca7518cc9d70d4c91d41950df6f65ebb`
-- [ ] production retest with an authorized test video after revised deployment
-- [ ] identify a compliant and reliable server-side route before re-enabling this as a normal product path
+- [x] production retest after revised deployment — FAIL / user-facing result remained `LIMITED`
+- [x] one-cell Colab Localizer — end-to-end MP3 browser download PASS on 2026-09-08
+- [x] retire the user-facing Cloud Run Localize / Google-login / format-bitrate / `LIMITED` panel
+- [~] keep Cloud Run worker and diagnostics only for bounded experiments; do not present them as the normal product path
 
 GitHub Actions diagnostic guardrails:
 
@@ -191,6 +198,7 @@ General guardrails:
 - do not imply that PO Token solved the production restriction
 - do not describe format discovery alone as a completed media download
 - do not describe deployment success as media-extraction success
+- Colab Download is for user-owned or otherwise permitted media only
 
 ## Phase 7 — Advanced player/audio features
 
@@ -227,12 +235,14 @@ Only after the core media app is stable:
 
 ## Current priority
 
-1. retest one authorized video against the newly deployed Cloud Run standard Deno + EJS worker and capture the exact backend result
-2. keep Cloud Run Localize clearly marked `LIMITED` until the revised production path is proven reliable
-3. validate Android unavailable-state UX and Local Player / YouTube playback arbitration from PR #32
-4. validate desktop Chrome/Edge Tab audio end-to-end
-5. use the official IFrame player for normal YouTube playback and current-tab capture for authorized desktop capture where supported
-6. markers/bookmarks and richer visualizers after the provider boundary is stable
+1. validate the unified YouTube Play / Download / Import panel on the real device
+2. validate adding a YouTube URL to an existing named playlist and reopening it from MIXED SOURCES
+3. validate that downloaded MP3 import appears in Local Library and remains after restart
+4. keep Cloud Run extraction off the normal user-facing path; use only bounded diagnostics if future evidence justifies it
+5. validate Android unavailable-state UX and Local Player / YouTube playback arbitration from PR #32
+6. validate desktop Chrome/Edge Tab audio end-to-end
+7. add seamless Local ↔ YouTube next/previous transitions only after mixed-source playlist use is proven useful
+8. markers/bookmarks and richer visualizers after the provider boundary is stable
 
 ## Version targets
 
