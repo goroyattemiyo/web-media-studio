@@ -1,6 +1,7 @@
 import { ChangeEvent, useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { deleteBackgroundAsset, getBackgroundAsset, saveBackgroundAsset } from './appearanceDb'
+import { setActivePlaybackTool, type PlaybackTool } from './playbackArbiter'
 
 const BACKGROUND_DIM_KEY = 'wms-ui-v2-background-dim'
 const BACKGROUND_BLUR_KEY = 'wms-ui-v2-background-blur'
@@ -10,7 +11,7 @@ const MAX_BACKGROUND_BYTES = 20 * 1024 * 1024
 type DetailMode = 'compact' | 'full'
 
 type ToolDefinition = {
-  key: string
+  key: PlaybackTool
   selector: string
   icon: string
   label: string
@@ -51,7 +52,7 @@ function formatBytes(value: number) {
 }
 
 function ToolDeckEnhancer() {
-  const [activeTool, setActiveTool] = useState('player')
+  const [activeTool, setActiveTool] = useState<PlaybackTool>('player')
   const [topbarTarget, setTopbarTarget] = useState<Element | null>(null)
   const [sheetOpen, setSheetOpen] = useState(false)
   const [backgroundUrl, setBackgroundUrl] = useState<string | null>(null)
@@ -106,6 +107,10 @@ function ToolDeckEnhancer() {
   }, [backgroundDim, backgroundBlur, detailMode])
 
   useEffect(() => {
+    setActivePlaybackTool(activeTool)
+  }, [activeTool])
+
+  useEffect(() => {
     const container = document.querySelector<HTMLElement>('.content-grid')
     if (!container) return
 
@@ -116,7 +121,7 @@ function ToolDeckEnhancer() {
       frame = 0
       const containerRect = container.getBoundingClientRect()
       const center = containerRect.left + containerRect.width / 2
-      let best: { key: string; distance: number } | null = null
+      let best: { key: PlaybackTool; distance: number } | null = null
 
       for (const tool of tools) {
         const element = document.querySelector<HTMLElement>(tool.selector)
