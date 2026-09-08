@@ -2,7 +2,7 @@
   position: fixed;
   z-index: 82;
   left: 50%;
-  bottom: calc(116px + env(safe-area-inset-bottom));
+  bottom: calc(77px + env(safe-area-inset-bottom));
   width: min(calc(100% - 22px), 620px);
   min-height: 56px;
   transform: translateX(-50%);
@@ -18,6 +18,11 @@
   backdrop-filter: blur(30px) saturate(140%);
   -webkit-backdrop-filter: blur(30px) saturate(140%);
   box-shadow: 0 14px 42px rgba(0, 0, 0, .34);
+}
+
+body:has(.floating-mini-player) .tool-deck-pager {
+  opacity: 0;
+  pointer-events: none;
 }
 
 .floating-mini-title {
@@ -86,7 +91,7 @@
 
 @media (max-width: 620px) {
   .floating-mini-player {
-    bottom: calc(105px + env(safe-area-inset-bottom));
+    bottom: calc(73px + env(safe-area-inset-bottom));
     width: calc(100% - 14px);
     gap: 4px;
     padding-inline: 8px;
