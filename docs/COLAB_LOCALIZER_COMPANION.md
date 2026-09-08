@@ -15,14 +15,17 @@ The notebook is stored in the public GitHub repository, so it does not depend on
 ## WMS flow
 
 1. Enter a YouTube URL in the unified `YOUTUBE MEDIA` panel.
-2. Press `Download`.
-3. WMS canonicalizes/copies the URL and opens the public Colab notebook in a new tab.
-4. Paste into `YOUTUBE_URL`.
-5. Confirm `RIGHTS_CONFIRMED`.
-6. Press the single cell's run button.
-7. The notebook installs the pinned yt-dlp/EJS package, ensures Deno 2.9.6 and FFmpeg are available, extracts audio, and starts a browser download of the result.
-8. Back in WMS, press `Import downloaded audio` and choose the generated file.
-9. WMS saves the file to Local Library and refreshes the Player/Library view.
+2. Press `Download`. WMS canonicalizes and copies the URL.
+3. On the first Download only, WMS shows a short guide: sign in to Google if Colab asks, paste `YOUTUBE_URL`, confirm rights, then press the run button.
+4. The guide has `次回からこの案内を表示しない`. When kept checked and the user opens Colab, later Download clicks go directly to the public notebook.
+5. Paste into `YOUTUBE_URL`.
+6. Confirm `RIGHTS_CONFIRMED`.
+7. Press the single cell's run button.
+8. The notebook installs the pinned yt-dlp/EJS package, ensures Deno 2.9.6 and FFmpeg are available, extracts audio, and starts a browser download of the result.
+9. Back in WMS, press `Import downloaded audio` and choose the generated file.
+10. WMS saves the file to Local Library and refreshes the Player/Library view.
+
+The first-run guide does not attempt to automate Google authentication. Google credentials remain entirely on Google's side; WMS does not request or store Google passwords.
 
 The former separate Cloud Run Localize panel, Google Sign-In card, format/bitrate controls, `Localize & Save`, and `LIMITED` user-facing state are retired. Cloud Run remains only as an experimental backend/diagnostic target.
 
@@ -43,6 +46,7 @@ The former separate Cloud Run Localize panel, Google Sign-In card, format/bitrat
 
 - Official IFrame remains the normal YouTube playback route.
 - Colab Download is a user-run companion, not an API service.
+- WMS may explain the first Google/Colab step, but cannot bypass or automate Google account authentication.
 - Cloud Run extraction is not shown as a normal user feature.
 - Generated files are downloaded by the browser and explicitly re-imported by the user.
 - Only media the user owns or is permitted to save/convert should be processed.
@@ -51,5 +55,6 @@ The former separate Cloud Run Localize panel, Google Sign-In card, format/bitrat
 
 - Colab standard yt-dlp + Deno + EJS format discovery: PASS
 - one-cell Colab MP3 browser download: PASS on 2026-09-08
-- unified WMS Play / Download / Import UI: implementation pending branch CI / real-device validation
-- mixed named playlists (local saved media references + YouTube URLs): implementation pending branch CI / real-device validation
+- unified WMS Play / Download / Import UI: merged and deployed
+- mixed named playlists (local saved media references + YouTube URLs): merged and deployed
+- first-run Colab guide: pending branch CI and browser validation
