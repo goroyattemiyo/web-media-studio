@@ -10,10 +10,10 @@ type SystemMessage = {
 }
 
 const SOURCE_SELECTORS: Array<{ selector: string; level: MessageLevel; source: string }> = [
-  { selector: '.library-message', level: 'info', source: 'Library' },
   { selector: '.library-message.is-error', level: 'error', source: 'Library' },
-  { selector: '.playlist-manager-message', level: 'info', source: 'Playlist' },
+  { selector: '.library-message:not(.is-error)', level: 'info', source: 'Library' },
   { selector: '.playlist-manager-message.is-error', level: 'error', source: 'Playlist' },
+  { selector: '.playlist-manager-message:not(.is-error)', level: 'info', source: 'Playlist' },
   { selector: '.unified-play-queue-status', level: 'info', source: 'Queue' },
   { selector: '#youtube-provider-panel .youtube-download-status', level: 'success', source: 'YouTube' },
   { selector: '#youtube-provider-panel .youtube-status-row small', level: 'info', source: 'YouTube' },
