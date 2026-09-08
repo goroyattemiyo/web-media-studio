@@ -73,7 +73,7 @@ Exit criteria:
 
 ## Phase 3 — Recording
 
-Status: MVP and recording persistence pass Android real-device validation.
+Status: microphone MVP and persistence pass Android real-device validation. Current-tab audio capture is merged; desktop capture validation and clearer unsupported-device UX are the current follow-up.
 
 - [x] microphone permissions
 - [x] MediaRecorder implementation
@@ -84,26 +84,34 @@ Status: MVP and recording persistence pass Android real-device validation.
 - [x] recording library
 - [x] delete/play/export
 - [~] storage-limit/error handling — fallback exists; broader quota UX remains
+- [x] current-tab audio capture where `getDisplayMedia` provides an audio track
+- [x] Tab + Mic mixing through Web Audio
+- [x] Tab / Tab + Mic capture saved to Saved Takes and Local Library
+- [~] unsupported-device capability UX — implemented on `feat/tab-audio-playback-arbitration`; CI/device validation pending
+- [ ] desktop Chrome/Edge end-to-end Tab audio validation
 
 Exit criteria:
 
-- user can practice against local playback and keep multiple takes safely: PASS for current MVP
+- user can practice against local playback and keep multiple takes safely: PASS for microphone MVP
+- supported desktop environment can record current-tab audio and restore it through Local Library: pending real-device validation
 
 ## Phase 4 — Background/media-session behavior
 
-Status: tested Android Chrome and installed-PWA sequence passes. iOS remains unverified.
+Status: tested Android Chrome and installed-PWA sequence passes for local media. Embedded YouTube screen-off playback stops on the tested Android device and is documented as unsupported in that environment.
 
 - [x] Media Session metadata
 - [x] lock-screen actions used in Android test
 - [x] background playback tests on Android
-- [x] Android Chrome/PWA validation
+- [x] Android Chrome/PWA validation for local media
 - [ ] iOS Safari/web-app validation
 - [x] capability UI for unsupported/restricted behavior
-- [x] screen-off next-track continuation on tested Android device
+- [x] screen-off next-track continuation on tested Android device for local media
+- [x] embedded YouTube screen-off limitation documented
+- [x] Screen Wake Lock option for foreground embedded YouTube playback where supported
 
 Exit criteria:
 
-- supported tested Android environment exposes working lock-screen transport controls: PASS
+- supported tested Android environment exposes working local-media lock-screen transport controls: PASS
 - limitations are documented instead of hidden: PASS
 
 ## Phase 5 — FFmpeg audio tools
@@ -126,19 +134,40 @@ Exit criteria:
 
 ## Phase 6 — YouTube provider
 
-Status: first official-IFrame provider MVP is implemented on `feat/youtube-iframe-provider`; automated and device validation are pending.
+Status: official-IFrame provider is merged and foreground playback is working. Playback conflict prevention is implemented on the current feature branch; a fully unified cross-provider transport/state model remains future work.
 
 - [x] URL parsing — watch, youtu.be, Shorts, embed/live forms and direct video IDs
 - [x] official IFrame Player API integration — lazy loaded
-- [~] transport adapter — provider-local play/pause/±10/seek/volume/rate implemented; shared main-player transport integration remains
+- [x] provider-local play/pause/±10/seek/volume/rate controls
+- [~] shared playback coordination — Local Player / YouTube mutual exclusion implemented on `feat/tab-audio-playback-arbitration`; CI/device validation pending
+- [ ] one unified transport/state model across local and YouTube backends
 - [ ] playlist support where appropriate
-- [x] source capability display — playback yes, download no, background device-dependent
-- [ ] recording while YouTube is playing where browser permissions allow
-- [ ] background behavior documented/tested
+- [x] source capability display — playback yes, download no, screen-off limitation explicit
+- [~] recording while YouTube is playing — current-tab capture path implemented where browser permissions/APIs allow; desktop validation pending
+- [x] tested Android embedded-YouTube screen-off behavior documented
 
 Non-goal:
 
-- YouTube stream/audio extraction or downloading
+- using the official embedded player to download or extract media
+
+## Phase 6B — Authorized YouTube -> Local worker
+
+Status: Google-authenticated Localize flow is implemented. PR #29 adds a controlled PO Token experiment, but production Cloud Run reflection and same-video result still need confirmation.
+
+- [x] Google Sign-In client flow
+- [x] Google ID token verification in worker
+- [x] allowed-email restriction
+- [x] sanitized `LIMITED` response for YouTube cloud restrictions
+- [x] PR #29 PO Token experiment configuration: bgutil provider + Node + mweb + env flag
+- [x] PR #29 worker CI / container validation
+- [ ] confirm post-PR #29 Cloud Run deployment from `main`
+- [ ] retry the same previously blocked video and record `SUCCESS` vs `LIMITED`
+
+Guardrails:
+
+- no YouTube account cookies
+- no proxy rotation as an automatic workaround
+- no DRM bypass or authentication bypass
 
 ## Phase 7 — Advanced player/audio features
 
@@ -175,10 +204,12 @@ Only after the core media app is stable:
 
 ## Current priority
 
-1. validate the first YouTube IFrame provider on Android Chrome/PWA
-2. integrate YouTube into the shared main-player transport/source state
-3. evaluate YouTube playlist handling and provider-specific background limits
-4. markers/bookmarks and richer visualizers after the provider boundary is stable
+1. pass PR CI for Tab audio capability UX and Local Player / YouTube playback arbitration
+2. squash merge and verify GitHub Pages deployment
+3. validate Android unavailable-state UX and desktop Chrome/Edge Tab audio end-to-end
+4. confirm PR #29 Cloud Run deployment and retry the same previously blocked video
+5. if Cloud Run remains `LIMITED`, investigate datacenter-egress restriction without introducing account-cookie/proxy shortcuts
+6. markers/bookmarks and richer visualizers after the provider boundary is stable
 
 ## Version targets
 
