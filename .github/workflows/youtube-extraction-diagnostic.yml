@@ -1,0 +1,114 @@
+name: YouTube Extraction Diagnostic
+
+on:
+  workflow_dispatch:
+    inputs:
+      url:
+        description: 'YouTube URL or 11-character video ID'
+        required: true
+        type: string
+      rights_confirmed:
+        description: 'Confirm you own the media or have permission to download/convert it'
+        required: true
+        default: 'NO'
+        type: choice
+        options:
+          - 'NO'
+          - 'YES'
+
+permissions:
+  contents: read
+
+jobs:
+  extract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      SOURCE_URL: ${{ inputs.url }}
+      RIGHTS_CONFIRMED: ${{ inputs.rights_confirmed }}
+      OUTPUT_DIR: diagnostic-output
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Validate diagnostic request
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ "${RIGHTS_CONFIRMED}" != "YES" ]]; then
+            echo "::error::This diagnostic only runs for media you own or are permitted to download/convert."
+            exit 1
+          fi
+          if [[ -z "${SOURCE_URL// }" ]]; then
+            echo "::error::A YouTube URL or video ID is required."
+            exit 1
+          fi
+          mkdir -p "${OUTPUT_DIR}"
+
+      - name: Build the same worker image used by Cloud Run
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker build \
+            --tag wms-media-worker-diagnostic:local \
+            services/media-worker
+
+      - name: Record diagnostic environment
+        shell: bash
+        run: |
+          set -euo pipefail
+          {
+            echo "runner_os=${RUNNER_OS}"
+            echo "runner_arch=${RUNNER_ARCH}"
+            echo "github_sha=${GITHUB_SHA}"
+            docker run --rm --entrypoint sh wms-media-worker-diagnostic:local -c '
+              python --version
+              node --version
+              ffmpeg -version | head -n 1
+              python -m yt_dlp --version
+            '
+          } 2>&1 | tee "${OUTPUT_DIR}/environment.log"
+
+      - name: Extract MP3 with the WMS worker CLI
+        id: extract
+        shell: bash
+        run: |
+          set -uo pipefail
+          set +e
+          docker run --rm \
+            --user root \
+            --env YOUTUBE_PO_TOKEN_MODE=bgutil-script-mweb \
+            --env BGUTIL_SERVER_HOME=/opt/bgutil-ytdlp-pot-provider/server \
+            --env MAX_DURATION_SECONDS=1800 \
+            --env MAX_SOURCE_BYTES=786432000 \
+            --volume "${GITHUB_WORKSPACE}/${OUTPUT_DIR}:/output" \
+            wms-media-worker-diagnostic:local \
+            python -m wms_media_worker.cli "${SOURCE_URL}" \
+              --output /output \
+              --format mp3 \
+              --bitrate 192 \
+            2>&1 | tee "${OUTPUT_DIR}/extraction.log"
+          status=${PIPESTATUS[0]}
+          set -e
+
+          {
+            echo "exit_code=${status}"
+            if [[ "${status}" -eq 0 ]]; then
+              echo "result=SUCCESS"
+            else
+              echo "result=FAILED"
+            fi
+          } | tee "${OUTPUT_DIR}/result.txt"
+
+          echo "exit_code=${status}" >> "${GITHUB_OUTPUT}"
+          exit "${status}"
+
+      - name: Upload diagnostic result
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: youtube-extraction-diagnostic-${{ github.run_id }}
+          path: diagnostic-output/
+          if-no-files-found: warn
+          retention-days: 3
+          compression-level: 0
