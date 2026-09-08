@@ -34,11 +34,16 @@ function setPlaceholder(selector: string, text: string) {
   if (input && input.placeholder !== text) input.placeholder = text
 }
 
-function translateSelectOptions(selector: string, language: Language, jaLabels: Record<string, string>) {
+function translateSelectOptions(
+  selector: string,
+  language: Language,
+  jaLabels: Record<string, string>,
+  enLabels: Record<string, string> = {},
+) {
   const select = document.querySelector<HTMLSelectElement>(selector)
   if (!select) return
   Array.from(select.options).forEach((option) => {
-    const english = option.dataset.wmsEnglishLabel ?? option.textContent ?? option.value
+    const english = enLabels[option.value] ?? option.dataset.wmsEnglishLabel ?? option.textContent ?? option.value
     option.dataset.wmsEnglishLabel = english
     const next = language === 'ja' ? jaLabels[option.value] ?? english : english
     if (option.textContent !== next) option.textContent = next
@@ -117,24 +122,39 @@ function translateInterface(language: Language) {
     'midnight-neon': '深夜ネオン', obsidian: '黒曜石', 'studio-light': 'スタジオライト', 'analog-warm': 'アナログウォーム',
     'cyber-blue': 'サイバーブルー', 'aurora-purple': 'オーロラパープル', 'emerald-night': 'エメラルドナイト',
     'crimson-noir': 'クリムゾンノワール', 'sunset-glow': 'サンセット', sakura: 'さくら',
+    'pixel-arcade': '8-bit アーケード', 'led-marquee': '電光掲示板', 'retro-terminal': 'レトロ端末', 'cassette-deck': 'カセットデッキ',
+  }, {
+    'midnight-neon': 'Midnight Neon', obsidian: 'Obsidian', 'studio-light': 'Studio Light', 'analog-warm': 'Analog Warm',
+    'cyber-blue': 'Cyber Blue', 'aurora-purple': 'Aurora Purple', 'emerald-night': 'Emerald Night',
+    'crimson-noir': 'Crimson Noir', 'sunset-glow': 'Sunset Glow', sakura: 'Sakura',
+    'pixel-arcade': '8-bit Arcade', 'led-marquee': 'LED Marquee', 'retro-terminal': 'Retro Terminal', 'cassette-deck': 'Cassette Deck',
   })
   translateSelectOptions('.wms-player-visual-toolbar select', language, {
+    'rainbow-ring': 'レインボーリング', oscilloscope: 'オシロスコープ', 'spectrum-city': 'スペクトラムシティ',
+    'neon-tunnel': 'ネオントンネル', kaleido: 'カレイド', particles: 'パーティクル',
     emblem: 'ロゴ回転', pulse: 'パルスリング', orbit: 'オービット', bars: 'ネオンバー', wave: 'ウェーブ', minimal: 'ミニマル',
+  }, {
+    'rainbow-ring': 'Rainbow Ring', oscilloscope: 'Oscilloscope', 'spectrum-city': 'Spectrum City',
+    'neon-tunnel': 'Neon Tunnel', kaleido: 'Kaleido', particles: 'Particle Field',
+    emblem: 'Emblem Spin', pulse: 'Pulse Rings', orbit: 'Orbit', bars: 'Neon Bars', wave: 'Wave Grid', minimal: 'Minimal',
   })
 
-  setText('#library-panel .library-heading h2', ja ? '端末のメディア' : 'Persistent media')
+  setText('#library-panel .library-heading h2', ja ? '端末のメディア' : 'Device media')
   setDirectText('#library-panel .import-button:not(.folder-button)', ja ? '＋ ファイル追加' : '＋ Add files')
   setDirectText('#library-panel .folder-button', ja ? '▣ フォルダ' : '▣ Folder')
   setText('#library-panel .all-media-button', ja ? 'すべて表示' : 'All media')
   setPlaceholder('#library-panel .playlist-create-row input', ja ? '例：朝のBGM / 練習用' : 'e.g. Morning / Practice')
   setText('#library-panel .playlist-create-row button:first-of-type', ja ? '＋ プレイリスト保存' : '＋ Save playlist')
+  setText('.device-library-primary b', ja ? '端末の曲を選ぶ' : 'Choose device audio')
+  setText('.device-library-list-heading strong', ja ? '保存済みの曲' : 'Saved audio')
+  setText('.device-library-empty', ja ? '端末の音声を複数選択すると、ここからまとめて選曲できます。' : 'Choose multiple audio files from your device to browse them here.')
   const updatePlaylist = document.querySelector<HTMLButtonElement>('#library-panel .update-playlist-button')
   if (updatePlaylist) updatePlaylist.textContent = ja ? '更新' : 'Update'
 
   setText('.unified-play-queue-heading .eyebrow', ja ? '再生キュー' : 'PLAY QUEUE')
   setText('.unified-play-queue-heading h3', ja ? '次に再生' : 'Up next')
   const queueSub = document.querySelector<HTMLElement>('.unified-play-queue-heading span')
-  if (queueSub && !queueSub.textContent?.startsWith('Saved Playlist')) queueSub.textContent = ja ? '選んだ曲をここに集約' : 'Local / YouTube sources together'
+  if (queueSub && !queueSub.textContent?.startsWith('Saved Playlist')) queueSub.textContent = ja ? '選んだ曲をここに集約' : 'Selected media appears here'
   const queueCount = document.querySelector<HTMLElement>('.unified-play-queue-heading > b')
   if (queueCount) {
     const number = queueCount.textContent?.match(/\d+/)?.[0] ?? '0'
@@ -144,7 +164,9 @@ function translateInterface(language: Language) {
   setText('.unified-play-queue-empty span', ja ? 'ライブラリ・YouTube・録音などから追加できます。' : 'Add media from Library, YouTube, Record, and more.')
 
   setText('#youtube-provider-panel .section-heading h2', ja ? '再生 / ダウンロード' : 'Play / Download')
-  setPlaceholder('#youtube-provider-panel .youtube-url-form input', ja ? 'YouTube URL または動画ID' : 'YouTube URL or video ID')
+  setPlaceholder('#youtube-provider-panel .youtube-url-form input', ja ? 'YouTube URLをここに貼り付け' : 'Paste a YouTube URL here')
+  setText('.youtube-paste-prompt strong', 'YouTube URL')
+  setText('.youtube-paste-prompt small', ja ? 'ここに貼り付けるだけ' : 'Paste it here')
   setText('#youtube-provider-panel .youtube-url-form button[type="submit"]', ja ? '読み込む' : 'Load')
   const clear = document.querySelector<HTMLButtonElement>('#youtube-provider-panel .youtube-url-form .secondary')
   if (clear) clear.textContent = ja ? 'クリア' : 'Clear'
