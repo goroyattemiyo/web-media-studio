@@ -36,6 +36,17 @@ export function playlistWithEntries(playlist: StoredPlaylist, entries: StoredPla
   }
 }
 
+function normalizePlaylistForSave(playlist: StoredPlaylist): StoredPlaylist {
+  if (!Array.isArray(playlist.entries)) return playlist
+
+  const youtubeEntries = playlist.entries.filter((entry): entry is YouTubePlaylistEntry => entry.kind === 'youtube')
+  const localEntries: LocalPlaylistEntry[] = playlist.mediaIds.map((mediaId) => ({ kind: 'local', mediaId }))
+  return {
+    ...playlist,
+    entries: [...localEntries, ...youtubeEntries],
+  }
+}
+
 export async function listPlaylists(): Promise<StoredPlaylist[]> {
   const database = await openAppDatabase()
   try {
@@ -58,7 +69,7 @@ export async function savePlaylist(playlist: StoredPlaylist): Promise<void> {
   const database = await openAppDatabase()
   try {
     const transaction = database.transaction(PLAYLIST_STORE, 'readwrite')
-    transaction.objectStore(PLAYLIST_STORE).put(playlist)
+    transaction.objectStore(PLAYLIST_STORE).put(normalizePlaylistForSave(playlist))
     await waitForTransaction(transaction)
   } finally {
     database.close()
