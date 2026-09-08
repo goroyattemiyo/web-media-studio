@@ -1,0 +1,108 @@
+.floating-mini-player {
+  position: fixed;
+  z-index: 82;
+  left: 50%;
+  bottom: calc(77px + env(safe-area-inset-bottom));
+  width: min(calc(100% - 22px), 620px);
+  min-height: 56px;
+  transform: translateX(-50%);
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 8px 7px 11px;
+  border: 1px solid var(--color-border);
+  border-radius: 18px;
+  background: color-mix(in srgb, var(--color-surface-strong) 92%, transparent);
+  color: var(--color-text);
+  backdrop-filter: blur(30px) saturate(140%);
+  -webkit-backdrop-filter: blur(30px) saturate(140%);
+  box-shadow: 0 14px 42px rgba(0, 0, 0, .34);
+}
+
+body:has(.floating-mini-player) .tool-deck-pager {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.floating-mini-title {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+  border: 0;
+  background: transparent;
+  color: var(--color-text);
+  padding: 0;
+  text-align: left;
+  cursor: pointer;
+}
+
+.floating-mini-title > span {
+  width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  border-radius: 9px;
+  background: rgba(var(--color-accent-rgb), .12);
+  color: var(--color-accent);
+  font-size: 11px;
+  font-weight: 900;
+}
+
+.floating-mini-title strong {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 10px;
+}
+
+.floating-mini-controls {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.floating-mini-controls button {
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.floating-mini-controls button:disabled {
+  opacity: .25;
+  cursor: default;
+}
+
+.floating-mini-controls .floating-mini-play {
+  background: var(--color-accent);
+  color: color-mix(in srgb, var(--color-bg) 88%, black);
+}
+
+@media (max-width: 620px) {
+  .floating-mini-player {
+    bottom: calc(73px + env(safe-area-inset-bottom));
+    width: calc(100% - 14px);
+    gap: 4px;
+    padding-inline: 8px;
+  }
+  .floating-mini-title { grid-template-columns: 24px minmax(0, 1fr); gap: 6px; }
+  .floating-mini-title > span { width: 24px; height: 24px; border-radius: 7px; font-size: 9px; }
+  .floating-mini-title strong { font-size: 9px; }
+  .floating-mini-controls button { width: 30px; height: 32px; font-size: 12px; }
+}
+
+@media (max-width: 420px) {
+  .floating-mini-controls button:nth-child(1),
+  .floating-mini-controls button:nth-child(3) { display: none; }
+}
