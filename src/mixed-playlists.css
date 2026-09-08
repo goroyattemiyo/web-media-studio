@@ -1,0 +1,113 @@
+.mixed-playlist-sources {
+  display: grid;
+  gap: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--color-border);
+}
+
+.mixed-playlist-heading,
+.mixed-playlist-group-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.mixed-playlist-heading > div {
+  display: grid;
+  gap: 3px;
+}
+
+.mixed-playlist-heading strong,
+.mixed-playlist-group-title strong {
+  color: var(--color-text);
+  font-size: 10px;
+}
+
+.mixed-playlist-heading > span,
+.mixed-playlist-group-title > span {
+  color: var(--color-text-muted);
+  font-size: 9px;
+}
+
+.mixed-playlist-status,
+.mixed-playlist-empty {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: 9px;
+  line-height: 1.55;
+}
+
+.mixed-playlist-groups,
+.mixed-playlist-group,
+.mixed-youtube-list {
+  display: grid;
+  gap: 8px;
+}
+
+.mixed-playlist-group {
+  padding: 9px;
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, .02);
+}
+
+.mixed-youtube-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 7px;
+}
+
+.mixed-youtube-main,
+.mixed-youtube-delete {
+  min-height: 38px;
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  background: var(--color-surface-strong);
+  color: var(--color-text);
+  cursor: pointer;
+}
+
+.mixed-youtube-main {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+  padding: 7px 9px;
+  text-align: left;
+}
+
+.mixed-youtube-main > span:last-child {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+}
+
+.mixed-youtube-main strong,
+.mixed-youtube-main small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mixed-youtube-main strong {
+  font-size: 10px;
+}
+
+.mixed-youtube-main small {
+  color: var(--color-text-muted);
+  font-size: 8px;
+}
+
+.mixed-youtube-delete {
+  width: 38px;
+  color: var(--color-text-muted);
+  font-weight: 900;
+}
+
+@media (max-width: 520px) {
+  .mixed-playlist-heading,
+  .mixed-playlist-group-title {
+    align-items: flex-start;
+  }
+}
