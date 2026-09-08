@@ -45,7 +45,20 @@ function ColabLocalizerCompanion() {
   )
 
   useEffect(() => {
-    setPortalTarget(document.querySelector('#youtube-localizer-panel'))
+    const findTarget = () => {
+      const target = document.querySelector('#youtube-localizer-panel')
+      if (!target) return false
+      setPortalTarget(target)
+      return true
+    }
+
+    if (findTarget()) return
+
+    const observer = new MutationObserver(() => {
+      if (findTarget()) observer.disconnect()
+    })
+    observer.observe(document.body, { childList: true, subtree: true })
+    return () => observer.disconnect()
   }, [])
 
   const handleOpen = (event: MouseEvent<HTMLAnchorElement>) => {
