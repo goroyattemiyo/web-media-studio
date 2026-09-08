@@ -2,9 +2,10 @@ import { StrictMode, useState } from 'react'
 import { createRoot } from 'react-dom/client'
 import App from './App'
 import YouTubeProviderPanel from './YouTubeProviderPanel'
-import YouTubePlaylistActions from './YouTubePlaylistActions'
 import YouTubeQueueActions from './YouTubeQueueActions'
 import UnifiedPlaybackQueue from './UnifiedPlaybackQueue'
+import PlayerPlaylistActions from './PlayerPlaylistActions'
+import SettingsPanel from './SettingsPanel'
 import ToolDeckEnhancer from './ToolDeckEnhancer'
 import SkinVisualEnhancer from './SkinVisualEnhancer'
 import InfoTipsEnhancer from './InfoTipsEnhancer'
@@ -39,6 +40,7 @@ import './system-message-center.css'
 import './interface-simplifier.css'
 import './ui-v2.css'
 import './visual-polish.css'
+import './operation-system.css'
 
 installPlaybackArbitration()
 
@@ -55,9 +57,9 @@ function Root() {
     <>
       <App key={libraryRevision} />
       <YouTubeProviderPanel onMediaImported={() => setLibraryRevision((value) => value + 1)} />
-      <YouTubePlaylistActions />
       <YouTubeQueueActions />
       <UnifiedPlaybackQueue />
+      <PlayerPlaylistActions />
       <ToolDeckEnhancer />
       <SkinVisualEnhancer />
       <InfoTipsEnhancer />
@@ -67,6 +69,7 @@ function Root() {
       <SystemMessageCenter />
       <InterfaceSimplifier />
       <VisualPolishEnhancer />
+      <SettingsPanel />
     </>
   )
 }
