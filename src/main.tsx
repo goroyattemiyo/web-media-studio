@@ -2,6 +2,8 @@ import { StrictMode, useState } from 'react'
 import { createRoot } from 'react-dom/client'
 import App from './App'
 import YouTubeProviderPanel from './YouTubeProviderPanel'
+import YouTubePlaylistActions from './YouTubePlaylistActions'
+import UnifiedPlaylistSources from './UnifiedPlaylistSources'
 import ToolDeckEnhancer from './ToolDeckEnhancer'
 import { installPlaybackArbitration } from './playbackArbiter'
 import './styles.css'
@@ -15,6 +17,7 @@ import './player-visuals.css'
 import './reorder-resume.css'
 import './named-playlists.css'
 import './youtube-provider.css'
+import './mixed-playlists.css'
 import './ui-v2.css'
 
 installPlaybackArbitration()
@@ -32,6 +35,8 @@ function Root() {
     <>
       <App key={libraryRevision} />
       <YouTubeProviderPanel onMediaImported={() => setLibraryRevision((value) => value + 1)} />
+      <YouTubePlaylistActions />
+      <UnifiedPlaylistSources />
       <ToolDeckEnhancer />
     </>
   )
