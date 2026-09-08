@@ -137,7 +137,7 @@ export default function SettingsPanel() {
       { icon: '☀', label: '画面を消さない', state: Boolean((navigator as WakeNavigator).wakeLock) ? 'available' : 'unavailable', tech: 'Screen Wake Lock' },
       { icon: '💾', label: '端末内ライブラリ保存', state: 'indexedDB' in window ? 'available' : 'unavailable', tech: 'IndexedDB' },
       { icon: '📁', label: 'フォルダ選択', state: 'showDirectoryPicker' in window ? 'available' : 'limited', tech: 'File System Access / directory input', note: '非対応端末では複数ファイル選択を使います。' },
-      { icon: '📋', label: 'URLコピー', state: navigator.clipboard ? 'available' : 'limited', tech: 'Clipboard API' },
+      { icon: '📋', label: 'URLコピー', state: 'clipboard' in navigator ? 'available' : 'limited', tech: 'Clipboard API' },
       { icon: '⚙', label: 'PWA / オフライン基盤', state: 'serviceWorker' in navigator ? (standalone ? 'available' : 'limited') : 'unavailable', tech: 'Service Worker / PWA', note: standalone ? 'インストール済み表示で起動しています。' : 'ブラウザから利用中です。' },
       { icon: '🔒', label: '安全なブラウザ機能', state: window.isSecureContext ? 'available' : 'unavailable', tech: 'Secure Context' },
     ]
