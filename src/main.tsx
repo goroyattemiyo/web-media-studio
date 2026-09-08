@@ -7,6 +7,7 @@ import YouTubeQueueActions from './YouTubeQueueActions'
 import UnifiedPlaybackQueue from './UnifiedPlaybackQueue'
 import ToolDeckEnhancer from './ToolDeckEnhancer'
 import SkinVisualEnhancer from './SkinVisualEnhancer'
+import InfoTipsEnhancer from './InfoTipsEnhancer'
 import { installPlaybackArbitration } from './playbackArbiter'
 import './styles.css'
 import './mobile-overrides.css'
@@ -23,6 +24,7 @@ import './youtube-provider.css'
 import './youtube-playlist-actions.css'
 import './mixed-playlists.css'
 import './unified-play-queue.css'
+import './info-tips.css'
 import './ui-v2.css'
 
 installPlaybackArbitration()
@@ -45,6 +47,7 @@ function Root() {
       <UnifiedPlaybackQueue />
       <ToolDeckEnhancer />
       <SkinVisualEnhancer />
+      <InfoTipsEnhancer />
     </>
   )
 }
