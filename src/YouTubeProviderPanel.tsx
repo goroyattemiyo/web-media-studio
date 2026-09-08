@@ -1,5 +1,6 @@
 import { FormEvent, useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
+import { claimPlayback, registerPlaybackSource } from './playbackArbiter'
 import {
   loadYouTubeIframeApi,
   parseYouTubeInput,
@@ -99,6 +100,18 @@ function YouTubeProviderPanel() {
 
   useEffect(() => {
     setPortalTarget(document.querySelector('.side-stack'))
+  }, [])
+
+  useEffect(() => {
+    return registerPlaybackSource('youtube', () => {
+      const player = playerRef.current
+      if (!player) return
+      try {
+        player.pauseVideo()
+      } catch {
+        // The player may be between cue/destroy states; a later state change will settle playback.
+      }
+    })
   }, [])
 
   useEffect(() => {
@@ -218,6 +231,7 @@ function YouTubeProviderPanel() {
             if (data.title) setTitle(data.title)
 
             if (isPlaying) {
+              claimPlayback('youtube')
               if (keepAwakeRef.current) void requestWakeLock()
             } else {
               void releaseWakeLock()
@@ -228,6 +242,7 @@ function YouTubeProviderPanel() {
               if (repeatOneRef.current) {
                 setStatus('Repeat 1: 動画を先頭から繰り返します。')
                 event.target.seekTo(0, true)
+                claimPlayback('youtube')
                 event.target.playVideo()
               } else {
                 setStatus('動画が終了しました。')
@@ -298,6 +313,13 @@ function YouTubeProviderPanel() {
     if (!player || !ready) return
     player.seekTo(next, true)
     setCurrentTime(next)
+  }
+
+  const playVideo = () => {
+    const player = playerRef.current
+    if (!player || !ready) return
+    claimPlayback('youtube')
+    player.playVideo()
   }
 
   const changeVolume = (next: number) => {
@@ -381,7 +403,7 @@ function YouTubeProviderPanel() {
 
           <div className="youtube-transport">
             <button type="button" disabled={!ready} onClick={() => seekBy(-10)}>−10</button>
-            <button type="button" className="primary" disabled={!ready} onClick={() => playerRef.current?.playVideo()}>▶ Play</button>
+            <button type="button" className="primary" disabled={!ready} onClick={playVideo}>▶ Play</button>
             <button type="button" disabled={!ready} onClick={() => playerRef.current?.pauseVideo()}>Ⅱ Pause</button>
             <button type="button" disabled={!ready} onClick={() => seekBy(10)}>+10</button>
           </div>
