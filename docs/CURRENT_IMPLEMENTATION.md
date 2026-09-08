@@ -4,13 +4,15 @@ Last updated: 2026-09-08 JST
 
 ## Repository state
 
-The repository foundation, player bootstrap, Recorder MVP, IndexedDB recording persistence, FFmpeg video-to-audio tools, local playlist improvements, Android background/Media Session validation, persistent local media library, WMS branding, switchable player visuals, persistent queue reorder, resume-position behavior, and saved named playlists are merged to `main`.
+The repository foundation, player bootstrap, Recorder MVP, IndexedDB recording persistence, FFmpeg video-to-audio tools, local playlist improvements, Android background/Media Session validation, persistent local media library, WMS branding, switchable player visuals, persistent queue reorder, resume-position behavior, saved named playlists, YouTube official IFrame playback, Google-authenticated Localize worker integration, UI v2 tool deck, PO Token worker experiment, and current-tab recording are merged to `main`.
 
 Public URL:
 
 `https://goroyattemiyo.github.io/web-media-studio/`
 
-Recorder, recording persistence, FFmpeg extraction/conversion, Android multi-file import, continuous playback, screen-off playback, installed-PWA background playback, tested lock-screen controls, persistent local media-library behavior, queue-order persistence, saved-media resume behavior, and saved named playlists have passed the requested Android real-device checks.
+Recorder, recording persistence, FFmpeg extraction/conversion, Android multi-file import, continuous playback, local-media screen-off playback, installed-PWA background playback, tested lock-screen controls, persistent local media-library behavior, queue-order persistence, saved-media resume behavior, and saved named playlists have passed the requested Android real-device checks.
+
+The current feature branch `feat/tab-audio-playback-arbitration` adds clearer Tab audio capability UX and Local Player / YouTube playback arbitration. CI and post-merge device validation are still required before those changes are marked fully validated.
 
 ## Implemented player foundation
 
@@ -51,6 +53,19 @@ Recorder MVP does not claim sample-accurate synchronization and does not digital
 
 Android real-device persistence checks passed.
 
+## Implemented current-tab recording (merged PR #30)
+
+- capture modes: `Mic`, `Tab audio`, `Tab + Mic`
+- tab/display capture through `navigator.mediaDevices.getDisplayMedia({ video: true, audio: true })`
+- only the resulting audio tracks are recorded
+- `Tab + Mic` mixes the captured tab and microphone through `AudioContext` / `MediaStreamDestination`
+- tab recordings are stored in Saved Takes and the Local Library, subject to the existing per-file limit
+- capture stops if the selected shared surface ends
+- missing audio-track errors explain that the current tab and tab-audio sharing must be selected
+- no Cloud Run or yt-dlp dependency for recording
+
+Platform capability is feature-detected. On the current feature branch, unsupported devices now show an explicit Tab audio status instead of only dimmed controls. Android Chrome/PWA may not expose `getDisplayMedia`; desktop Chrome/Edge remains the primary validation target for tab-audio capture.
+
 ## Implemented FFmpeg video -> audio (merged PR #8)
 
 - lazy-loaded single-thread `@ffmpeg/ffmpeg`
@@ -78,7 +93,7 @@ On the tested Android picker, Folder falls back to normal file selection. Multip
 
 ## Android background / Media Session validation
 
-Confirmed on the tested Android Chrome/PWA environment:
+Confirmed on the tested Android Chrome/PWA environment for local media:
 
 - multiple-file playlist playback: PASS
 - automatic next-track continuation: PASS
@@ -89,7 +104,7 @@ Confirmed on the tested Android Chrome/PWA environment:
 - next-track continuation while screen remains off: PASS
 - installed-PWA background/lock-screen sequence: PASS
 
-These results apply only to the tested Android environment and do not imply identical behavior on iOS or every Android device/browser.
+These results apply only to the tested Android environment and do not imply identical behavior on iOS or every Android device/browser. The official embedded YouTube player is different: screen-off/background playback stopped on the tested Android device. `Keep screen on` only uses Screen Wake Lock to prevent automatic screen-off while visible.
 
 ## Implemented persistent local media library (merged PR #12)
 
@@ -169,11 +184,7 @@ Android Chrome/PWA real-device validation:
 - Update changes the stored playlist snapshot: PASS
 - deleting playlist leaves underlying saved media available in All media: PASS
 
-## In progress: YouTube official IFrame provider
-
-Feature branch: `feat/youtube-iframe-provider`
-
-Implemented on the branch:
+## Implemented YouTube official IFrame provider
 
 - isolated provider adapter under `src/providers/youtube.ts`
 - YouTube watch/youtu.be/Shorts/embed/live URL parsing plus direct 11-character video IDs
@@ -184,17 +195,45 @@ Implemented on the branch:
 - player status, title, elapsed time and duration display
 - YouTube embed error mapping for invalid/unavailable/non-embeddable videos
 - autoplay-blocked status handling
-- capability display: playback supported, download unsupported, background device-dependent
-- explicit UI note that Web Media Studio does not download or extract YouTube media
+- capability display: playback supported, download unsupported, screen-off limitation explicit
+- Screen Wake Lock option to keep the screen on during foreground playback where available
+- explicit UI note that Web Media Studio does not download or extract media through the official embedded player
 
-This first provider MVP is intentionally separate from the shared local-player transport. Shared transport/source-state integration remains the next provider step.
+Foreground playback has been validated. On the tested Android environment, embedded YouTube playback stops when the screen turns off; WMS does not claim otherwise.
+
+## Current feature branch: playback arbitration
+
+`feat/tab-audio-playback-arbitration` introduces a small central `playbackArbiter` rather than coupling `App.tsx` and `YouTubeProviderPanel.tsx` directly.
+
+Target behavior implemented on the branch:
+
+- a Local Player play event claims the local playback source and pauses YouTube
+- YouTube entering the playing state claims the YouTube playback source and pauses the Local Player
+- the WMS YouTube Play action claims YouTube before playback starts
+- changing the active WMS card to YouTube pauses local playback
+- changing the active WMS card to Player or Library pauses YouTube
+- direct IFrame-player starts and local HTMLMediaElement starts are covered in addition to WMS buttons
+
+Typecheck/build CI and real-device regression validation remain pending until PR completion.
+
+## YouTube -> Local / Cloud Run worker
+
+- Google Sign-In is implemented and confirmed working
+- production worker auth uses Google ID token verification plus an allowed-email list
+- old worker API-key fallback has been removed
+- YouTube cloud restriction errors are sanitized to a short WMS `LIMITED` state
+- no YouTube account cookies, proxy rotation, DRM bypass, or authentication-bypass mechanisms are used
+- PR #29 added the controlled PO Token experiment using `bgutil-ytdlp-pot-provider==1.3.2`, Node, pinned provider source, `mweb`, and `YOUTUBE_PO_TOKEN_MODE=bgutil-script-mweb`
+- PR #29 CI passed its Python tests, Docker build/start, health, FFmpeg, Node, provider plugin and provider script checks
+
+Production Cloud Run deployment after PR #29 and same-video retest still require confirmation. Do not describe the PO Token experiment as successful until that production check is recorded.
 
 ## Real-device validation still required
 
-- YouTube provider URL parsing and player load on Android Chrome/PWA
-- YouTube Play/Pause/seek/volume/rate controls
-- embed-restricted video error behavior
-- YouTube screen-off/background behavior on the tested Android environment
+- Android unavailable-state UI for Tab audio after the current feature branch merges
+- desktop Chrome/Edge: Tab audio -> Saved Take -> Local Library -> local playback
+- Local Player / YouTube mutual exclusion while switching WMS cards
+- mutual exclusion when playback is started directly inside the YouTube iframe
 - longer multi-file local sessions
 - lock-screen Previous specifically
 - local video in longer playlists
@@ -206,12 +245,10 @@ This first provider MVP is intentionally separate from the shared local-player t
 
 ## Not implemented yet
 
-- YouTube integration with the shared main-player transport/source state
+- one fully unified transport/state model across local and YouTube backends; current arbitration only prevents conflicting audible playback
 - YouTube playlist handling
-- YouTube + recorder behavior validation
-- markers/bookmarks
 - sample-accurate synchronized recording
-- playback + microphone digital mixdown
+- playback + microphone digital mixdown outside the implemented Tab + Mic capture path
 - audio trim/fade/normalization tools
 - album-art/wave-ring/spectrum/VU player visuals
 - direct URL provider
@@ -230,15 +267,16 @@ This first provider MVP is intentionally separate from the shared local-player t
 - player visuals should be switchable rather than fixed to a single animation
 - named playlists reference saved local media instead of duplicating media Blobs
 - YouTube playback uses the official embedded IFrame Player API
-- YouTube stream downloading/audio extraction is not a project feature
+- YouTube embedded playback and the separate authorized Localize worker are distinct paths
 - provider capabilities are surfaced instead of assumed
-- background behavior is platform-dependent; tested local Android Chrome/PWA is confirmed working
+- background behavior is platform-dependent; tested local Android Chrome/PWA background playback works, while tested embedded YouTube screen-off playback stops
 
 ## Immediate next step
 
-1. validate the first YouTube IFrame provider on Android Chrome/PWA
-2. after PASS, integrate YouTube into the shared player transport/source state
-3. evaluate provider-specific background and playlist behavior
-4. add markers/bookmarks and richer visualizers after the provider boundary is stable
+1. pass PR CI for Tab audio capability UX and playback arbitration, then squash merge
+2. verify GitHub Pages deployment and Android unavailable-state UX
+3. validate Tab audio end-to-end on desktop Chrome/Edge
+4. confirm whether PR #29 Cloud Run deployment ran; deploy from `main` if not, then retry the same previously blocked video
+5. if the same video remains `LIMITED`, treat Cloud Run/datacenter egress restriction as the stronger suspected cause rather than adding account cookies or proxy rotation
 
 Do not describe planned work as implemented work.
