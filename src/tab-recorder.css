@@ -44,6 +44,43 @@
   cursor: default;
 }
 
+.tab-capture-capability {
+  display: grid;
+  gap: 4px;
+  margin: -2px 0 10px;
+  padding: 9px 11px;
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--color-surface-strong) 72%, transparent);
+  font-size: 9px;
+  line-height: 1.5;
+}
+
+.tab-capture-capability strong {
+  font-size: 10px;
+}
+
+.tab-capture-capability span {
+  color: var(--color-text-muted);
+}
+
+.tab-capture-capability.is-supported {
+  border-color: rgba(69, 214, 144, .22);
+}
+
+.tab-capture-capability.is-supported strong {
+  color: #64dda0;
+}
+
+.tab-capture-capability.is-unavailable {
+  border-color: rgba(255, 181, 76, .28);
+  background: rgba(255, 181, 76, .06);
+}
+
+.tab-capture-capability.is-unavailable strong {
+  color: #ffc56b;
+}
+
 .record-actions .record-tab-primary {
   grid-column: 1 / -1;
   min-height: 52px;
