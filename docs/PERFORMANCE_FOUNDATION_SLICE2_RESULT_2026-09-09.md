@@ -13,6 +13,7 @@ Implementation branch:
 
 - `perf/playback-core-foundation`
 - PR #56
+- merged production commit: `6b552ca97d2b1bd0c7cd1fa9de4ac1af9b066556`
 
 ## Completed
 
@@ -63,36 +64,47 @@ Audio playback is intentionally independent from this visual rendering gate.
 
 ## Automated validation
 
-Latest PR head:
+PR and production validation:
 
 - TypeScript typecheck: PASS
 - Vite production build: PASS
-- PR deploy: skipped as expected
+- GitHub Pages production deploy: PASS
 
-## Real-device validation still required
+## Real-device validation — CORE PASS
 
-Automated checks do not prove audible continuity. Recommended checks after production deployment:
+Production build was tested on a real device after deployment.
 
-1. Start Local audio.
-2. Move Player → Library → YouTube → Recorder → Tools → Settings repeatedly.
-3. Confirm audio does not stop, jump position, or noticeably glitch.
-4. Confirm Floating Mini Player state follows play/pause/track changes.
-5. Import downloaded YouTube audio while Local audio is playing and confirm playback is not recreated.
-6. Create a tab/mix recording that is saved into Local Library and confirm current playback continues.
-7. Use an audio-reactive visualizer, leave Player, then return and confirm visual response resumes.
-8. Compare perceived UI latency / audio glitches against the preserved baseline branch.
+Core scenario:
 
-## Not claimed yet
+1. Start Local audio playback.
+2. Move between WMS cards/tools while playback continues.
+3. Continue operating other parts of WMS during playback.
+4. Observe UI responsiveness and audible playback continuity.
 
-- This does not prove all audio glitches are fixed.
+Observed result:
+
+- page/tool transitions no longer stop Local playback
+- the previous noticeable hitching during navigation is almost completely gone
+- no obvious regression was found in normal playback/navigation use
+- user assessment after repeated use: the current state appears stable enough to continue from this performance baseline
+
+This validates the primary P0 goal: reduce WMS-side background/UI work so playback remains responsive while the user moves around the application.
+
+Extended stress cases such as simultaneous heavy FFmpeg conversion, every Recorder import path, and browser/OS background throttling are not separately claimed as fully validated by this core pass.
+
+## Remaining boundaries
+
 - YouTube IFrame background behavior remains browser/provider controlled.
 - FFmpeg execution can still compete for CPU/RAM.
 - Some DOM observers remain and should be profiled before further removal.
+- Browser/OS behavior outside the active WMS document is not guaranteed by this result.
 
 ## Next P0 candidate
 
+Do not optimize aggressively without evidence now that the core navigation issue is substantially improved. Prefer measured/adaptive work:
+
 - runtime performance metrics / long-task observation
 - AUTO / QUALITY / ECO performance policy
-- lower visualizer frame rate / resolution under load
-- reduce YouTube status polling when the YouTube card is inactive
+- lower visualizer frame rate / resolution only under load
+- reduce YouTube status work when the YouTube card is inactive
 - isolate or throttle expensive FFmpeg work during active playback where practical
