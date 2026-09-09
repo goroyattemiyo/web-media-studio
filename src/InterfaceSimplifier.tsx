@@ -6,10 +6,17 @@ function emitSystem(text: string, source = 'WMS', level: 'info' | 'success' | 'e
   window.dispatchEvent(new CustomEvent('wms:system-message', { detail: { text, source, level } }))
 }
 
+function findCanonicalRow(record: StoredMediaLibraryItem) {
+  const rows = Array.from(document.querySelectorAll<HTMLElement>('#library-panel .playlist-row'))
+  const matches = rows.filter((row) => row.querySelector<HTMLElement>('.playlist-name')?.textContent?.trim() === record.name)
+  return matches.length === 1 ? matches[0] : null
+}
+
 export default function InterfaceSimplifier() {
   const [libraryTarget, setLibraryTarget] = useState<Element | null>(null)
   const [youtubeTarget, setYoutubeTarget] = useState<Element | null>(null)
   const [menuOpen, setMenuOpen] = useState(false)
+  const [openSavedId, setOpenSavedId] = useState<string | null>(null)
   const [savedMedia, setSavedMedia] = useState<StoredMediaLibraryItem[]>([])
 
   useEffect(() => {
@@ -78,6 +85,7 @@ export default function InterfaceSimplifier() {
   }
 
   const playSavedRecord = (catalogIndex: number, name: string) => {
+    setOpenSavedId(null)
     document.querySelector<HTMLButtonElement>('#library-panel .all-media-button')?.click()
     window.setTimeout(() => {
       const rows = document.querySelectorAll<HTMLButtonElement>('#library-panel .playlist-list .playlist-item')
@@ -90,6 +98,28 @@ export default function InterfaceSimplifier() {
     }, 80)
   }
 
+  const runSavedAction = (record: StoredMediaLibraryItem, action: 'library' | 'up' | 'down' | 'remove') => {
+    const row = findCanonicalRow(record)
+    if (!row) {
+      emitSystem(`${record.name} は現在の再生キューにないため、この操作はPlayer側から行ってください。`, 'Library')
+      setOpenSavedId(null)
+      return
+    }
+
+    const libraryAction = row.querySelector<HTMLButtonElement>('.library-item-action')
+    const queueButtons = Array.from(row.querySelectorAll<HTMLButtonElement>('.queue-order-actions button'))
+    const target = action === 'library'
+      ? libraryAction
+      : action === 'up'
+        ? queueButtons[0]
+        : action === 'down'
+          ? queueButtons[1]
+          : queueButtons[2]
+
+    if (target && !target.disabled) target.click()
+    setOpenSavedId(null)
+  }
+
   const libraryUi = libraryTarget
     ? createPortal(
         <section className="device-library-browser" aria-label="端末内ライブラリ">
@@ -98,7 +128,15 @@ export default function InterfaceSimplifier() {
               <span>♫</span><b>端末の曲を選ぶ</b>
             </button>
             <div className="device-library-more-wrap">
-              <button type="button" className="device-library-more" onClick={() => setMenuOpen((value) => !value)} aria-label="その他のライブラリ操作">⋯</button>
+              <button
+                type="button"
+                className="device-library-more"
+                onClick={() => {
+                  setOpenSavedId(null)
+                  setMenuOpen((value) => !value)
+                }}
+                aria-label="その他のライブラリ操作"
+              >⋯</button>
               {menuOpen && (
                 <div className="device-library-menu">
                   <button type="button" onClick={() => { clickLibraryInput(true); setMenuOpen(false) }}>📁 フォルダから選ぶ</button>
@@ -116,12 +154,35 @@ export default function InterfaceSimplifier() {
 
           {audioRecords.length ? (
             <div className="device-library-list">
-              {audioRecords.map(({ record, index }) => (
-                <button type="button" key={record.id} onClick={() => playSavedRecord(index, record.name)}>
-                  <span>▶</span>
-                  <strong>{record.name}</strong>
-                </button>
-              ))}
+              {audioRecords.map(({ record, index }) => {
+                const isOpen = openSavedId === record.id
+                return (
+                  <div className="device-library-item" key={record.id}>
+                    <button type="button" className="device-library-item-main" onClick={() => playSavedRecord(index, record.name)}>
+                      <span>▶</span>
+                      <strong>{record.name}</strong>
+                    </button>
+                    <button
+                      type="button"
+                      className="device-library-item-more"
+                      aria-label={`${record.name} のその他の操作`}
+                      aria-expanded={isOpen}
+                      onClick={() => {
+                        setMenuOpen(false)
+                        setOpenSavedId(isOpen ? null : record.id)
+                      }}
+                    >…</button>
+                    {isOpen && (
+                      <div className="device-library-item-menu" role="menu" aria-label={`${record.name} のその他の操作`}>
+                        <button type="button" role="menuitem" className="is-danger" onClick={() => runSavedAction(record, 'library')}>端末ライブラリから削除</button>
+                        <button type="button" role="menuitem" onClick={() => runSavedAction(record, 'up')}>↑ 上へ移動</button>
+                        <button type="button" role="menuitem" onClick={() => runSavedAction(record, 'down')}>↓ 下へ移動</button>
+                        <button type="button" role="menuitem" onClick={() => runSavedAction(record, 'remove')}>× 再生キューから外す</button>
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
             </div>
           ) : (
             <button type="button" className="device-library-empty" onClick={() => clickLibraryInput(false)}>
