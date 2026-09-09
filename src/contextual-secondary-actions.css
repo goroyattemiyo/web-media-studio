@@ -1,0 +1,87 @@
+/* UX-2: keep primary media actions visible and collapse secondary Local actions behind one More button. */
+.playlist-row.wms-media-card {
+  grid-template-columns: minmax(0, 1fr) 42px;
+}
+
+/* Preserve the original App controls for command bridging, but remove them from the visible layout. */
+.playlist-row.wms-media-card > .library-item-action,
+.playlist-row.wms-media-card > .queue-order-actions {
+  display: none !important;
+}
+
+.contextual-secondary-trigger {
+  align-self: center;
+  width: 38px;
+  min-height: 38px;
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--color-surface-strong) 82%, transparent);
+  color: var(--color-text-muted);
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.contextual-secondary-trigger[aria-expanded='true'] {
+  border-color: rgba(var(--color-accent-rgb), .38);
+  background: rgba(var(--color-accent-rgb), .1);
+  color: var(--color-accent);
+}
+
+.contextual-secondary-menu {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+  padding: 7px;
+  border: 1px solid var(--color-border);
+  border-radius: 13px;
+  background: color-mix(in srgb, var(--color-surface-strong) 92%, transparent);
+}
+
+.contextual-secondary-menu button {
+  min-height: 38px;
+  padding: 0 10px;
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  background: rgba(255,255,255,.018);
+  color: var(--color-text);
+  font-size: 9px;
+  font-weight: 800;
+  text-align: left;
+  cursor: pointer;
+}
+
+.contextual-secondary-menu button:disabled {
+  opacity: .35;
+  cursor: default;
+}
+
+.contextual-secondary-menu button.is-danger {
+  border-color: color-mix(in srgb, var(--color-danger) 30%, transparent);
+  color: var(--color-danger);
+}
+
+/* The primary Play now / Play next pair remains visually dominant and full-width. */
+.playlist-row.wms-media-card .wms-media-card-actions {
+  grid-column: 1 / -1;
+}
+
+@media (max-width: 620px) {
+  .playlist-row.wms-media-card {
+    grid-template-columns: minmax(0, 1fr) 40px;
+  }
+
+  .contextual-secondary-menu {
+    grid-template-columns: 1fr;
+  }
+
+  .contextual-secondary-trigger {
+    width: 36px;
+    min-height: 36px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .contextual-secondary-trigger { transition: none; }
+}
