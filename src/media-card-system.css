@@ -55,37 +55,9 @@
   align-self: center;
 }
 
-/* YouTube's loaded title becomes the source card; Download / Import stay as source utilities above it. */
+/* The YouTube iframe already renders canonical title/channel UI; keep WMS title data mounted for state lookup but hide the duplicate visual card. */
 .youtube-track-info.wms-media-card {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 9px 12px;
-  padding: 12px;
-  margin-top: 10px;
-}
-
-.youtube-track-info.wms-media-card > div {
-  min-width: 0;
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
-  align-items: center;
-  gap: 8px;
-}
-
-.youtube-track-info.wms-media-card > div strong {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.youtube-track-info.wms-media-card > a {
-  white-space: nowrap;
-}
-
-.youtube-track-info.wms-media-card .common-source-actions {
-  grid-column: 1 / -1;
+  display: none !important;
 }
 
 /* Recorder and FFmpeg results keep their existing data/actions while sharing the same card surface. */
@@ -126,15 +98,6 @@
   .playlist-row.wms-media-card .queue-order-actions,
   .playlist-row.wms-media-card .wms-media-card-actions {
     grid-column: 1 / -1;
-  }
-
-  .youtube-track-info.wms-media-card {
-    grid-template-columns: 1fr;
-  }
-
-  .youtube-track-info.wms-media-card > a,
-  .youtube-track-info.wms-media-card .common-source-actions {
-    grid-column: 1;
   }
 }
 
