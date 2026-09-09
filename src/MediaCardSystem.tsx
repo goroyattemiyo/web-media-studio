@@ -4,6 +4,8 @@ import { createPortal } from 'react-dom'
 type Language = 'ja' | 'en'
 type BusyMode = 'play-now' | 'play-next' | null
 
+let localRowSequence = 0
+
 function loadLanguage(): Language {
   try {
     return window.localStorage.getItem('wms-language') === 'en' ? 'en' : 'ja'
@@ -28,6 +30,14 @@ function queueRows() {
 
 function rowTitle(row: HTMLElement) {
   return row.querySelector<HTMLElement>('.playlist-name')?.textContent?.trim() || 'Local media'
+}
+
+function rowKey(row: HTMLElement) {
+  if (!row.dataset.wmsMediaCardId) {
+    localRowSequence += 1
+    row.dataset.wmsMediaCardId = `local-card-${localRowSequence}`
+  }
+  return row.dataset.wmsMediaCardId
 }
 
 async function placeAsNext(row: HTMLElement) {
@@ -153,6 +163,7 @@ export default function MediaCardSystem() {
       applyCardClass('#ffmpeg-tools-panel .ffmpeg-result', 'ffmpeg')
 
       const nextRows = Array.from(document.querySelectorAll<HTMLElement>('#library-panel .playlist-row'))
+      nextRows.forEach((row) => void rowKey(row))
       setLocalRows((current) => sameElements(current, nextRows) ? current : nextRows)
     }
 
@@ -171,6 +182,7 @@ export default function MediaCardSystem() {
       document.querySelectorAll<HTMLElement>('.wms-media-card').forEach((element) => {
         element.classList.remove('wms-media-card')
         delete element.dataset.wmsMediaSource
+        delete element.dataset.wmsMediaCardId
       })
     }
   }, [])
@@ -185,6 +197,6 @@ export default function MediaCardSystem() {
   }, [])
 
   return <>{localRows.map((row) => (
-    <LocalMediaCardActions key={row.querySelector('.playlist-name')?.textContent ?? String(localRows.indexOf(row))} row={row} language={language} />
+    <LocalMediaCardActions key={rowKey(row)} row={row} language={language} />
   ))}</>
 }
