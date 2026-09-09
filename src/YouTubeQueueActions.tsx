@@ -31,8 +31,7 @@ function YouTubeQueueActions() {
 
   useEffect(() => {
     const resolveTarget = () => {
-      const next = document.querySelector('#youtube-provider-panel .youtube-track-info')
-        ?? document.querySelector('#youtube-provider-panel .youtube-source-actions')
+      const next = document.querySelector('#youtube-provider-panel .youtube-source-actions')
       setTarget((current) => current === next ? current : next)
     }
     resolveTarget()
