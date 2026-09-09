@@ -1,0 +1,23 @@
+/* Ensure native select popups remain readable across WMS skins, especially on Windows Chrome/Edge. */
+
+select {
+  color-scheme: dark;
+}
+
+select option,
+select optgroup {
+  background: var(--color-surface-strong);
+  color: var(--color-text);
+}
+
+:root[data-theme='studio-light'] select,
+:root[data-theme='studio-light'] select option,
+:root[data-theme='studio-light'] select optgroup {
+  color-scheme: light;
+}
+
+:root[data-theme='studio-light'] select option,
+:root[data-theme='studio-light'] select optgroup {
+  background: var(--color-surface-strong);
+  color: var(--color-text);
+}
