@@ -10,6 +10,7 @@ import ResultSourceActions from './ResultSourceActions'
 import FloatingMiniPlayer from './FloatingMiniPlayer'
 import PerformanceFoundationEnhancer from './PerformanceFoundationEnhancer'
 import MediaCardSystem from './MediaCardSystem'
+import ContextualSecondaryActions from './ContextualSecondaryActions'
 import ToolDeckEnhancer from './ToolDeckEnhancer'
 import SkinVisualEnhancer from './SkinVisualEnhancer'
 import InfoTipsEnhancer from './InfoTipsEnhancer'
@@ -50,6 +51,7 @@ import './floating-mini-player.css'
 import './select-popup-fix.css'
 import './performance-foundation.css'
 import './media-card-system.css'
+import './contextual-secondary-actions.css'
 
 installPlaybackArbitration()
 
@@ -72,6 +74,7 @@ function Root() {
       <FloatingMiniPlayer />
       <PerformanceFoundationEnhancer />
       <MediaCardSystem />
+      <ContextualSecondaryActions />
       <ToolDeckEnhancer />
       <SkinVisualEnhancer />
       <InfoTipsEnhancer />
