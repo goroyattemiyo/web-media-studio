@@ -45,6 +45,7 @@ import './visual-polish.css'
 import './operation-system.css'
 import './result-source-actions.css'
 import './floating-mini-player.css'
+import './select-popup-fix.css'
 
 installPlaybackArbitration()
 
