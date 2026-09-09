@@ -347,6 +347,7 @@ function SkinVisualEnhancer() {
   const [mediaTarget, setMediaTarget] = useState<HTMLMediaElement | null>(null)
   const [playing, setPlaying] = useState(false)
   const [videoActive, setVideoActive] = useState(false)
+  const [visualRuntimeActive, setVisualRuntimeActive] = useState(true)
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
 
   const visualClassNames = useMemo(
@@ -411,6 +412,26 @@ function SkinVisualEnhancer() {
   }, [])
 
   useEffect(() => {
+    const root = document.documentElement
+    const update = () => {
+      const activeTool = root.dataset.wmsActiveTool ?? 'player'
+      setVisualRuntimeActive(document.visibilityState === 'visible' && activeTool === 'player')
+    }
+
+    update()
+    const observer = new MutationObserver(update)
+    observer.observe(root, {
+      attributes: true,
+      attributeFilter: ['data-wms-active-tool', 'data-wms-document-visibility'],
+    })
+    document.addEventListener('visibilitychange', update)
+    return () => {
+      observer.disconnect()
+      document.removeEventListener('visibilitychange', update)
+    }
+  }, [])
+
+  useEffect(() => {
     const resumeContext = () => {
       if (sharedAudioContext?.state === 'suspended') void sharedAudioContext.resume()
     }
@@ -460,7 +481,7 @@ function SkinVisualEnhancer() {
   }, [playing, visualClassNames, visualMode, visualTarget])
 
   useEffect(() => {
-    if (!AUDIO_REACTIVE_MODES.has(visualMode) || !canvasRef.current) return
+    if (!AUDIO_REACTIVE_MODES.has(visualMode) || !canvasRef.current || !visualRuntimeActive) return
     let analyser: AnalyserNode | null = null
     if (mediaTarget && playing) {
       analyser = ensureGraph(mediaTarget)?.analyser ?? null
@@ -475,7 +496,7 @@ function SkinVisualEnhancer() {
     }
     frame = window.requestAnimationFrame(render)
     return () => window.cancelAnimationFrame(frame)
-  }, [mediaTarget, playing, visualMode, visualTarget])
+  }, [mediaTarget, playing, visualMode, visualRuntimeActive, visualTarget])
 
   const themePicker = topbarTarget
     ? createPortal(

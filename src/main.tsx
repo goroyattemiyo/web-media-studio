@@ -62,7 +62,7 @@ function Root() {
 
   return (
     <>
-      <App key={libraryRevision} />
+      <App libraryRevision={libraryRevision} onMediaLibraryChanged={() => setLibraryRevision((value) => value + 1)} />
       <YouTubeProviderPanel onMediaImported={() => setLibraryRevision((value) => value + 1)} />
       <YouTubeQueueActions />
       <UnifiedPlaybackQueue />
