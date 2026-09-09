@@ -100,8 +100,12 @@ export default function FloatingMiniPlayer() {
     const container = document.querySelector<HTMLElement>('.content-grid')
     if (!player || !container) return
 
-    if ('IntersectionObserver' in window) {
-      const observer = new IntersectionObserver((entries) => {
+    const IntersectionObserverCtor = (globalThis as typeof globalThis & {
+      IntersectionObserver?: typeof IntersectionObserver
+    }).IntersectionObserver
+
+    if (IntersectionObserverCtor) {
+      const observer = new IntersectionObserverCtor((entries) => {
         const ratio = entries[0]?.intersectionRatio ?? 0
         setHiddenOnPlayer(ratio > 0.58)
       }, {
