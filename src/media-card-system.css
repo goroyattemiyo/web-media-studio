@@ -1,0 +1,143 @@
+/* UX-1: playable sources share one visual object language without changing playback ownership. */
+.wms-media-card {
+  position: relative;
+  border: 1px solid color-mix(in srgb, var(--color-border) 88%, var(--color-accent) 12%);
+  border-radius: 16px;
+  background:
+    linear-gradient(145deg, rgba(var(--color-accent-rgb), .035), transparent 52%),
+    color-mix(in srgb, var(--color-surface-strong) 76%, transparent);
+  box-shadow: inset 3px 0 0 rgba(var(--color-accent-rgb), .24);
+  transition: border-color 140ms ease, background 140ms ease, box-shadow 140ms ease;
+}
+
+.wms-media-card:hover {
+  border-color: rgba(var(--color-accent-rgb), .28);
+}
+
+.wms-media-card-actions {
+  grid-column: 1 / -1;
+  margin-top: 2px;
+}
+
+/* Local rows remain the canonical local queue, but now expose the same two primary actions as other sources. */
+.playlist-row.wms-media-card {
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  gap: 7px;
+  padding: 8px;
+  align-items: stretch;
+}
+
+.playlist-row.wms-media-card .playlist-item {
+  min-height: 52px;
+  border-radius: 12px;
+  background: rgba(255,255,255,.012);
+}
+
+.playlist-row.wms-media-card:has(.playlist-item.is-current) {
+  border-color: rgba(var(--color-accent-rgb), .42);
+  background:
+    linear-gradient(145deg, rgba(var(--color-accent-rgb), .09), transparent 58%),
+    color-mix(in srgb, var(--color-surface-strong) 80%, transparent);
+  box-shadow: inset 3px 0 0 var(--color-accent), 0 0 0 1px rgba(var(--color-accent-rgb), .05);
+}
+
+.playlist-row.wms-media-card .playlist-item.is-current {
+  border-color: transparent;
+  background: rgba(var(--color-accent-rgb), .045);
+}
+
+.playlist-row.wms-media-card .library-item-action,
+.playlist-row.wms-media-card .queue-order-actions button {
+  background: color-mix(in srgb, var(--color-surface-strong) 82%, transparent);
+}
+
+.playlist-row.wms-media-card .queue-order-actions {
+  align-self: center;
+}
+
+/* YouTube's loaded title becomes the source card; Download / Import stay as source utilities above it. */
+.youtube-track-info.wms-media-card {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 9px 12px;
+  padding: 12px;
+  margin-top: 10px;
+}
+
+.youtube-track-info.wms-media-card > div {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+}
+
+.youtube-track-info.wms-media-card > div strong {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.youtube-track-info.wms-media-card > a {
+  white-space: nowrap;
+}
+
+.youtube-track-info.wms-media-card .common-source-actions {
+  grid-column: 1 / -1;
+}
+
+/* Recorder and FFmpeg results keep their existing data/actions while sharing the same card surface. */
+.take-card.wms-media-card,
+.ffmpeg-result.wms-media-card {
+  border-radius: 16px;
+  background:
+    linear-gradient(145deg, rgba(var(--color-accent-rgb), .035), transparent 52%),
+    color-mix(in srgb, var(--color-surface-strong) 76%, transparent);
+  box-shadow: inset 3px 0 0 rgba(var(--color-accent-rgb), .24);
+}
+
+.take-card.wms-media-card .take-meta span,
+.take-card.wms-media-card .take-source,
+.ffmpeg-result.wms-media-card small,
+.ffmpeg-result.wms-media-card > div > span {
+  color: var(--color-text-muted);
+}
+
+/* The primary action pair should look identical regardless of source. */
+.wms-media-card .common-source-actions,
+.wms-media-card .wms-result-actions {
+  gap: 7px;
+}
+
+.wms-media-card .common-source-actions button,
+.wms-media-card .wms-result-actions button {
+  min-height: 42px;
+  border-radius: 12px;
+}
+
+@media (max-width: 620px) {
+  .playlist-row.wms-media-card {
+    grid-template-columns: minmax(0, 1fr) auto;
+    padding: 7px;
+  }
+
+  .playlist-row.wms-media-card .queue-order-actions,
+  .playlist-row.wms-media-card .wms-media-card-actions {
+    grid-column: 1 / -1;
+  }
+
+  .youtube-track-info.wms-media-card {
+    grid-template-columns: 1fr;
+  }
+
+  .youtube-track-info.wms-media-card > a,
+  .youtube-track-info.wms-media-card .common-source-actions {
+    grid-column: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wms-media-card { transition: none; }
+}
