@@ -1,0 +1,32 @@
+name: Apply performance slice 2
+
+on:
+  push:
+    branches:
+      - perf/playback-core-foundation
+    paths:
+      - '.github/workflows/perf-slice2-apply.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: perf/playback-core-foundation
+          fetch-depth: 0
+      - name: Apply guarded source transforms
+        run: python3 scripts/apply_perf_slice2.py
+      - name: Commit source-only result
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git rm scripts/apply_perf_slice2.py .github/workflows/perf-slice2-apply.yml
+          git add src/App.tsx src/main.tsx src/SkinVisualEnhancer.tsx
+          git diff --cached --check
+          git commit -m "perf: keep playback mounted during library sync"
+          git push origin HEAD:perf/playback-core-foundation
