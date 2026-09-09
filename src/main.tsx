@@ -8,6 +8,7 @@ import PlayerPlaylistActions from './PlayerPlaylistActions'
 import SettingsPanel from './SettingsPanel'
 import ResultSourceActions from './ResultSourceActions'
 import FloatingMiniPlayer from './FloatingMiniPlayer'
+import PerformanceFoundationEnhancer from './PerformanceFoundationEnhancer'
 import ToolDeckEnhancer from './ToolDeckEnhancer'
 import SkinVisualEnhancer from './SkinVisualEnhancer'
 import InfoTipsEnhancer from './InfoTipsEnhancer'
@@ -46,6 +47,7 @@ import './operation-system.css'
 import './result-source-actions.css'
 import './floating-mini-player.css'
 import './select-popup-fix.css'
+import './performance-foundation.css'
 
 installPlaybackArbitration()
 
@@ -66,6 +68,7 @@ function Root() {
       <UnifiedPlaybackQueue />
       <PlayerPlaylistActions />
       <FloatingMiniPlayer />
+      <PerformanceFoundationEnhancer />
       <ToolDeckEnhancer />
       <SkinVisualEnhancer />
       <InfoTipsEnhancer />
