@@ -105,7 +105,12 @@ function playlistId() {
   return `playlist-${Date.now()}-${Math.random().toString(36).slice(2)}`
 }
 
-function App() {
+type AppProps = {
+  libraryRevision?: number
+  onMediaLibraryChanged?: () => void
+}
+
+function App({ libraryRevision = 0, onMediaLibraryChanged }: AppProps) {
   const [theme, setTheme] = useState<ThemeId>(() => {
     const saved = window.localStorage.getItem('wms-theme') as ThemeId | null
     return themes.some((item) => item.id === saved) ? saved! : 'midnight-neon'
@@ -146,6 +151,7 @@ function App() {
   const objectUrlsRef = useRef<string[]>([])
   const autoPlayOnLoadRef = useRef(false)
   const resumePositionsRef = useRef<ResumePositions>(loadResumePositions())
+  const itemsRef = useRef<MediaItem[]>([])
   const currentItem = items[currentIndex] ?? null
   const persistedCount = items.filter((item) => item.persisted).length
   const temporaryCount = items.length - persistedCount
@@ -219,6 +225,10 @@ function App() {
   }, [])
 
   useEffect(() => {
+    itemsRef.current = items
+  }, [items])
+
+  useEffect(() => {
     let cancelled = false
 
     const restoreLibrary = async () => {
@@ -264,6 +274,62 @@ function App() {
       cancelled = true
     }
   }, [])
+
+  useEffect(() => {
+    if (libraryRevision <= 0) return
+    let cancelled = false
+
+    const syncExternalLibrary = async () => {
+      try {
+        const storedItems = await listMediaLibraryItems()
+        if (cancelled) return
+
+        const existingIds = new Set(itemsRef.current.map((item) => item.id))
+        const additions = storedItems
+          .filter((record) => !existingIds.has(record.id))
+          .map<MediaItem>((record) => {
+            const url = URL.createObjectURL(record.blob)
+            objectUrlsRef.current.push(url)
+            return {
+              id: record.id,
+              name: record.name,
+              kind: record.kind,
+              url,
+              mimeType: record.mimeType,
+              relativePath: record.relativePath,
+              source: 'library',
+              blob: record.blob,
+              persisted: true,
+              savedAt: record.savedAt,
+            }
+          })
+
+        if (additions.length) {
+          setItems((previous) => {
+            const currentIds = new Set(previous.map((item) => item.id))
+            return [...previous, ...additions.filter((item) => !currentIds.has(item.id))]
+          })
+          setSavedCatalog((previous) => {
+            const currentIds = new Set(previous.map((item) => item.id))
+            return [...previous, ...additions.filter((item) => !currentIds.has(item.id))]
+          })
+          setCurrentIndex((index) => (index < 0 ? 0 : index))
+          setLibraryStatus(`${additions.length}件をLibraryへ追加しました。再生は継続しています。`)
+          setLibraryError(null)
+        }
+
+        setSavedBytes(storedItems.reduce((total, item) => total + item.size, 0))
+        await refreshStorageStats()
+      } catch (error) {
+        if (!cancelled) setLibraryError(`Libraryの更新を反映できませんでした: ${errorMessage(error)}`)
+      }
+    }
+
+    void syncExternalLibrary()
+    return () => {
+      cancelled = true
+    }
+  }, [libraryRevision])
 
   useEffect(() => {
     let cancelled = false
@@ -1113,6 +1179,7 @@ function App() {
             getSourcePosition={() => mediaRef.current?.currentTime ?? 0}
             startSourcePlayback={startCurrentPlayback}
             onRecordingChange={setRecordingActive}
+            onMediaLibraryChanged={onMediaLibraryChanged}
           />
 
           <FFmpegToolsPanel />

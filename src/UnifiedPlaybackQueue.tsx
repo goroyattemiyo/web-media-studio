@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { requestLoadYouTubeSource } from './mediaSourceBridge'
+import { onPlaylistChanged, requestLoadYouTubeSource } from './mediaSourceBridge'
 import { listPlaylists, playlistEntries, type YouTubePlaylistEntry } from './playlistDb'
 import { onAddYouTubeToPlayQueue, onClearYouTubePlayQueue, type QueueYouTubeSource } from './playQueueBridge'
 
@@ -62,29 +62,35 @@ function UnifiedPlaybackQueue() {
   const [status, setStatus] = useState('各カードで選んだメディアをここから再生できます。')
 
   useEffect(() => {
+    let frame = 0
     const resolveTarget = () => {
+      frame = 0
       const next = document.querySelector('#player-panel')
       setTarget((current) => current === next ? current : next)
     }
+    const scheduleResolve = () => {
+      if (frame) return
+      frame = window.requestAnimationFrame(resolveTarget)
+    }
+
     resolveTarget()
-    const observer = new MutationObserver(resolveTarget)
+    const observer = new MutationObserver(scheduleResolve)
     observer.observe(document.body, { childList: true, subtree: true })
-    return () => observer.disconnect()
+    return () => {
+      observer.disconnect()
+      if (frame) window.cancelAnimationFrame(frame)
+    }
   }, [])
 
   useEffect(() => {
     const refreshLocal = () => setLocals(localRowsSnapshot())
     refreshLocal()
 
-    const library = document.querySelector('#library-panel')
+    const library = document.querySelector('#library-panel .playlist-list')
     const observer = new MutationObserver(refreshLocal)
     if (library) observer.observe(library, { childList: true, subtree: true, attributes: true, attributeFilter: ['class'] })
-    const interval = window.setInterval(refreshLocal, 1200)
 
-    return () => {
-      observer.disconnect()
-      window.clearInterval(interval)
-    }
+    return () => observer.disconnect()
   }, [])
 
   useEffect(() => {
@@ -115,10 +121,22 @@ function UnifiedPlaybackQueue() {
     }
 
     void refreshPlaylistYouTube()
-    const interval = window.setInterval(() => void refreshPlaylistYouTube(), 1400)
+    const removePlaylistListener = onPlaylistChanged(() => void refreshPlaylistYouTube())
+
+    const sourceLabel = document.querySelector('#player-panel .source-label')
+    const labelObserver = new MutationObserver(() => void refreshPlaylistYouTube())
+    if (sourceLabel) labelObserver.observe(sourceLabel, { childList: true, subtree: true, characterData: true })
+
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') void refreshPlaylistYouTube()
+    }
+    document.addEventListener('visibilitychange', handleVisibility)
+
     return () => {
       cancelled = true
-      window.clearInterval(interval)
+      removePlaylistListener()
+      labelObserver.disconnect()
+      document.removeEventListener('visibilitychange', handleVisibility)
     }
   }, [])
 

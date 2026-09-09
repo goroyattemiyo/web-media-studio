@@ -64,20 +64,33 @@ export default function FloatingMiniPlayer() {
   useEffect(() => {
     const refresh = () => setState(snapshot(source))
     refresh()
-    const timer = window.setInterval(refresh, 350)
-    document.addEventListener('play', refresh, true)
-    document.addEventListener('pause', refresh, true)
-    document.addEventListener('ended', refresh, true)
+
+    const mediaEvents = ['play', 'pause', 'ended', 'loadedmetadata', 'emptied', 'durationchange'] as const
+    mediaEvents.forEach((eventName) => document.addEventListener(eventName, refresh, true))
+
+    const observers: MutationObserver[] = []
+    const observe = (selector: string, options: MutationObserverInit) => {
+      const target = document.querySelector(selector)
+      if (!target) return
+      const observer = new MutationObserver(refresh)
+      observer.observe(target, options)
+      observers.push(observer)
+    }
+
+    observe('#player-panel .track-heading', { childList: true, subtree: true, characterData: true })
+    observe('#player-panel .transport', { attributes: true, subtree: true, attributeFilter: ['disabled', 'aria-label'] })
+    observe('#youtube-provider-panel .youtube-track-info', { childList: true, subtree: true, characterData: true })
+    observe('#youtube-provider-panel .youtube-status-row', { childList: true, subtree: true, characterData: true })
+
     const handleLanguage = () => {
       setLanguageRevision((value) => value + 1)
       refresh()
     }
     window.addEventListener('wms:language-change', handleLanguage)
+
     return () => {
-      window.clearInterval(timer)
-      document.removeEventListener('play', refresh, true)
-      document.removeEventListener('pause', refresh, true)
-      document.removeEventListener('ended', refresh, true)
+      mediaEvents.forEach((eventName) => document.removeEventListener(eventName, refresh, true))
+      observers.forEach((observer) => observer.disconnect())
       window.removeEventListener('wms:language-change', handleLanguage)
     }
   }, [source])
@@ -86,18 +99,42 @@ export default function FloatingMiniPlayer() {
     const player = document.querySelector<HTMLElement>('#player-panel')
     const container = document.querySelector<HTMLElement>('.content-grid')
     if (!player || !container) return
+
+    const IntersectionObserverCtor = (globalThis as typeof globalThis & {
+      IntersectionObserver?: typeof IntersectionObserver
+    }).IntersectionObserver
+
+    if (IntersectionObserverCtor) {
+      const observer = new IntersectionObserverCtor((entries) => {
+        const ratio = entries[0]?.intersectionRatio ?? 0
+        setHiddenOnPlayer(ratio > 0.58)
+      }, {
+        root: container,
+        threshold: [0, 0.58, 1],
+      })
+      observer.observe(player)
+      return () => observer.disconnect()
+    }
+
+    let frame = 0
     const update = () => {
+      frame = 0
       const playerRect = player.getBoundingClientRect()
       const containerRect = container.getBoundingClientRect()
       const overlap = Math.max(0, Math.min(playerRect.right, containerRect.right) - Math.max(playerRect.left, containerRect.left))
       setHiddenOnPlayer(overlap > Math.min(playerRect.width, containerRect.width) * 0.58)
     }
-    update()
-    container.addEventListener('scroll', update, { passive: true })
-    window.addEventListener('resize', update)
+    const schedule = () => {
+      if (frame) return
+      frame = window.requestAnimationFrame(update)
+    }
+    schedule()
+    container.addEventListener('scroll', schedule, { passive: true })
+    window.addEventListener('resize', schedule)
     return () => {
-      container.removeEventListener('scroll', update)
-      window.removeEventListener('resize', update)
+      container.removeEventListener('scroll', schedule)
+      window.removeEventListener('resize', schedule)
+      if (frame) window.cancelAnimationFrame(frame)
     }
   }, [])
 

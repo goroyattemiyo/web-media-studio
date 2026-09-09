@@ -1,0 +1,13 @@
+:root:not([data-wms-active-tool='player']) #player-panel .wms-visualizer-canvas,
+:root[data-wms-document-visibility='hidden'] #player-panel .wms-visualizer-canvas {
+  display: none !important;
+}
+
+:root:not([data-wms-active-tool='player']) #player-panel .wms-visualizer-layer *,
+:root[data-wms-document-visibility='hidden'] #player-panel .wms-visualizer-layer * {
+  animation-play-state: paused !important;
+}
+
+:root:not([data-wms-active-tool='player']) #player-panel .wms-visualizer-layer {
+  filter: none !important;
+}
