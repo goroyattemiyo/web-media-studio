@@ -61,22 +61,23 @@ Audio playback is intentionally independent from this visual rendering gate.
 - Player visibility uses targeted observer/event updates
 - CSS visualizer animation is paused away from Player
 
-## Validation status
+## Automated validation
 
-Automated validation required before merge:
+Latest PR head:
 
-- TypeScript typecheck
-- Vite production build
+- TypeScript typecheck: PASS
+- Vite production build: PASS
+- PR deploy: skipped as expected
 
-Real-device regression is still required for performance claims involving audible continuity.
+## Real-device validation still required
 
-Recommended device checks:
+Automated checks do not prove audible continuity. Recommended checks after production deployment:
 
 1. Start Local audio.
 2. Move Player → Library → YouTube → Recorder → Tools → Settings repeatedly.
-3. Confirm audio does not stop or jump position.
+3. Confirm audio does not stop, jump position, or noticeably glitch.
 4. Confirm Floating Mini Player state follows play/pause/track changes.
-5. Import a downloaded YouTube audio file while Local audio is playing and confirm playback is not recreated.
+5. Import downloaded YouTube audio while Local audio is playing and confirm playback is not recreated.
 6. Create a tab/mix recording that is saved into Local Library and confirm current playback continues.
 7. Use an audio-reactive visualizer, leave Player, then return and confirm visual response resumes.
 8. Compare perceived UI latency / audio glitches against the preserved baseline branch.
