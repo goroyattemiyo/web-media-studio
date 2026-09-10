@@ -1,0 +1,101 @@
+name: Colab Companion v2 CI
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'colab_companion/wms_colab_companion.py'
+      - 'colab_companion/wms_colab_companion.css'
+      - 'colab/WMS_Colab_Companion_v2.ipynb'
+      - 'docs/COLAB_GRADIO_COMPANION_GATE0_RESULT_2026-09-10.md'
+      - '.github/workflows/colab-companion-v2-ci.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+
+      - name: Install pinned Gradio
+        run: python -m pip install --disable-pip-version-check --no-cache-dir 'gradio==6.26.0'
+
+      - name: Compile Companion app
+        run: python -m py_compile colab_companion/wms_colab_companion.py
+
+      - name: Build Gradio Blocks without media network access
+        run: |
+          python - <<'PY'
+          from colab_companion.wms_colab_companion import build_demo
+          demo = build_demo()
+          assert demo is not None
+          print('Companion Blocks build: PASS')
+          PY
+
+      - name: Validate input guards
+        run: |
+          python - <<'PY'
+          import gradio as gr
+          from colab_companion.wms_colab_companion import _validate_format, _validate_source
+
+          assert _validate_source('https://example.com/media') == 'https://example.com/media'
+          assert _validate_format('mp3', '192') == ('mp3', '192')
+
+          for value in ['', 'file:///tmp/a.mp3', '/content/a.mp3', 'ftp://example.com/a']:
+              try:
+                  _validate_source(value)
+              except gr.Error:
+                  pass
+              else:
+                  raise AssertionError(f'unsafe source accepted: {value}')
+
+          try:
+              _validate_source('https://user:password@example.com/media')
+          except gr.Error:
+              pass
+          else:
+              raise AssertionError('credential URL accepted')
+
+          print('Companion validation guards: PASS')
+          PY
+
+      - name: Validate notebook JSON and pinned runtime
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          path = Path('colab/WMS_Colab_Companion_v2.ipynb')
+          notebook = json.loads(path.read_text(encoding='utf-8'))
+          code_source = '\n'.join(
+              line
+              for cell in notebook.get('cells', [])
+              if cell.get('cell_type') == 'code'
+              for line in cell.get('source', [])
+          )
+          assert 'GRADIO_VERSION = "6.26.0"' in code_source
+          assert 'YTDLP_VERSION = "2026.8.19"' in code_source
+          assert 'DENO_VERSION = "2.9.6"' in code_source
+          assert 'yt-dlp[default]' in code_source
+          assert '--share' in code_source
+          assert 'google.colab' not in code_source
+          assert 'drive.mount' not in code_source
+          print('Companion notebook validation: PASS')
+          PY
+
+      - name: Validate security boundary
+        run: |
+          ! grep -n -- '--cookies\|--proxy\|shell=True\|drive.mount' colab_companion/wms_colab_companion.py
+          grep -q -- '--no-playlist' colab_companion/wms_colab_companion.py
+          grep -q 'duration <=' colab_companion/wms_colab_companion.py
+          grep -q 'allowed_paths' colab_companion/wms_colab_companion.py
+          echo 'Companion security boundary: PASS'
