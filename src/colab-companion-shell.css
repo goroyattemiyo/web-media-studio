@@ -1,0 +1,219 @@
+.colab-companion-shell-slot {
+  width: 100%;
+  margin-top: 12px;
+}
+
+.colab-companion-shell {
+  display: grid;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid rgba(89, 215, 255, 0.22);
+  border-radius: 18px;
+  background: rgba(5, 18, 29, 0.88);
+}
+
+.colab-companion-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.colab-companion-heading > div {
+  display: grid;
+  gap: 2px;
+}
+
+.colab-companion-heading strong {
+  font-size: 16px;
+}
+
+.colab-companion-eyebrow {
+  color: var(--muted, #8da9ba);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+}
+
+.colab-companion-state {
+  flex: 0 0 auto;
+  padding: 5px 8px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+}
+
+.colab-companion-state.is-offline,
+.colab-companion-state.is-expired {
+  color: #ffb6b6;
+  border-color: rgba(255, 116, 116, 0.35);
+}
+
+.colab-companion-state.is-connecting {
+  color: #ffd989;
+  border-color: rgba(255, 205, 94, 0.35);
+}
+
+.colab-companion-state.is-ready {
+  color: #8ff7c2;
+  border-color: rgba(95, 232, 159, 0.35);
+}
+
+.colab-companion-status,
+.colab-companion-note,
+.colab-companion-error {
+  margin: 0;
+  line-height: 1.55;
+}
+
+.colab-companion-status {
+  color: var(--muted, #a8bfcc);
+  font-size: 12px;
+}
+
+.colab-companion-connect-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+}
+
+.colab-companion-connect-row input {
+  min-width: 0;
+  min-height: 42px;
+  border: 1px solid rgba(89, 215, 255, 0.28);
+  border-radius: 11px;
+  background: rgba(8, 30, 45, 0.92);
+  color: inherit;
+  padding: 0 11px;
+}
+
+.colab-companion-connect-row button,
+.colab-companion-actions button,
+.colab-companion-actions a,
+.colab-companion-fallback a {
+  min-height: 40px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(89, 215, 255, 0.24);
+  border-radius: 10px;
+  background: rgba(12, 38, 56, 0.92);
+  color: inherit;
+  padding: 0 12px;
+  font: inherit;
+  font-weight: 800;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.colab-companion-connect-row button {
+  border-color: transparent;
+  background: var(--accent, #51d4ff);
+  color: #031019;
+}
+
+.colab-companion-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
+.colab-companion-actions > * {
+  flex: 1 1 130px;
+}
+
+.colab-companion-error {
+  color: #ffb4b4;
+  font-size: 12px;
+}
+
+.colab-companion-frame-shell {
+  min-height: 62vh;
+  overflow: hidden;
+  border: 1px solid rgba(89, 215, 255, 0.22);
+  border-radius: 15px;
+  background: #031019;
+}
+
+.colab-companion-frame-shell iframe {
+  display: block;
+  width: 100%;
+  height: 68vh;
+  min-height: 560px;
+  border: 0;
+  background: #06111d;
+}
+
+.colab-companion-expired {
+  display: grid;
+  gap: 4px;
+  padding: 12px;
+  border: 1px solid rgba(255, 116, 116, 0.28);
+  border-radius: 12px;
+  background: rgba(120, 30, 30, 0.12);
+}
+
+.colab-companion-expired span {
+  color: var(--muted, #a8bfcc);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.colab-companion-fallback {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding-top: 3px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.colab-companion-fallback span {
+  color: var(--muted, #8da9ba);
+  font-size: 11px;
+}
+
+.colab-companion-fallback a {
+  min-height: 34px;
+  font-size: 11px;
+}
+
+.colab-companion-note {
+  color: var(--muted, #7896a8);
+  font-size: 10px;
+}
+
+@media (max-width: 720px) {
+  .colab-companion-shell {
+    padding: 12px;
+  }
+
+  .colab-companion-connect-row {
+    grid-template-columns: 1fr;
+  }
+
+  .colab-companion-connect-row button {
+    width: 100%;
+  }
+
+  .colab-companion-actions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .colab-companion-actions > * {
+    min-width: 0;
+  }
+
+  .colab-companion-frame-shell iframe {
+    height: 72vh;
+    min-height: 520px;
+  }
+
+  .colab-companion-fallback {
+    align-items: stretch;
+    flex-direction: column;
+  }
+}
