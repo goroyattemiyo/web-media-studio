@@ -6,6 +6,7 @@ import os
 import shutil
 import subprocess
 import sys
+import tempfile
 import uuid
 from pathlib import Path
 from urllib.parse import urlparse
@@ -13,8 +14,17 @@ from urllib.parse import urlparse
 import gradio as gr
 
 APP_TITLE = "WMS Colab Companion"
+
+
+def _default_output_root() -> Path:
+    colab_root = Path("/content")
+    if colab_root.is_dir() and os.access(colab_root, os.W_OK):
+        return colab_root / "wms-colab-companion-output"
+    return Path(tempfile.gettempdir()) / "wms-colab-companion-output"
+
+
 OUTPUT_ROOT = Path(
-    os.environ.get("WMS_COMPANION_OUTPUT_ROOT", "/content/wms-colab-companion-output")
+    os.environ.get("WMS_COMPANION_OUTPUT_ROOT", str(_default_output_root()))
 ).expanduser().resolve()
 OUTPUT_ROOT.mkdir(parents=True, exist_ok=True)
 
