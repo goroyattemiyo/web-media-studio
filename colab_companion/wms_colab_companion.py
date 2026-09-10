@@ -125,6 +125,10 @@ def _safe_failure_message(stderr: str, stdout: str) -> str:
     return "Localizeに失敗しました。URL、公開状態、対応形式を確認してください。"
 
 
+def confirm_rights():
+    return RIGHTS_CONFIRMED, "✅ **権利確認: 確認済み** — このセッションの次のLocalizeを実行できます。"
+
+
 def load_context(request: gr.Request):
     params = _query_params(request)
     source = params.get("wms_source", "").strip()[:2000]
@@ -137,7 +141,17 @@ def load_context(request: gr.Request):
         status = "WMSからSource URLを受け取りました。権利確認後にLocalizeを実行できます。"
     else:
         status = "Source URLを入力し、権利確認後にLocalizeを実行してください。"
-    return source, title, provider, media_format, "192", RIGHTS_NOT_CONFIRMED, None, status
+    return (
+        source,
+        title,
+        provider,
+        media_format,
+        "192",
+        RIGHTS_NOT_CONFIRMED,
+        "⚠️ **権利確認: 未確認** — 下の確認ボタンを押してください。",
+        None,
+        status,
+    )
 
 
 def localize_media(
@@ -150,7 +164,7 @@ def localize_media(
     progress=gr.Progress(),
 ):
     if rights_confirmation != RIGHTS_CONFIRMED:
-        raise gr.Error("権利を持つ、または保存・変換の許可を得ていることを確認してください。")
+        raise gr.Error("先に『権利・許可を確認する』ボタンを押してください。")
 
     source = _validate_source(source)
     media_format, mp3_bitrate = _validate_format(media_format, mp3_bitrate)
@@ -234,7 +248,17 @@ def localize_media(
 
 
 def reset_form():
-    return "", "", "unknown", "mp3", "192", RIGHTS_NOT_CONFIRMED, None, "フォームを初期化しました。"
+    return (
+        "",
+        "",
+        "unknown",
+        "mp3",
+        "192",
+        RIGHTS_NOT_CONFIRMED,
+        "⚠️ **権利確認: 未確認** — 下の確認ボタンを押してください。",
+        None,
+        "フォームを初期化しました。",
+    )
 
 
 def build_demo() -> gr.Blocks:
@@ -248,6 +272,8 @@ WMSから受け取ったメディアURLを、Colab上の **yt-dlp + Deno + FFmpe
 **自分が権利を持つ、または保存・変換の許可を得ているコンテンツだけに使用してください。**
 """
         )
+
+        rights_state = gr.State(RIGHTS_NOT_CONFIRMED)
 
         with gr.Group(elem_classes=["wms-card"]):
             source = gr.Textbox(label="Source URL", placeholder="WMSから自動入力、または手入力")
@@ -264,16 +290,12 @@ WMSから受け取ったメディアURLを、Colab上の **yt-dlp + Deno + FFmpe
                     value="192",
                     label="MP3 bitrate",
                 )
-            rights = gr.Radio(
-                choices=[
-                    ("未確認", RIGHTS_NOT_CONFIRMED),
-                    ("権利・許可を確認しました", RIGHTS_CONFIRMED),
-                ],
-                value=RIGHTS_NOT_CONFIRMED,
-                label="権利確認",
-                interactive=True,
-                elem_classes=["wms-rights"],
+
+            rights_status = gr.Markdown(
+                "⚠️ **権利確認: 未確認** — 下の確認ボタンを押してください。",
+                elem_classes=["wms-rights-status"],
             )
+            rights_button = gr.Button("権利・許可を確認する", variant="secondary")
 
         status = gr.Markdown("Companionを準備しています…", elem_classes=["wms-status"])
 
@@ -287,9 +309,16 @@ WMSから受け取ったメディアURLを、Colab上の **yt-dlp + Deno + FFmpe
             elem_classes=["wms-note"],
         )
 
+        rights_button.click(
+            confirm_rights,
+            inputs=None,
+            outputs=[rights_state, rights_status],
+            queue=False,
+            api_visibility="private",
+        )
         localize_button.click(
             localize_media,
-            inputs=[source, title, provider, media_format, mp3_bitrate, rights],
+            inputs=[source, title, provider, media_format, mp3_bitrate, rights_state],
             outputs=[output_file, status],
             concurrency_limit=1,
             api_visibility="private",
@@ -297,14 +326,34 @@ WMSから受け取ったメディアURLを、Colab上の **yt-dlp + Deno + FFmpe
         reset_button.click(
             reset_form,
             inputs=None,
-            outputs=[source, title, provider, media_format, mp3_bitrate, rights, output_file, status],
+            outputs=[
+                source,
+                title,
+                provider,
+                media_format,
+                mp3_bitrate,
+                rights_state,
+                rights_status,
+                output_file,
+                status,
+            ],
             queue=False,
             api_visibility="private",
         )
         demo.load(
             load_context,
             inputs=None,
-            outputs=[source, title, provider, media_format, mp3_bitrate, rights, output_file, status],
+            outputs=[
+                source,
+                title,
+                provider,
+                media_format,
+                mp3_bitrate,
+                rights_state,
+                rights_status,
+                output_file,
+                status,
+            ],
             queue=False,
             api_visibility="private",
         )
