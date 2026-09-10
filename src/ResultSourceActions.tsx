@@ -115,11 +115,23 @@ async function importIntoPlayerQueue(file: File, mode: ActionMode) {
 
 function ResultActions({ target, language }: { target: SourceTarget; language: Language }) {
   const [busy, setBusy] = useState<ActionMode | null>(null)
+  const [secondaryOpen, setSecondaryOpen] = useState(false)
 
   useEffect(() => {
     target.element.classList.add('wms-result-source-unified')
     return () => target.element.classList.remove('wms-result-source-unified')
   }, [target])
+
+  useEffect(() => {
+    if (!secondaryOpen) return
+    const closeOutside = (event: PointerEvent) => {
+      const element = event.target as Element | null
+      if (element?.closest('.wms-result-secondary-trigger, .wms-result-secondary-menu')) return
+      setSecondaryOpen(false)
+    }
+    document.addEventListener('pointerdown', closeOutside)
+    return () => document.removeEventListener('pointerdown', closeOutside)
+  }, [secondaryOpen])
 
   const run = async (mode: ActionMode) => {
     if (busy) return
@@ -160,15 +172,51 @@ function ResultActions({ target, language }: { target: SourceTarget; language: L
     }
   }
 
+  const download = target.element.querySelector<HTMLAnchorElement>('a[download]')
+  const remove = target.kind === 'recording'
+    ? target.element.querySelector<HTMLButtonElement>('.take-meta > button')
+    : null
+
+  const triggerSecondary = (element: HTMLElement | null) => {
+    if (!element) return
+    element.click()
+    setSecondaryOpen(false)
+  }
+
   return createPortal(
-    <div className="wms-result-actions" aria-label={language === 'ja' ? '再生操作' : 'Playback actions'}>
-      <button type="button" className="common-source-play" disabled={busy !== null} onClick={() => void run('play-now')}>
-        {busy === 'play-now' ? '…' : language === 'ja' ? '▶ 今すぐ再生' : '▶ Play now'}
-      </button>
-      <button type="button" className="common-source-queue" disabled={busy !== null} onClick={() => void run('play-next')}>
-        {busy === 'play-next' ? '…' : language === 'ja' ? '＋ 次に再生' : '＋ Play next'}
-      </button>
-    </div>,
+    <>
+      <div className="wms-result-actions" aria-label={language === 'ja' ? '再生操作' : 'Playback actions'}>
+        <button type="button" className="common-source-play" disabled={busy !== null} onClick={() => void run('play-now')}>
+          {busy === 'play-now' ? '…' : language === 'ja' ? '▶ 今すぐ再生' : '▶ Play now'}
+        </button>
+        <button type="button" className="common-source-queue" disabled={busy !== null} onClick={() => void run('play-next')}>
+          {busy === 'play-next' ? '…' : language === 'ja' ? '＋ 次に再生' : '＋ Play next'}
+        </button>
+      </div>
+      <div className="wms-result-secondary">
+        <button
+          type="button"
+          className="wms-result-secondary-trigger"
+          aria-label={language === 'ja' ? 'その他の操作' : 'More actions'}
+          aria-expanded={secondaryOpen}
+          onClick={() => setSecondaryOpen((value) => !value)}
+        >
+          …
+        </button>
+        {secondaryOpen && (
+          <div className="wms-result-secondary-menu" role="menu" aria-label={language === 'ja' ? 'その他の操作' : 'More actions'}>
+            <button type="button" role="menuitem" disabled={!download} onClick={() => triggerSecondary(download)}>
+              {language === 'ja' ? '↓ 端末へ保存' : '↓ Save to device'}
+            </button>
+            {target.kind === 'recording' && (
+              <button type="button" role="menuitem" className="is-danger" disabled={!remove || remove.disabled} onClick={() => triggerSecondary(remove)}>
+                {language === 'ja' ? '録音を削除' : 'Delete recording'}
+              </button>
+            )}
+          </div>
+        )}
+      </div>
+    </>,
     target.element,
   )
 }
