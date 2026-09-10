@@ -1,8 +1,12 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import type { FormEvent } from 'react'
 import { createPortal } from 'react-dom'
 import { requestLoadYouTubeSource } from './mediaSourceBridge'
-import { addYouTubeToPlayQueue } from './playQueueBridge'
+import {
+  addRemoteToPlayQueue,
+  onRequestRemotePlayback,
+  type QueueRemoteSource,
+} from './playQueueBridge'
 
 const DEFAULT_MEDIA_WORKER_URL = 'https://wms-media-worker-pcdbs5armq-an.a.run.app'
 const MEDIA_WORKER_URL = ((import.meta.env.VITE_WMS_MEDIA_WORKER_URL as string | undefined)?.trim() || DEFAULT_MEDIA_WORKER_URL).replace(/\/$/, '')
@@ -38,6 +42,13 @@ type VideoSearchResponse = {
   provider: string
   providers: ProviderStatus[]
   items: VideoSearchItem[]
+}
+
+type EmbeddedRemote = {
+  provider: ProviderId
+  title: string
+  url: string
+  embedUrl: string
 }
 
 function currentLanguage(): Language {
@@ -91,6 +102,17 @@ function tryPlayLoadedYouTube() {
   window.setTimeout(tryPlay, 100)
 }
 
+function toQueueRemote(item: VideoSearchItem): QueueRemoteSource {
+  return {
+    provider: item.provider,
+    sourceId: item.source_id,
+    url: item.url,
+    title: item.title,
+    playback: item.playback,
+    embedUrl: item.embed_url,
+  }
+}
+
 export default function VideoSearchPanel() {
   const [target, setTarget] = useState<HTMLElement | null>(null)
   const [query, setQuery] = useState('')
@@ -101,7 +123,27 @@ export default function VideoSearchPanel() {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [language, setLanguage] = useState<Language>(currentLanguage)
-  const [embedded, setEmbedded] = useState<VideoSearchItem | null>(null)
+  const [embedded, setEmbedded] = useState<EmbeddedRemote | null>(null)
+
+  const openRemote = useCallback((item: QueueRemoteSource) => {
+    if (item.playback === 'youtube' && item.provider === 'youtube') {
+      requestLoadYouTubeSource({ videoId: item.sourceId, url: item.url, title: item.title })
+      tryPlayLoadedYouTube()
+      emitSystem(language === 'ja' ? `${item.title} をYouTube Playerへ送ります。` : `Loading ${item.title} in YouTube Player.`, 'success')
+      return
+    }
+
+    if (item.playback === 'iframe' && item.embedUrl) {
+      setEmbedded({ provider: item.provider, title: item.title, url: item.url, embedUrl: item.embedUrl })
+      const panel = document.querySelector<HTMLElement>('#youtube-provider-panel')
+      panel?.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' })
+      window.setTimeout(() => document.querySelector('.video-search-embed')?.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'center' }), 180)
+      emitSystem(language === 'ja' ? `${item.title} をWMS内で開きました。` : `Opened ${item.title} in WMS.`, 'success')
+      return
+    }
+
+    window.open(item.url, '_blank', 'noopener,noreferrer')
+  }, [language])
 
   useEffect(() => {
     let mount: HTMLDivElement | null = null
@@ -158,6 +200,8 @@ export default function VideoSearchPanel() {
     return () => window.removeEventListener('wms:language-change', onLanguage)
   }, [])
 
+  useEffect(() => onRequestRemotePlayback(openRemote), [openRemote])
+
   const copy = useMemo(() => language === 'ja'
     ? {
         heading: '動画を横断検索',
@@ -206,25 +250,11 @@ export default function VideoSearchPanel() {
     }
   }
 
-  const playNow = (item: VideoSearchItem) => {
-    if (item.playback === 'youtube') {
-      requestLoadYouTubeSource({ videoId: item.source_id, url: item.url, title: item.title })
-      tryPlayLoadedYouTube()
-      emitSystem(language === 'ja' ? `${item.title} をYouTube Playerへ送ります。` : `Loading ${item.title} in YouTube Player.`, 'success')
-      return
-    }
-    if (item.playback === 'iframe' && item.embed_url) {
-      setEmbedded(item)
-      window.setTimeout(() => document.querySelector('.video-search-embed')?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 30)
-      emitSystem(language === 'ja' ? `${item.title} をWMS内で開きました。` : `Opened ${item.title} in WMS.`, 'success')
-      return
-    }
-    window.open(item.url, '_blank', 'noopener,noreferrer')
-  }
+  const playNow = (item: VideoSearchItem) => openRemote(toQueueRemote(item))
 
   const playNext = (item: VideoSearchItem) => {
-    if (!item.can_queue || item.provider !== 'youtube') return
-    addYouTubeToPlayQueue({ videoId: item.source_id, url: item.url, title: item.title })
+    if (!item.can_queue) return
+    addRemoteToPlayQueue(toQueueRemote(item))
     emitSystem(language === 'ja' ? `${item.title} を次に再生へ追加しました。` : `Added ${item.title} to Play Next.`, 'success')
   }
 
@@ -260,10 +290,10 @@ export default function VideoSearchPanel() {
         </div>
       </form>
 
-      {embedded?.embed_url && (
-        <div className="video-search-embed">
+      {embedded && (
+        <div className="video-search-embed" data-provider={embedded.provider}>
           <div><strong>{embedded.title}</strong><button type="button" onClick={() => setEmbedded(null)}>× {copy.close}</button></div>
-          <iframe src={embedded.embed_url} title={embedded.title} allow="autoplay; fullscreen; picture-in-picture" allowFullScreen referrerPolicy="strict-origin-when-cross-origin" />
+          <iframe src={embedded.embedUrl} title={embedded.title} allow="autoplay; fullscreen; picture-in-picture" allowFullScreen referrerPolicy="strict-origin-when-cross-origin" />
         </div>
       )}
 
