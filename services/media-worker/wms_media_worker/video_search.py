@@ -55,18 +55,8 @@ def provider_statuses() -> list[VideoProviderStatus]:
     google_key = os.getenv("GOOGLE_WEB_SEARCH_API_KEY", "").strip()
     google_client = os.getenv("GOOGLE_WEB_SEARCH_CLIENT_ID", "").strip()
     return [
-        VideoProviderStatus(
-            id="youtube",
-            label="YouTube",
-            enabled=youtube_enabled,
-            reason=None if youtube_enabled else "YOUTUBE_DATA_API_KEY is not configured.",
-        ),
-        VideoProviderStatus(
-            id="vimeo",
-            label="Vimeo",
-            enabled=vimeo_enabled,
-            reason=None if vimeo_enabled else "VIMEO_ACCESS_TOKEN is not configured.",
-        ),
+        VideoProviderStatus(id="youtube", label="YouTube", enabled=youtube_enabled, reason=None if youtube_enabled else "YOUTUBE_DATA_API_KEY is not configured."),
+        VideoProviderStatus(id="vimeo", label="Vimeo", enabled=vimeo_enabled, reason=None if vimeo_enabled else "VIMEO_ACCESS_TOKEN is not configured."),
         VideoProviderStatus(
             id="google_web",
             label="Google Web",
@@ -78,6 +68,14 @@ def provider_statuses() -> list[VideoProviderStatus]:
             ),
         ),
     ]
+
+
+def _raise_provider_error(response: requests.Response) -> None:
+    if response.status_code == 200:
+        return
+    error = requests.HTTPError(f"Provider search failed with HTTP {response.status_code}.")
+    error.response = response
+    raise error
 
 
 def _thumbnail_from_youtube(snippet: dict) -> str | None:
@@ -99,16 +97,10 @@ def search_youtube(query: str, max_results: int) -> list[VideoSearchItem]:
         return []
     response = requests.get(
         _YOUTUBE_SEARCH_ENDPOINT,
-        params={
-            "part": "snippet",
-            "type": "video",
-            "maxResults": max_results,
-            "q": query,
-            "key": api_key,
-        },
+        params={"part": "snippet", "type": "video", "maxResults": max_results, "q": query, "key": api_key},
         timeout=8,
     )
-    response.raise_for_status()
+    _raise_provider_error(response)
     payload = response.json()
     raw_items = payload.get("items") if isinstance(payload, dict) else None
     results: list[VideoSearchItem] = []
@@ -168,7 +160,7 @@ def search_vimeo(query: str, max_results: int) -> list[VideoSearchItem]:
         headers={"Authorization": f"Bearer {token}", "Accept": "application/vnd.vimeo.*+json;version=3.4"},
         timeout=8,
     )
-    response.raise_for_status()
+    _raise_provider_error(response)
     payload = response.json()
     raw_items = payload.get("data") if isinstance(payload, dict) else None
     results: list[VideoSearchItem] = []
@@ -214,11 +206,6 @@ def search_videos(query: str, provider: str, max_results: int) -> VideoSearchRes
         results.extend(search_youtube(query, max_results))
     if requested in {"all", "vimeo"} and "vimeo" in enabled:
         results.extend(search_vimeo(query, max_results))
-
-    # Google Web Search Service is intentionally not called yet. Its public API
-    # requires a partner client_id and is a web-search API rather than a
-    # video-specific catalog, so WMS will only enable it after filtering and
-    # partner-term behavior are validated.
 
     seen: set[str] = set()
     deduped: list[VideoSearchItem] = []
