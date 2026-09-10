@@ -31,6 +31,8 @@ OUTPUT_ROOT.mkdir(parents=True, exist_ok=True)
 MAX_DURATION_SECONDS = 1800
 ALLOWED_FORMATS = ("mp3", "m4a", "wav")
 MP3_BITRATES = ("128", "192", "256", "320")
+RIGHTS_NOT_CONFIRMED = "not_confirmed"
+RIGHTS_CONFIRMED = "confirmed"
 
 
 def _load_css() -> str:
@@ -135,7 +137,7 @@ def load_context(request: gr.Request):
         status = "WMSからSource URLを受け取りました。権利確認後にLocalizeを実行できます。"
     else:
         status = "Source URLを入力し、権利確認後にLocalizeを実行してください。"
-    return source, title, provider, media_format, "192", False, None, status
+    return source, title, provider, media_format, "192", RIGHTS_NOT_CONFIRMED, None, status
 
 
 def localize_media(
@@ -144,10 +146,10 @@ def localize_media(
     provider: str,
     media_format: str,
     mp3_bitrate: str,
-    rights_confirmed: bool,
+    rights_confirmation: str,
     progress=gr.Progress(),
 ):
-    if not rights_confirmed:
+    if rights_confirmation != RIGHTS_CONFIRMED:
         raise gr.Error("権利を持つ、または保存・変換の許可を得ていることを確認してください。")
 
     source = _validate_source(source)
@@ -232,7 +234,7 @@ def localize_media(
 
 
 def reset_form():
-    return "", "", "unknown", "mp3", "192", False, None, "フォームを初期化しました。"
+    return "", "", "unknown", "mp3", "192", RIGHTS_NOT_CONFIRMED, None, "フォームを初期化しました。"
 
 
 def build_demo() -> gr.Blocks:
@@ -262,9 +264,15 @@ WMSから受け取ったメディアURLを、Colab上の **yt-dlp + Deno + FFmpe
                     value="192",
                     label="MP3 bitrate",
                 )
-            rights = gr.Checkbox(
-                label="このメディアを保存・変換する権利または許可があります",
-                value=False,
+            rights = gr.Radio(
+                choices=[
+                    ("未確認", RIGHTS_NOT_CONFIRMED),
+                    ("権利・許可を確認しました", RIGHTS_CONFIRMED),
+                ],
+                value=RIGHTS_NOT_CONFIRMED,
+                label="権利確認",
+                interactive=True,
+                elem_classes=["wms-rights"],
             )
 
         status = gr.Markdown("Companionを準備しています…", elem_classes=["wms-status"])
