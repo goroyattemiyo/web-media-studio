@@ -125,8 +125,25 @@ def _safe_failure_message(stderr: str, stdout: str) -> str:
     return "Localizeに失敗しました。URL、公開状態、対応形式を確認してください。"
 
 
+def _select_output_file(job_dir: Path, media_format: str) -> Path:
+    expected_suffix = f".{media_format.lower()}"
+    candidates = [
+        p
+        for p in job_dir.iterdir()
+        if p.is_file()
+        and not p.name.endswith((".part", ".ytdl", ".temp"))
+        and p.suffix.lower() == expected_suffix
+    ]
+    if not candidates:
+        raise gr.Error("生成ファイルが見つかりませんでした。再試行してください。")
+    return max(
+        candidates,
+        key=lambda p: (p.stat().st_mtime_ns, p.stat().st_size, p.name),
+    )
+
+
 def confirm_rights():
-    return RIGHTS_CONFIRMED, "✅ **権利確認: 確認済み** — このセッションの次のLocalizeを実行できます。"
+    return RIGHTS_CONFIRMED, "✅ **権利確認: 確認済み** — 次のLocalizeを1回実行できます。"
 
 
 def load_context(request: gr.Request):
@@ -223,18 +240,12 @@ def localize_media(
         raise gr.Error(message)
 
     progress(0.9, desc="生成ファイルを確認しています")
-    candidates = [
-        p
-        for p in job_dir.iterdir()
-        if p.is_file()
-        and not p.name.endswith((".part", ".ytdl", ".temp"))
-        and p.suffix.lower().lstrip(".") in ALLOWED_FORMATS
-    ]
-    if len(candidates) != 1:
+    try:
+        output_file = _select_output_file(job_dir, media_format)
+    except gr.Error:
         shutil.rmtree(job_dir, ignore_errors=True)
-        raise gr.Error("生成ファイルを一意に確認できませんでした。再試行してください。")
+        raise
 
-    output_file = candidates[0]
     size_mb = output_file.stat().st_size / 1024 / 1024
     display_title = (title or "").strip()[:240]
     provider_label = (provider or "unknown").strip()[:64]
@@ -244,7 +255,12 @@ def localize_media(
         f"完了: **{label}** / {provider_label} / {media_format.upper()} / "
         f"{size_mb:.1f} MB。下のFileからDownloadしてください。"
     )
-    return str(output_file), status
+    return (
+        str(output_file),
+        status,
+        RIGHTS_NOT_CONFIRMED,
+        "⚠️ **権利確認: 未確認** — 次のLocalize前にもう一度確認してください。",
+    )
 
 
 def reset_form():
@@ -303,7 +319,11 @@ WMSから受け取ったメディアURLを、Colab上の **yt-dlp + Deno + FFmpe
             localize_button = gr.Button("LocalizeしてDownload", variant="primary")
             reset_button = gr.Button("Reset")
 
-        output_file = gr.File(label="Localized File", interactive=False)
+        output_file = gr.File(
+            label="Localized File",
+            interactive=False,
+            elem_classes=["wms-file-output"],
+        )
         gr.Markdown(
             "30分以内 / 1ジョブずつ / playlist無効 / Drive mountなし / account cookies・proxy・DRM回避なし",
             elem_classes=["wms-note"],
@@ -319,7 +339,7 @@ WMSから受け取ったメディアURLを、Colab上の **yt-dlp + Deno + FFmpe
         localize_button.click(
             localize_media,
             inputs=[source, title, provider, media_format, mp3_bitrate, rights_state],
-            outputs=[output_file, status],
+            outputs=[output_file, status, rights_state, rights_status],
             concurrency_limit=1,
             api_visibility="private",
         )
