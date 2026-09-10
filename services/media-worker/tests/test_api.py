@@ -52,7 +52,12 @@ def test_extract_requires_google_auth_when_configured(monkeypatch):
 
     response = client.post(
         "/extract",
-        json={"url": "dQw4w9WgXcQ", "format": "mp3", "bitrate": "192"},
+        json={
+            "url": "dQw4w9WgXcQ",
+            "format": "mp3",
+            "bitrate": "192",
+            "rights_confirmed": True,
+        },
     )
     assert response.status_code == 401
 
@@ -167,6 +172,28 @@ def test_youtube_search_returns_video_results(monkeypatch):
     }
 
 
+def test_extract_requires_rights_confirmation(monkeypatch):
+    clear_auth_env(monkeypatch)
+
+    called = False
+
+    def fake_extract_audio(url, *, audio_format, bitrate):
+        nonlocal called
+        called = True
+        raise AssertionError("extract_audio must not run before rights confirmation")
+
+    monkeypatch.setattr(main_module, "extract_audio", fake_extract_audio)
+
+    response = client.post(
+        "/extract",
+        json={"url": "dQw4w9WgXcQ", "format": "mp3", "bitrate": "192"},
+    )
+
+    assert response.status_code == 422
+    assert "権利" in response.json()["detail"]
+    assert called is False
+
+
 def test_youtube_access_restriction_is_friendly(monkeypatch):
     clear_auth_env(monkeypatch)
 
@@ -180,7 +207,12 @@ def test_youtube_access_restriction_is_friendly(monkeypatch):
 
     response = client.post(
         "/extract",
-        json={"url": "dQw4w9WgXcQ", "format": "mp3", "bitrate": "192"},
+        json={
+            "url": "dQw4w9WgXcQ",
+            "format": "mp3",
+            "bitrate": "192",
+            "rights_confirmed": True,
+        },
     )
     assert response.status_code == 409
     assert "YouTube側で取得が制限されました" in response.json()["detail"]
@@ -209,7 +241,12 @@ def test_extract_returns_file(monkeypatch, tmp_path):
 
     response = client.post(
         "/extract",
-        json={"url": "dQw4w9WgXcQ", "format": "mp3", "bitrate": "192"},
+        json={
+            "url": "dQw4w9WgXcQ",
+            "format": "mp3",
+            "bitrate": "192",
+            "rights_confirmed": True,
+        },
     )
     assert response.status_code == 200
     assert response.content == b"fake-mp3"
