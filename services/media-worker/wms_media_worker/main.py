@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import html
 import os
 import re
 from pathlib import Path
@@ -22,11 +21,18 @@ from .extractor import (
     cleanup_result,
     extract_audio,
 )
+from .video_search import (
+    _YOUTUBE_SEARCH_ENDPOINT,
+    VideoProviderStatus,
+    VideoSearchResponse,
+    provider_statuses,
+    search_videos,
+)
 
 app = FastAPI(
     title="WMS Media Worker",
-    version="0.4.0",
-    description="Media preprocessing worker for Web Media Studio.",
+    version="0.5.0",
+    description="Media preprocessing and provider-based video search worker for Web Media Studio.",
 )
 
 _default_origins = "https://goroyattemiyo.github.io,http://localhost:5173"
@@ -47,7 +53,6 @@ app.add_middleware(
 
 AudioFormat = Literal["mp3", "m4a", "wav"]
 _ALLOWED_BITRATES = {"128", "192", "256", "320"}
-_YOUTUBE_SEARCH_ENDPOINT = "https://www.googleapis.com/youtube/v3/search"
 
 
 class ExtractRequest(BaseModel):
@@ -61,20 +66,6 @@ class AuthenticatedUser(BaseModel):
     name: str | None = None
 
 
-class YouTubeSearchItem(BaseModel):
-    video_id: str
-    url: str
-    title: str
-    channel_title: str
-    published_at: str | None = None
-    thumbnail_url: str | None = None
-
-
-class YouTubeSearchResponse(BaseModel):
-    query: str
-    items: list[YouTubeSearchItem]
-
-
 def _google_client_id() -> str:
     return os.getenv("GOOGLE_CLIENT_ID", "").strip()
 
@@ -84,13 +75,9 @@ def _allowed_google_emails() -> set[str]:
     return {value.strip().lower() for value in raw.split(",") if value.strip()}
 
 
-def _youtube_data_api_key() -> str:
-    return os.getenv("YOUTUBE_DATA_API_KEY", "").strip()
-
-
 def _require_search_origin(origin: str | None) -> None:
     if not origin or origin not in _allowed_origins:
-        raise HTTPException(status_code=403, detail="YouTube search is only available from an allowed WMS origin.")
+        raise HTTPException(status_code=403, detail="Video search is only available from an allowed WMS origin.")
 
 
 def _verify_google_token(authorization: str | None) -> AuthenticatedUser:
@@ -138,42 +125,14 @@ def _verify_google_token(authorization: str | None) -> AuthenticatedUser:
 def _authorize(authorization: str | None) -> AuthenticatedUser | None:
     if _google_client_id() or _allowed_google_emails():
         return _verify_google_token(authorization)
-
-    # Local development remains authless when Google auth is not configured.
     return None
 
 
 def _download_name(title: str, suffix: str) -> str:
     clean = re.sub(r'[\\/:*?"<>|\x00-\x1f]+', "_", title).strip(" ._")
     if not clean:
-        clean = "youtube-audio"
+        clean = "media-audio"
     return f"{clean[:120]}.{suffix}"
-
-
-def _youtube_api_error(response: requests.Response) -> str:
-    try:
-        body = response.json()
-    except ValueError:
-        return f"YouTube search request failed with HTTP {response.status_code}."
-
-    error = body.get("error") if isinstance(body, dict) else None
-    message = error.get("message") if isinstance(error, dict) else None
-    if isinstance(message, str) and message.strip():
-        return message.strip()
-    return f"YouTube search request failed with HTTP {response.status_code}."
-
-
-def _thumbnail_url(snippet: dict) -> str | None:
-    thumbnails = snippet.get("thumbnails")
-    if not isinstance(thumbnails, dict):
-        return None
-    for key in ("medium", "high", "default"):
-        item = thumbnails.get(key)
-        if isinstance(item, dict):
-            value = item.get("url")
-            if isinstance(value, str) and value:
-                return value
-    return None
 
 
 @app.get("/health")
@@ -181,72 +140,63 @@ def health() -> dict[str, str]:
     return {"status": "ok"}
 
 
-@app.get("/youtube/search", response_model=YouTubeSearchResponse)
-def youtube_search(
+@app.get("/video/providers", response_model=list[VideoProviderStatus])
+def video_providers(origin: str | None = Header(default=None)) -> list[VideoProviderStatus]:
+    _require_search_origin(origin)
+    return provider_statuses()
+
+
+@app.get("/video/search", response_model=VideoSearchResponse)
+def video_search(
+    q: str = Query(min_length=2, max_length=120),
+    provider: str = Query(default="all"),
+    max_results: int = Query(default=8, ge=1, le=8),
+    origin: str | None = Header(default=None),
+) -> VideoSearchResponse:
+    _require_search_origin(origin)
+    try:
+        response = search_videos(q.strip(), provider, max_results)
+    except requests.HTTPError as exc:
+        status = exc.response.status_code if exc.response is not None else 502
+        if status in {401, 403, 429}:
+            raise HTTPException(status_code=503, detail="A configured video provider rejected the search request.") from exc
+        raise HTTPException(status_code=502, detail="A configured video provider search failed.") from exc
+    except requests.RequestException as exc:
+        raise HTTPException(status_code=502, detail="A configured video provider could not be reached.") from exc
+
+    if provider != "google_web" and not any(item.enabled for item in response.providers if provider in {"all", item.id}):
+        raise HTTPException(status_code=503, detail="No requested video search provider is configured on the WMS worker yet.")
+    if provider == "google_web":
+        raise HTTPException(status_code=503, detail="Google Web Search provider is reserved but not enabled until partner configuration and video filtering are validated.")
+    return response
+
+
+# Compatibility endpoint for existing deployed clients while UX-3 moves to /video/search.
+@app.get("/youtube/search")
+def youtube_search_compat(
     q: str = Query(min_length=2, max_length=120),
     max_results: int = Query(default=8, ge=1, le=8),
     origin: str | None = Header(default=None),
-) -> YouTubeSearchResponse:
+):
     _require_search_origin(origin)
-    api_key = _youtube_data_api_key()
-    if not api_key:
+    response = search_videos(q.strip(), "youtube", max_results)
+    if not any(item.enabled for item in response.providers if item.id == "youtube"):
         raise HTTPException(status_code=503, detail="YouTube search is not configured on the WMS worker yet.")
-
-    try:
-        response = requests.get(
-            _YOUTUBE_SEARCH_ENDPOINT,
-            params={
-                "part": "snippet",
-                "type": "video",
-                "maxResults": max_results,
-                "q": q.strip(),
-                "key": api_key,
-            },
-            timeout=8,
-        )
-    except requests.RequestException as exc:
-        raise HTTPException(status_code=502, detail="YouTube search service could not be reached.") from exc
-
-    if response.status_code != 200:
-        message = _youtube_api_error(response)
-        if response.status_code in {403, 429}:
-            raise HTTPException(status_code=503, detail=f"YouTube search quota or API configuration rejected the request: {message}")
-        raise HTTPException(status_code=502, detail=message)
-
-    try:
-        payload = response.json()
-    except ValueError as exc:
-        raise HTTPException(status_code=502, detail="YouTube search returned an invalid response.") from exc
-
-    raw_items = payload.get("items") if isinstance(payload, dict) else None
-    results: list[YouTubeSearchItem] = []
-    if isinstance(raw_items, list):
-        for raw in raw_items:
-            if not isinstance(raw, dict):
-                continue
-            identifier = raw.get("id")
-            snippet = raw.get("snippet")
-            if not isinstance(identifier, dict) or not isinstance(snippet, dict):
-                continue
-            video_id = identifier.get("videoId")
-            title = snippet.get("title")
-            channel_title = snippet.get("channelTitle")
-            if not isinstance(video_id, str) or not video_id:
-                continue
-            if not isinstance(title, str) or not title:
-                continue
-            results.append(
-                YouTubeSearchItem(
-                    video_id=video_id,
-                    url=f"https://www.youtube.com/watch?v={video_id}",
-                    title=html.unescape(title),
-                    channel_title=html.unescape(channel_title) if isinstance(channel_title, str) else "YouTube",
-                    published_at=snippet.get("publishedAt") if isinstance(snippet.get("publishedAt"), str) else None,
-                    thumbnail_url=_thumbnail_url(snippet),
-                )
-            )
-
-    return YouTubeSearchResponse(query=q.strip(), items=results)
+    return {
+        "query": response.query,
+        "items": [
+            {
+                "video_id": item.source_id,
+                "url": item.url,
+                "title": item.title,
+                "channel_title": item.author,
+                "published_at": item.published_at,
+                "thumbnail_url": item.thumbnail_url,
+            }
+            for item in response.items
+            if item.provider == "youtube"
+        ],
+    }
 
 
 @app.get("/auth/me", response_model=AuthenticatedUser)
