@@ -26,7 +26,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v7
 
-      - name: Validate Google and YouTube config
+      - name: Validate required config
         shell: bash
         env:
           GOOGLE_CLIENT_ID: ${{ vars.GOOGLE_CLIENT_ID }}
@@ -42,7 +42,7 @@ jobs:
             exit 1
           fi
           if [[ -z "${YOUTUBE_DATA_API_KEY// }" ]]; then
-            echo "::error::Repository secret YOUTUBE_DATA_API_KEY is required for UX-3 YouTube search."
+            echo "::error::Repository secret YOUTUBE_DATA_API_KEY is required for video search."
             exit 1
           fi
 
@@ -69,6 +69,7 @@ jobs:
             MAX_SOURCE_BYTES=786432000
             YOUTUBE_PO_TOKEN_MODE=off
             YOUTUBE_DATA_API_KEY=${{ secrets.YOUTUBE_DATA_API_KEY }}
+            VIMEO_ACCESS_TOKEN=${{ secrets.VIMEO_ACCESS_TOKEN }}
           flags: >-
             --service-account=${{ env.GCP_RUNTIME_SERVICE_ACCOUNT }}
             --concurrency=1
@@ -85,7 +86,15 @@ jobs:
           SERVICE_URL: ${{ steps.deploy.outputs.url }}
         run: curl --fail-with-body --silent --show-error "${SERVICE_URL}/health"
 
-      - name: Verify YouTube search
+      - name: Verify video providers
+        env:
+          SERVICE_URL: ${{ steps.deploy.outputs.url }}
+        run: >-
+          curl --fail-with-body --silent --show-error
+          -H "Origin: https://goroyattemiyo.github.io"
+          "${SERVICE_URL}/video/providers"
+
+      - name: Verify YouTube through video search
         env:
           SERVICE_URL: ${{ steps.deploy.outputs.url }}
         run: >-
@@ -93,5 +102,6 @@ jobs:
           -H "Origin: https://goroyattemiyo.github.io"
           --get
           --data-urlencode "q=music"
+          --data-urlencode "provider=youtube"
           --data-urlencode "max_results=1"
-          "${SERVICE_URL}/youtube/search"
+          "${SERVICE_URL}/video/search"
