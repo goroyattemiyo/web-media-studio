@@ -2,6 +2,11 @@ name: Deploy Media Worker to Cloud Run
 
 on:
   workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "services/media-worker/**"
+      - ".github/workflows/media-worker-cloudrun.yml"
 
 permissions:
   contents: read
@@ -74,3 +79,19 @@ jobs:
 
       - name: Show service URL
         run: echo "${{ steps.deploy.outputs.url }}"
+
+      - name: Verify worker health
+        env:
+          SERVICE_URL: ${{ steps.deploy.outputs.url }}
+        run: curl --fail-with-body --silent --show-error "${SERVICE_URL}/health"
+
+      - name: Verify YouTube search
+        env:
+          SERVICE_URL: ${{ steps.deploy.outputs.url }}
+        run: >-
+          curl --fail-with-body --silent --show-error
+          -H "Origin: https://goroyattemiyo.github.io"
+          --get
+          --data-urlencode "q=music"
+          --data-urlencode "max_results=1"
+          "${SERVICE_URL}/youtube/search"
