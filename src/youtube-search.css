@@ -1,0 +1,228 @@
+.youtube-search-slot {
+  min-width: 0;
+}
+
+.youtube-search-panel {
+  display: grid;
+  gap: 10px;
+  padding: 11px;
+  border: 1px solid rgba(var(--color-accent-rgb), .22);
+  border-radius: 15px;
+  background: color-mix(in srgb, var(--color-surface-strong) 76%, transparent);
+}
+
+.youtube-search-form {
+  display: grid;
+  gap: 8px;
+}
+
+.youtube-search-heading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.youtube-search-heading strong {
+  font-size: 12px;
+}
+
+.youtube-search-heading span {
+  color: var(--color-text-muted);
+  font-size: 9px;
+  text-align: right;
+}
+
+.youtube-search-input-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 7px;
+}
+
+.youtube-search-input-row input,
+.youtube-search-input-row button {
+  min-height: 44px;
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  background: var(--color-surface-strong);
+  color: var(--color-text);
+}
+
+.youtube-search-input-row input {
+  min-width: 0;
+  padding: 0 12px;
+  outline: none;
+}
+
+.youtube-search-input-row input:focus {
+  border-color: rgba(var(--color-accent-rgb), .5);
+  box-shadow: 0 0 0 3px rgba(var(--color-accent-rgb), .08);
+}
+
+.youtube-search-input-row button {
+  min-width: 76px;
+  padding: 0 13px;
+  border-color: rgba(var(--color-accent-rgb), .36);
+  background: rgba(var(--color-accent-rgb), .13);
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.youtube-search-input-row button:disabled {
+  opacity: .42;
+  cursor: default;
+}
+
+.youtube-search-error,
+.youtube-search-empty {
+  margin: 0;
+  padding: 9px 10px;
+  border-radius: 11px;
+  font-size: 10px;
+  line-height: 1.5;
+}
+
+.youtube-search-error {
+  border: 1px solid rgba(255, 85, 85, .25);
+  color: var(--color-danger);
+}
+
+.youtube-search-empty {
+  color: var(--color-text-muted);
+  text-align: center;
+}
+
+.youtube-search-results {
+  display: grid;
+  gap: 7px;
+}
+
+.youtube-search-results-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  color: var(--color-text-muted);
+  font-size: 9px;
+}
+
+.youtube-search-results-heading strong {
+  color: var(--color-text);
+  font-size: 10px;
+}
+
+.youtube-search-result {
+  display: grid;
+  grid-template-columns: 116px minmax(0, 1fr);
+  gap: 10px;
+  padding: 8px;
+  border: 1px solid var(--color-border);
+  border-radius: 13px;
+  background: rgba(255,255,255,.016);
+}
+
+.youtube-search-thumb {
+  aspect-ratio: 16 / 9;
+  overflow: hidden;
+  display: grid;
+  place-items: center;
+  border-radius: 9px;
+  background: #090909;
+  color: var(--color-text-muted);
+  font-size: 11px;
+  font-weight: 900;
+}
+
+.youtube-search-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.youtube-search-copy {
+  min-width: 0;
+  display: grid;
+  align-content: center;
+  gap: 5px;
+}
+
+.youtube-search-copy strong {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  color: var(--color-text);
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+.youtube-search-copy span {
+  overflow: hidden;
+  color: var(--color-text-muted);
+  font-size: 9px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.youtube-search-actions {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.youtube-search-actions button,
+.youtube-search-actions a {
+  min-height: 38px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 8px;
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  background: var(--color-surface-strong);
+  color: var(--color-text);
+  font-size: 9px;
+  font-weight: 900;
+  text-align: center;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.youtube-search-actions .is-primary {
+  border-color: rgba(var(--color-accent-rgb), .4);
+  background: rgba(var(--color-accent-rgb), .14);
+  color: var(--color-accent);
+}
+
+@media (max-width: 620px) {
+  .youtube-search-heading {
+    display: grid;
+    gap: 3px;
+  }
+
+  .youtube-search-heading span {
+    text-align: left;
+  }
+
+  .youtube-search-result {
+    grid-template-columns: 96px minmax(0, 1fr);
+  }
+
+  .youtube-search-actions {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .youtube-search-actions a {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 420px) {
+  .youtube-search-input-row {
+    grid-template-columns: 1fr;
+  }
+
+  .youtube-search-result {
+    grid-template-columns: 88px minmax(0, 1fr);
+  }
+}
