@@ -41,7 +41,7 @@ Real-device PASS:
 
 ## Decision
 
-C1 is proven sufficiently for merge.
+C1 is proven sufficiently for merge. The launcher notebook default now points to `main` for post-merge production use.
 
 Proceed to C2 on a separate integration branch:
 
