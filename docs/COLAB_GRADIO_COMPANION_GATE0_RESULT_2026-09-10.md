@@ -32,22 +32,19 @@ Interpretation:
 
 ## Decision
 
-Android Chrome proves the embedded path is technically viable for the next implementation phase.
+Android Chrome proved the embedded path technically viable and C1 subsequently passed real media localization tests.
 
-Proceed with C1:
+C1 real-device result is recorded in:
 
-- real authorized media localization in the Gradio Companion
-- MP3 / M4A / WAV
-- MP3 bitrate selection
-- per-job rights confirmation
-- yt-dlp + Deno + FFmpeg setup once per Colab runtime
-- one job at a time
-- maximum duration 1800 seconds
-- no playlist download
-- bounded output directory
-- Gradio `File` result
+- `docs/COLAB_GRADIO_COMPANION_C1_RESULT_2026-09-10.md`
 
-For later WMS integration, use iframe as the primary candidate and retain the same prepared URL as a separate-tab fallback.
+Confirmed C1 output formats:
+
+- MP3 192 kbps: PASS
+- M4A: PASS
+- WAV: PASS
+
+Proceed with C2/C3 WMS integration while preserving iframe as the primary path and the same prepared URL as a separate-tab fallback.
 
 ## Still pending
 
