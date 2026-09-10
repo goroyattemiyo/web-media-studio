@@ -90,6 +90,83 @@ def test_google_auth_rejects_other_email(monkeypatch):
     assert response.status_code == 403
 
 
+def test_youtube_search_requires_allowed_origin(monkeypatch):
+    monkeypatch.setenv("YOUTUBE_DATA_API_KEY", "test-key")
+
+    response = client.get("/youtube/search", params={"q": "jazz"})
+
+    assert response.status_code == 403
+
+
+def test_youtube_search_requires_api_key(monkeypatch):
+    monkeypatch.delenv("YOUTUBE_DATA_API_KEY", raising=False)
+
+    response = client.get(
+        "/youtube/search",
+        params={"q": "jazz"},
+        headers={"Origin": "https://goroyattemiyo.github.io"},
+    )
+
+    assert response.status_code == 503
+    assert "not configured" in response.json()["detail"]
+
+
+def test_youtube_search_returns_video_results(monkeypatch):
+    monkeypatch.setenv("YOUTUBE_DATA_API_KEY", "test-key")
+
+    class FakeResponse:
+        status_code = 200
+
+        def json(self):
+            return {
+                "items": [
+                    {
+                        "id": {"videoId": "abc123xyz09"},
+                        "snippet": {
+                            "title": "Jazz &amp; Night",
+                            "channelTitle": "WMS &amp; Friends",
+                            "publishedAt": "2026-09-01T00:00:00Z",
+                            "thumbnails": {
+                                "medium": {"url": "https://i.ytimg.com/vi/abc123xyz09/mqdefault.jpg"}
+                            },
+                        },
+                    }
+                ]
+            }
+
+    def fake_get(url, *, params, timeout):
+        assert url == main_module._YOUTUBE_SEARCH_ENDPOINT
+        assert params["q"] == "jazz"
+        assert params["type"] == "video"
+        assert params["maxResults"] == 8
+        assert params["key"] == "test-key"
+        assert timeout == 8
+        return FakeResponse()
+
+    monkeypatch.setattr(main_module.requests, "get", fake_get)
+
+    response = client.get(
+        "/youtube/search",
+        params={"q": "jazz"},
+        headers={"Origin": "https://goroyattemiyo.github.io"},
+    )
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "query": "jazz",
+        "items": [
+            {
+                "video_id": "abc123xyz09",
+                "url": "https://www.youtube.com/watch?v=abc123xyz09",
+                "title": "Jazz & Night",
+                "channel_title": "WMS & Friends",
+                "published_at": "2026-09-01T00:00:00Z",
+                "thumbnail_url": "https://i.ytimg.com/vi/abc123xyz09/mqdefault.jpg",
+            }
+        ],
+    }
+
+
 def test_youtube_access_restriction_is_friendly(monkeypatch):
     clear_auth_env(monkeypatch)
 

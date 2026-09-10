@@ -2,6 +2,11 @@ name: Deploy Media Worker to Cloud Run
 
 on:
   workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "services/media-worker/**"
+      - ".github/workflows/media-worker-cloudrun.yml"
 
 permissions:
   contents: read
@@ -21,11 +26,12 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v7
 
-      - name: Validate Google auth config
+      - name: Validate Google and YouTube config
         shell: bash
         env:
           GOOGLE_CLIENT_ID: ${{ vars.GOOGLE_CLIENT_ID }}
           ALLOWED_GOOGLE_EMAILS: ${{ vars.ALLOWED_GOOGLE_EMAILS }}
+          YOUTUBE_DATA_API_KEY: ${{ secrets.YOUTUBE_DATA_API_KEY }}
         run: |
           if [[ ! "${GOOGLE_CLIENT_ID}" =~ ^[0-9A-Za-z._-]+\.apps\.googleusercontent\.com$ ]]; then
             echo "::error::Repository variable GOOGLE_CLIENT_ID is missing or invalid."
@@ -33,6 +39,10 @@ jobs:
           fi
           if [[ -z "${ALLOWED_GOOGLE_EMAILS// }" ]]; then
             echo "::error::Repository variable ALLOWED_GOOGLE_EMAILS is required."
+            exit 1
+          fi
+          if [[ -z "${YOUTUBE_DATA_API_KEY// }" ]]; then
+            echo "::error::Repository secret YOUTUBE_DATA_API_KEY is required for UX-3 YouTube search."
             exit 1
           fi
 
@@ -58,6 +68,7 @@ jobs:
             MAX_DURATION_SECONDS=1800
             MAX_SOURCE_BYTES=786432000
             YOUTUBE_PO_TOKEN_MODE=off
+            YOUTUBE_DATA_API_KEY=${{ secrets.YOUTUBE_DATA_API_KEY }}
           flags: >-
             --service-account=${{ env.GCP_RUNTIME_SERVICE_ACCOUNT }}
             --concurrency=1
@@ -68,3 +79,19 @@ jobs:
 
       - name: Show service URL
         run: echo "${{ steps.deploy.outputs.url }}"
+
+      - name: Verify worker health
+        env:
+          SERVICE_URL: ${{ steps.deploy.outputs.url }}
+        run: curl --fail-with-body --silent --show-error "${SERVICE_URL}/health"
+
+      - name: Verify YouTube search
+        env:
+          SERVICE_URL: ${{ steps.deploy.outputs.url }}
+        run: >-
+          curl --fail-with-body --silent --show-error
+          -H "Origin: https://goroyattemiyo.github.io"
+          --get
+          --data-urlencode "q=music"
+          --data-urlencode "max_results=1"
+          "${SERVICE_URL}/youtube/search"

@@ -2,6 +2,7 @@ import { StrictMode, useState } from 'react'
 import { createRoot } from 'react-dom/client'
 import App from './App'
 import YouTubeProviderPanel from './YouTubeProviderPanel'
+import YouTubeSearchPanel from './YouTubeSearchPanel'
 import YouTubeQueueActions from './YouTubeQueueActions'
 import UnifiedPlaybackQueue from './UnifiedPlaybackQueue'
 import PlayerPlaylistActions from './PlayerPlaylistActions'
@@ -34,6 +35,7 @@ import './immersive-skins.css'
 import './reorder-resume.css'
 import './named-playlists.css'
 import './youtube-provider.css'
+import './youtube-search.css'
 import './youtube-playlist-actions.css'
 import './mixed-playlists.css'
 import './unified-play-queue.css'
@@ -68,6 +70,7 @@ function Root() {
     <>
       <App libraryRevision={libraryRevision} onMediaLibraryChanged={() => setLibraryRevision((value) => value + 1)} />
       <YouTubeProviderPanel onMediaImported={() => setLibraryRevision((value) => value + 1)} />
+      <YouTubeSearchPanel />
       <YouTubeQueueActions />
       <UnifiedPlaybackQueue />
       <PlayerPlaylistActions />
