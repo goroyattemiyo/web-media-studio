@@ -3,6 +3,10 @@
   display: none !important;
 }
 
+.wms-result-source-unified {
+  position: relative;
+}
+
 .wms-result-actions {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -38,12 +42,84 @@
   color: var(--color-accent) !important;
 }
 
+/* Preserve the canonical secondary controls as command targets, but keep them out of the visible card. */
+.wms-result-source-unified .take-meta > button,
 .wms-result-source-unified .take-download,
-.wms-result-source-unified.ffmpeg-result > a,
 .ffmpeg-result.wms-result-source-unified > a {
-  margin-top: 2px;
-  opacity: .72;
-  font-size: 9px;
+  display: none !important;
+}
+
+.wms-result-source-unified .take-meta,
+.ffmpeg-result.wms-result-source-unified > div:first-child {
+  padding-right: 42px;
+}
+
+.wms-result-secondary {
+  position: absolute;
+  z-index: 6;
+  top: 9px;
+  right: 9px;
+}
+
+.wms-result-secondary-trigger {
+  width: 36px;
+  min-height: 36px;
+  border: 1px solid var(--color-border);
+  border-radius: 11px;
+  background: color-mix(in srgb, var(--color-surface-strong) 84%, transparent);
+  color: var(--color-text-muted);
+  font-size: 19px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.wms-result-secondary-trigger[aria-expanded='true'] {
+  border-color: rgba(var(--color-accent-rgb), .38);
+  background: rgba(var(--color-accent-rgb), .1);
+  color: var(--color-accent);
+}
+
+.wms-result-secondary-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  width: max-content;
+  min-width: 170px;
+  display: grid;
+  gap: 5px;
+  padding: 6px;
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  background: var(--color-surface-strong);
+  box-shadow: 0 18px 48px rgba(0,0,0,.3);
+}
+
+.wms-result-secondary-menu button {
+  min-height: 38px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  color: var(--color-text);
+  font: inherit;
+  font-size: 10px;
+  font-weight: 750;
+  text-align: left;
+  cursor: pointer;
+}
+
+.wms-result-secondary-menu button:hover,
+.wms-result-secondary-menu button:active {
+  background: rgba(var(--color-accent-rgb), .08);
+}
+
+.wms-result-secondary-menu button.is-danger {
+  color: var(--color-danger);
+}
+
+.wms-result-secondary-menu button:disabled {
+  opacity: .35;
+  cursor: default;
 }
 
 @media (max-width: 620px) {
@@ -54,5 +130,14 @@
   .wms-result-actions button {
     min-height: 40px;
     font-size: 9.5px;
+  }
+
+  .wms-result-secondary-trigger {
+    width: 34px;
+    min-height: 34px;
+  }
+
+  .wms-result-secondary-menu {
+    min-width: 158px;
   }
 }
