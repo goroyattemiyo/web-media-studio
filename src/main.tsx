@@ -18,6 +18,7 @@ import InfoTipsEnhancer from './InfoTipsEnhancer'
 import ABLoopLabelsEnhancer from './ABLoopLabelsEnhancer'
 import LanguageEnhancer from './LanguageEnhancer'
 import ColabFirstRunGuide from './ColabFirstRunGuide'
+import ColabCompanionShell from './ColabCompanionShell'
 import SystemMessageCenter from './SystemMessageCenter'
 import InterfaceSimplifier from './InterfaceSimplifier'
 import VisualPolishEnhancer from './VisualPolishEnhancer'
@@ -43,6 +44,7 @@ import './info-tips.css'
 import './ab-loop-labels.css'
 import './language-switch.css'
 import './colab-first-run-guide.css'
+import './colab-companion-shell.css'
 import './system-message-center.css'
 import './interface-simplifier.css'
 import './ui-v2.css'
@@ -84,6 +86,7 @@ function Root() {
       <ABLoopLabelsEnhancer />
       <LanguageEnhancer />
       <ColabFirstRunGuide />
+      <ColabCompanionShell />
       <SystemMessageCenter />
       <InterfaceSimplifier />
       <VisualPolishEnhancer />
