@@ -95,7 +95,7 @@ def test_video_search_vimeo_result(monkeypatch):
     assert item["source_id"] == "123456789"
     assert item["embed_url"] == "https://player.vimeo.com/video/123456789"
     assert item["playback"] == "iframe"
-    assert item["can_queue"] is False
+    assert item["can_queue"] is True
     assert item["can_download"] is True
 
 

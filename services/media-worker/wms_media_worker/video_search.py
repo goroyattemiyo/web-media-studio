@@ -190,7 +190,7 @@ def search_vimeo(query: str, max_results: int) -> list[VideoSearchItem]:
             thumbnail_url=_vimeo_thumbnail(raw),
             embed_url=embed_url,
             playback="iframe",
-            can_queue=False,
+            can_queue=True,
             can_download=True,
         ))
     return results

@@ -1,10 +1,18 @@
 import { useEffect, useMemo, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { onPlaylistChanged, requestLoadYouTubeSource } from './mediaSourceBridge'
+import { onPlaylistChanged } from './mediaSourceBridge'
 import { listPlaylists, playlistEntries, type YouTubePlaylistEntry } from './playlistDb'
-import { onAddYouTubeToPlayQueue, onClearYouTubePlayQueue, type QueueYouTubeSource } from './playQueueBridge'
+import {
+  onAddRemoteToPlayQueue,
+  onClearRemotePlayQueue,
+  requestRemotePlayback,
+  type QueueRemoteSource,
+  type QueueYouTubeSource,
+  type RemoteProviderId,
+} from './playQueueBridge'
 
-const YOUTUBE_QUEUE_KEY = 'wms-unified-youtube-queue-v1'
+const REMOTE_QUEUE_KEY = 'wms-unified-remote-queue-v1'
+const LEGACY_YOUTUBE_QUEUE_KEY = 'wms-unified-youtube-queue-v1'
 
 type LocalQueueItem = {
   index: number
@@ -13,26 +21,63 @@ type LocalQueueItem = {
   current: boolean
 }
 
-type YouTubeQueueItem = QueueYouTubeSource & {
+type RemoteQueueItem = QueueRemoteSource & {
   origin: 'queue' | 'playlist'
 }
 
-function loadYouTubeQueue(): QueueYouTubeSource[] {
+function isRemoteQueueSource(value: unknown): value is QueueRemoteSource {
+  if (!value || typeof value !== 'object') return false
+  const item = value as Partial<QueueRemoteSource>
+  return (
+    (item.provider === 'youtube' || item.provider === 'vimeo' || item.provider === 'google_web')
+    && typeof item.sourceId === 'string'
+    && Boolean(item.sourceId)
+    && typeof item.url === 'string'
+    && typeof item.title === 'string'
+    && (item.playback === 'youtube' || item.playback === 'iframe' || item.playback === 'external')
+  )
+}
+
+function loadLegacyYouTubeQueue(): QueueRemoteSource[] {
   try {
-    const raw = window.localStorage.getItem(YOUTUBE_QUEUE_KEY)
+    const raw = window.localStorage.getItem(LEGACY_YOUTUBE_QUEUE_KEY)
     if (!raw) return []
     const parsed = JSON.parse(raw) as QueueYouTubeSource[]
-    return Array.isArray(parsed)
-      ? parsed.filter((item) => item && typeof item.videoId === 'string' && typeof item.url === 'string' && typeof item.title === 'string')
-      : []
+    if (!Array.isArray(parsed)) return []
+    return parsed
+      .filter((item) => item && typeof item.videoId === 'string' && typeof item.url === 'string' && typeof item.title === 'string')
+      .map((item) => ({
+        provider: 'youtube' as const,
+        sourceId: item.videoId,
+        url: item.url,
+        title: item.title,
+        playback: 'youtube' as const,
+      }))
   } catch {
     return []
   }
 }
 
-function saveYouTubeQueue(items: QueueYouTubeSource[]) {
+function loadRemoteQueue(): QueueRemoteSource[] {
   try {
-    window.localStorage.setItem(YOUTUBE_QUEUE_KEY, JSON.stringify(items))
+    const raw = window.localStorage.getItem(REMOTE_QUEUE_KEY)
+    if (raw) {
+      const parsed = JSON.parse(raw) as unknown[]
+      if (Array.isArray(parsed)) return parsed.filter(isRemoteQueueSource)
+    }
+  } catch {
+    // Try the legacy queue below.
+  }
+  return loadLegacyYouTubeQueue()
+}
+
+function saveRemoteQueue(items: QueueRemoteSource[]) {
+  try {
+    window.localStorage.setItem(REMOTE_QUEUE_KEY, JSON.stringify(items))
+    const legacyYouTube: QueueYouTubeSource[] = items
+      .filter((item) => item.provider === 'youtube')
+      .map((item) => ({ videoId: item.sourceId, url: item.url, title: item.title }))
+    window.localStorage.setItem(LEGACY_YOUTUBE_QUEUE_KEY, JSON.stringify(legacyYouTube))
   } catch {
     // Queue remains available for the current session if storage is unavailable.
   }
@@ -53,10 +98,24 @@ function activePlaylistName() {
   return label.startsWith(marker) ? label.slice(marker.length).trim() : ''
 }
 
+function playlistYouTubeToRemote(item: YouTubePlaylistEntry): QueueRemoteSource {
+  return {
+    provider: 'youtube',
+    sourceId: item.videoId,
+    url: item.url,
+    title: item.title,
+    playback: 'youtube',
+  }
+}
+
+function remoteKey(item: Pick<QueueRemoteSource, 'provider' | 'sourceId'>) {
+  return `${item.provider}:${item.sourceId}`
+}
+
 function UnifiedPlaybackQueue() {
   const [target, setTarget] = useState<Element | null>(null)
   const [locals, setLocals] = useState<LocalQueueItem[]>([])
-  const [manualYouTube, setManualYouTube] = useState<QueueYouTubeSource[]>(loadYouTubeQueue)
+  const [manualRemote, setManualRemote] = useState<QueueRemoteSource[]>(loadRemoteQueue)
   const [playlistYouTube, setPlaylistYouTube] = useState<YouTubePlaylistEntry[]>([])
   const [playlistName, setPlaylistName] = useState('')
   const [status, setStatus] = useState('各カードで選んだメディアをここから再生できます。')
@@ -141,21 +200,24 @@ function UnifiedPlaybackQueue() {
   }, [])
 
   useEffect(() => {
-    const removeAddListener = onAddYouTubeToPlayQueue((detail) => {
-      setManualYouTube((current) => {
-        if (current.some((item) => item.videoId === detail.videoId)) {
+    const removeAddListener = onAddRemoteToPlayQueue((detail) => {
+      setManualRemote((current) => {
+        if (current.some((item) => remoteKey(item) === remoteKey(detail))) {
           setStatus(`${detail.title} はすでにPlay Queueにあります。`)
           return current
         }
         const next = [...current, detail]
-        saveYouTubeQueue(next)
+        saveRemoteQueue(next)
         setStatus(`${detail.title} をPlay Queueへ追加しました。`)
         return next
       })
     })
-    const removeClearListener = onClearYouTubePlayQueue(() => {
-      setManualYouTube([])
-      saveYouTubeQueue([])
+    const removeClearListener = onClearRemotePlayQueue((provider) => {
+      setManualRemote((current) => {
+        const next = provider ? current.filter((item) => item.provider !== provider) : []
+        saveRemoteQueue(next)
+        return next
+      })
     })
     return () => {
       removeAddListener()
@@ -163,22 +225,25 @@ function UnifiedPlaybackQueue() {
     }
   }, [])
 
-  const youtubeItems = useMemo<YouTubeQueueItem[]>(() => {
+  const remoteItems = useMemo<RemoteQueueItem[]>(() => {
     const seen = new Set<string>()
-    const result: YouTubeQueueItem[] = []
+    const result: RemoteQueueItem[] = []
 
-    for (const item of manualYouTube) {
-      if (seen.has(item.videoId)) continue
-      seen.add(item.videoId)
+    for (const item of manualRemote) {
+      const key = remoteKey(item)
+      if (seen.has(key)) continue
+      seen.add(key)
       result.push({ ...item, origin: 'queue' })
     }
-    for (const item of playlistYouTube) {
-      if (seen.has(item.videoId)) continue
-      seen.add(item.videoId)
+    for (const playlistItem of playlistYouTube) {
+      const item = playlistYouTubeToRemote(playlistItem)
+      const key = remoteKey(item)
+      if (seen.has(key)) continue
+      seen.add(key)
       result.push({ ...item, origin: 'playlist' })
     }
     return result
-  }, [manualYouTube, playlistYouTube])
+  }, [manualRemote, playlistYouTube])
 
   const playLocal = (index: number) => {
     const rows = Array.from(document.querySelectorAll<HTMLElement>('#library-panel .playlist-row'))
@@ -205,47 +270,35 @@ function UnifiedPlaybackQueue() {
     rows[index]?.querySelectorAll<HTMLButtonElement>('.queue-order-actions button')?.[2]?.click()
   }
 
-  const playYouTube = (item: YouTubeQueueItem) => {
-    requestLoadYouTubeSource(item)
-    setStatus(`${item.title} をYouTube公式Playerへ送りました。`)
-
-    let attempts = 0
-    const tryPlay = () => {
-      attempts += 1
-      const play = document.querySelector<HTMLButtonElement>('#youtube-provider-panel .youtube-transport .primary')
-      if (play && !play.disabled) {
-        play.click()
-        return
-      }
-      if (attempts < 24) window.setTimeout(tryPlay, 160)
-    }
-    window.setTimeout(tryPlay, 100)
+  const playRemote = (item: RemoteQueueItem) => {
+    requestRemotePlayback(item)
+    setStatus(`${item.title} を${item.provider === 'youtube' ? 'YouTube公式Player' : `${item.provider} Player`}へ送りました。`)
   }
 
-  const moveYouTube = (videoId: string, direction: -1 | 1) => {
-    setManualYouTube((current) => {
-      const index = current.findIndex((item) => item.videoId === videoId)
+  const moveRemote = (provider: RemoteProviderId, sourceId: string, direction: -1 | 1) => {
+    setManualRemote((current) => {
+      const index = current.findIndex((item) => item.provider === provider && item.sourceId === sourceId)
       const targetIndex = index + direction
       if (index < 0 || targetIndex < 0 || targetIndex >= current.length) return current
       const next = [...current]
       const [moved] = next.splice(index, 1)
       next.splice(targetIndex, 0, moved)
-      saveYouTubeQueue(next)
+      saveRemoteQueue(next)
       return next
     })
   }
 
-  const removeYouTube = (videoId: string) => {
-    setManualYouTube((current) => {
-      const next = current.filter((item) => item.videoId !== videoId)
-      saveYouTubeQueue(next)
+  const removeRemote = (provider: RemoteProviderId, sourceId: string) => {
+    setManualRemote((current) => {
+      const next = current.filter((item) => item.provider !== provider || item.sourceId !== sourceId)
+      saveRemoteQueue(next)
       return next
     })
   }
 
   if (!target) return null
 
-  const total = locals.length + youtubeItems.length
+  const total = locals.length + remoteItems.length
 
   return createPortal(
     <section className="unified-play-queue" aria-label="現在の再生キュー">
@@ -253,7 +306,7 @@ function UnifiedPlaybackQueue() {
         <div>
           <p className="eyebrow">PLAY QUEUE</p>
           <h3>次に再生</h3>
-          <span>{playlistName ? `Saved Playlist · ${playlistName}` : 'Local / YouTube をここに集約'}</span>
+          <span>{playlistName ? `Saved Playlist · ${playlistName}` : 'Local / Video をここに集約'}</span>
         </div>
         <b>{total} items</b>
       </div>
@@ -277,22 +330,22 @@ function UnifiedPlaybackQueue() {
             </div>
           ))}
 
-          {youtubeItems.map((item, youtubeIndex) => {
-            const manualIndex = manualYouTube.findIndex((candidate) => candidate.videoId === item.videoId)
-            const globalIndex = locals.length + youtubeIndex
+          {remoteItems.map((item, remoteIndex) => {
+            const manualIndex = manualRemote.findIndex((candidate) => remoteKey(candidate) === remoteKey(item))
+            const globalIndex = locals.length + remoteIndex
             return (
-              <div className="unified-play-queue-row is-youtube" key={`youtube-${item.videoId}`}>
-                <button type="button" className="unified-play-queue-main" onClick={() => playYouTube(item)}>
+              <div className={`unified-play-queue-row is-remote is-${item.provider}`} key={remoteKey(item)}>
+                <button type="button" className="unified-play-queue-main" onClick={() => playRemote(item)}>
                   <span className="unified-play-queue-index">{String(globalIndex + 1).padStart(2, '0')}</span>
-                  <span className="unified-play-queue-copy"><strong>{item.title}</strong><small>{item.origin === 'playlist' ? 'Saved Playlistから追加' : 'YouTube Queue'}</small></span>
-                  <span className="source-chip">youtube</span>
+                  <span className="unified-play-queue-copy"><strong>{item.title}</strong><small>{item.origin === 'playlist' ? 'Saved Playlistから追加' : `${item.provider} Queue`}</small></span>
+                  <span className="source-chip">{item.provider}</span>
                 </button>
                 <div className="unified-play-queue-actions">
                   {item.origin === 'queue' ? (
                     <>
-                      <button type="button" disabled={manualIndex <= 0} onClick={() => moveYouTube(item.videoId, -1)}>↑</button>
-                      <button type="button" disabled={manualIndex < 0 || manualIndex === manualYouTube.length - 1} onClick={() => moveYouTube(item.videoId, 1)}>↓</button>
-                      <button type="button" onClick={() => removeYouTube(item.videoId)}>×</button>
+                      <button type="button" disabled={manualIndex <= 0} onClick={() => moveRemote(item.provider, item.sourceId, -1)}>↑</button>
+                      <button type="button" disabled={manualIndex < 0 || manualIndex === manualRemote.length - 1} onClick={() => moveRemote(item.provider, item.sourceId, 1)}>↓</button>
+                      <button type="button" onClick={() => removeRemote(item.provider, item.sourceId)}>×</button>
                     </>
                   ) : <span className="unified-play-queue-saved">saved</span>}
                 </div>
@@ -303,7 +356,7 @@ function UnifiedPlaybackQueue() {
       ) : (
         <div className="unified-play-queue-empty">
           <strong>Queue is empty.</strong>
-          <span>Library・YouTube・録音などで選んだメディアがここに集まります。</span>
+          <span>Library・Video Search・録音などで選んだメディアがここに集まります。</span>
         </div>
       )}
     </section>,
