@@ -47,15 +47,17 @@ jobs:
           from pathlib import Path
           path = Path('colab/WMS_Colab_Companion_Gate0.ipynb')
           notebook = json.loads(path.read_text(encoding='utf-8'))
-          source = '\n'.join(
+          code_source = '\n'.join(
               line
               for cell in notebook.get('cells', [])
+              if cell.get('cell_type') == 'code'
               for line in cell.get('source', [])
           )
-          assert 'gradio=={GRADIO_VERSION}' in source
-          assert 'GRADIO_VERSION = "6.26.0"' in source
-          assert '--share' in source
-          assert 'yt-dlp' not in source.lower()
+          assert 'gradio=={GRADIO_VERSION}' in code_source
+          assert 'GRADIO_VERSION = "6.26.0"' in code_source
+          assert '--share' in code_source
+          assert 'yt_dlp' not in code_source.lower()
+          assert 'yt-dlp' not in code_source.lower()
           print('Gate 0 notebook validation: PASS')
           PY
 
