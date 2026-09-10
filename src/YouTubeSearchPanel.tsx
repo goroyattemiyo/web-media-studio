@@ -6,6 +6,7 @@ import { addYouTubeToPlayQueue } from './playQueueBridge'
 const DEFAULT_MEDIA_WORKER_URL = 'https://wms-media-worker-pcdbs5armq-an.a.run.app'
 const MEDIA_WORKER_URL = ((import.meta.env.VITE_WMS_MEDIA_WORKER_URL as string | undefined)?.trim() || DEFAULT_MEDIA_WORKER_URL).replace(/\/$/, '')
 const COLAB_LOCALIZER_URL = 'https://colab.research.google.com/github/goroyattemiyo/web-media-studio/blob/main/colab/WMS_Colab_Localizer.ipynb'
+const SEARCH_NOT_READY = 'WMS_YOUTUBE_SEARCH_NOT_READY'
 
 type Language = 'ja' | 'en'
 
@@ -117,6 +118,7 @@ export default function YouTubeSearchPanel() {
         searching: '検索中…',
         hint: '検索した動画をそのまま再生・キュー追加・Downloadできます。',
         empty: '該当する動画が見つかりませんでした。',
+        notReady: 'YouTube検索APIの準備がまだ完了していません。',
         play: '▶ 今すぐ再生',
         next: '＋ 次に再生',
         download: '↓ Download',
@@ -129,6 +131,7 @@ export default function YouTubeSearchPanel() {
         searching: 'Searching…',
         hint: 'Play, queue, or Download a search result directly in WMS.',
         empty: 'No matching videos found.',
+        notReady: 'YouTube search API setup is not complete yet.',
         play: '▶ Play now',
         next: '＋ Play next',
         download: '↓ Download',
@@ -151,6 +154,7 @@ export default function YouTubeSearchPanel() {
         headers: { Accept: 'application/json' },
         cache: 'no-store',
       })
+      if (response.status === 404) throw new Error(SEARCH_NOT_READY)
       if (!response.ok) throw new Error(await responseError(response))
 
       const payload = await response.json() as YouTubeSearchResponse
@@ -165,9 +169,7 @@ export default function YouTubeSearchPanel() {
       )
     } catch (searchError) {
       const message = searchError instanceof Error ? searchError.message : 'YouTube search failed.'
-      setError(message.includes('not configured')
-        ? (language === 'ja' ? 'YouTube検索APIの設定がまだ完了していません。' : 'YouTube search API is not configured yet.')
-        : message)
+      setError(message === SEARCH_NOT_READY || message.includes('not configured') ? copy.notReady : message)
       setResults([])
       setSearchedQuery(value)
     } finally {
