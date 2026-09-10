@@ -1,0 +1,141 @@
+body,
+.gradio-container {
+  background: #06111d !important;
+  color: #eaf6ff !important;
+}
+
+.gradio-container {
+  max-width: 920px !important;
+  margin: 0 auto !important;
+
+  /* Gradio 6 theme variables. Keep these explicit so embedded mode does not
+     inherit the default light blocks while WMS text is forced to light. */
+  --background-fill-primary: #06111d !important;
+  --background-fill-secondary: #0a1b29 !important;
+  --block-background-fill: #0a1b29 !important;
+  --block-border-color: #29455b !important;
+  --block-label-background-fill: #0a1b29 !important;
+  --block-label-text-color: #dff7ff !important;
+  --block-title-text-color: #eaf6ff !important;
+  --body-background-fill: #06111d !important;
+  --body-text-color: #eaf6ff !important;
+  --body-text-color-subdued: #9fc4d8 !important;
+  --input-background-fill: #0f2232 !important;
+  --input-border-color: #35566d !important;
+  --input-placeholder-color: #8aa8b8 !important;
+}
+
+.gradio-container h1,
+.gradio-container h2,
+.gradio-container h3,
+.gradio-container label,
+.gradio-container p,
+.gradio-container .prose,
+.gradio-container .prose * {
+  color: #eaf6ff !important;
+}
+
+.wms-card {
+  border: 1px solid rgba(85, 200, 255, 0.22) !important;
+  border-radius: 18px !important;
+  background: rgba(8, 24, 38, 0.9) !important;
+  padding: 12px !important;
+}
+
+.wms-status {
+  border-left: 3px solid #59d7ff;
+  padding: 10px 12px;
+  background: rgba(89, 215, 255, 0.08) !important;
+  border-radius: 10px;
+  color: #dff7ff !important;
+}
+
+.wms-status * {
+  color: #dff7ff !important;
+}
+
+.wms-rights-status,
+.wms-rights-status * {
+  color: #eaf6ff !important;
+}
+
+.wms-note,
+.wms-note * {
+  color: #9fc4d8 !important;
+  font-size: 12px !important;
+}
+
+/* Gradio 6 component surfaces. */
+.gradio-container input,
+.gradio-container textarea,
+.gradio-container select,
+.gradio-container [role="textbox"],
+.gradio-container [role="combobox"] {
+  background: #0f2232 !important;
+  color: #f2fbff !important;
+  border-color: #35566d !important;
+}
+
+.gradio-container input::placeholder,
+.gradio-container textarea::placeholder {
+  color: #8aa8b8 !important;
+  opacity: 1 !important;
+}
+
+.gradio-container .block,
+.gradio-container .form,
+.gradio-container .wrap,
+.gradio-container .container,
+.gradio-container .file-preview,
+.gradio-container .file-container {
+  background-color: #0a1b29 !important;
+  color: #eaf6ff !important;
+  border-color: #29455b !important;
+}
+
+.gradio-container button:not(.primary) {
+  background: #102434 !important;
+  color: #f2fbff !important;
+  border-color: #35566d !important;
+}
+
+.gradio-container button.primary,
+button.primary {
+  font-weight: 800 !important;
+}
+
+/* Localized File needs a strong scoped override because Gradio 6 renders
+   the generated file row with its own light surface in some browsers. */
+.wms-file-output,
+.wms-file-output > div,
+.wms-file-output [class*="file"],
+.wms-file-output [class*="container"],
+.wms-file-output [class*="wrap"],
+.wms-file-output [role="list"],
+.wms-file-output [role="listitem"] {
+  background: #0a1b29 !important;
+  color: #eaf6ff !important;
+  border-color: #29455b !important;
+}
+
+.wms-file-output span,
+.wms-file-output p,
+.wms-file-output button {
+  color: #eaf6ff !important;
+}
+
+.wms-file-output a,
+.wms-file-output [role="link"] {
+  color: #72dbff !important;
+  background: #0f2232 !important;
+}
+
+/* Keep generated File rows readable even when Gradio changes internal class names. */
+.gradio-container a,
+.gradio-container [role="link"] {
+  color: #72dbff !important;
+}
+
+.gradio-container svg {
+  color: currentColor;
+}
