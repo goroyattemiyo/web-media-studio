@@ -17,7 +17,6 @@ import SkinVisualEnhancer from './SkinVisualEnhancer'
 import InfoTipsEnhancer from './InfoTipsEnhancer'
 import ABLoopLabelsEnhancer from './ABLoopLabelsEnhancer'
 import LanguageEnhancer from './LanguageEnhancer'
-import ColabFirstRunGuide from './ColabFirstRunGuide'
 import ColabCompanionShell from './ColabCompanionShell'
 import SystemMessageCenter from './SystemMessageCenter'
 import InterfaceSimplifier from './InterfaceSimplifier'
@@ -43,7 +42,6 @@ import './unified-play-queue.css'
 import './info-tips.css'
 import './ab-loop-labels.css'
 import './language-switch.css'
-import './colab-first-run-guide.css'
 import './colab-companion-shell.css'
 import './system-message-center.css'
 import './interface-simplifier.css'
@@ -85,7 +83,6 @@ function Root() {
       <InfoTipsEnhancer />
       <ABLoopLabelsEnhancer />
       <LanguageEnhancer />
-      <ColabFirstRunGuide />
       <ColabCompanionShell />
       <SystemMessageCenter />
       <InterfaceSimplifier />
