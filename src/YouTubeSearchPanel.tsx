@@ -87,18 +87,36 @@ export default function YouTubeSearchPanel() {
   const [language, setLanguage] = useState<Language>(currentLanguage)
 
   useEffect(() => {
-    const panel = document.querySelector<HTMLElement>('#youtube-provider-panel')
-    const heading = panel?.querySelector<HTMLElement>('.section-heading')
-    if (!panel || !heading) return
+    let mount: HTMLDivElement | null = null
+    let frame = 0
 
-    const mount = document.createElement('div')
-    mount.className = 'youtube-search-slot'
-    heading.insertAdjacentElement('afterend', mount)
-    setTarget(mount)
+    const attach = () => {
+      frame = 0
+      if (mount?.isConnected) return
+      const panel = document.querySelector<HTMLElement>('#youtube-provider-panel')
+      const heading = panel?.querySelector<HTMLElement>('.section-heading')
+      if (!panel || !heading) return
+
+      mount = document.createElement('div')
+      mount.className = 'youtube-search-slot'
+      heading.insertAdjacentElement('afterend', mount)
+      setTarget(mount)
+    }
+
+    const schedule = () => {
+      if (frame) return
+      frame = window.requestAnimationFrame(attach)
+    }
+
+    attach()
+    const observer = new MutationObserver(schedule)
+    observer.observe(document.body, { childList: true, subtree: true })
 
     return () => {
+      observer.disconnect()
+      if (frame) window.cancelAnimationFrame(frame)
       setTarget(null)
-      mount.remove()
+      mount?.remove()
     }
   }, [])
 
