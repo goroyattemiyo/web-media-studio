@@ -58,11 +58,18 @@ jobs:
           retention-days: 1
           if-no-files-found: ignore
 
-      - name: Validate input guards
+      - name: Validate input guards and output selection
         run: |
           python - <<'PY'
+          import tempfile
+          import time
+          from pathlib import Path
           import gradio as gr
-          from colab_companion.wms_colab_companion import _validate_format, _validate_source
+          from colab_companion.wms_colab_companion import (
+              _select_output_file,
+              _validate_format,
+              _validate_source,
+          )
 
           assert _validate_source('https://example.com/media') == 'https://example.com/media'
           assert _validate_format('mp3', '192') == ('mp3', '192')
@@ -82,7 +89,17 @@ jobs:
           else:
               raise AssertionError('credential URL accepted')
 
-          print('Companion validation guards: PASS')
+          with tempfile.TemporaryDirectory() as tmp:
+              root = Path(tmp)
+              older = root / 'older.mp3'
+              older.write_bytes(b'old')
+              time.sleep(0.01)
+              newer = root / 'newer.mp3'
+              newer.write_bytes(b'newer')
+              (root / 'leftover.m4a').write_bytes(b'other-format')
+              assert _select_output_file(root, 'mp3') == newer
+
+          print('Companion validation guards/output selection: PASS')
           PY
 
       - name: Validate notebook JSON and pinned runtime
