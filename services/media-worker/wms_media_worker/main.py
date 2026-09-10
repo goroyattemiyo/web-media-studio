@@ -22,6 +22,7 @@ from .extractor import (
     extract_audio,
 )
 from .video_search import (
+    _YOUTUBE_SEARCH_ENDPOINT,
     VideoProviderStatus,
     VideoSearchResponse,
     provider_statuses,
