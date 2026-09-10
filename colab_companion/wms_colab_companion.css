@@ -54,6 +54,11 @@ body,
   color: #dff7ff !important;
 }
 
+.wms-rights-status,
+.wms-rights-status * {
+  color: #eaf6ff !important;
+}
+
 .wms-note,
 .wms-note * {
   color: #9fc4d8 !important;
@@ -97,6 +102,32 @@ body,
 .gradio-container button.primary,
 button.primary {
   font-weight: 800 !important;
+}
+
+/* Localized File needs a strong scoped override because Gradio 6 renders
+   the generated file row with its own light surface in some browsers. */
+.wms-file-output,
+.wms-file-output > div,
+.wms-file-output [class*="file"],
+.wms-file-output [class*="container"],
+.wms-file-output [class*="wrap"],
+.wms-file-output [role="list"],
+.wms-file-output [role="listitem"] {
+  background: #0a1b29 !important;
+  color: #eaf6ff !important;
+  border-color: #29455b !important;
+}
+
+.wms-file-output span,
+.wms-file-output p,
+.wms-file-output button {
+  color: #eaf6ff !important;
+}
+
+.wms-file-output a,
+.wms-file-output [role="link"] {
+  color: #72dbff !important;
+  background: #0f2232 !important;
 }
 
 /* Keep generated File rows readable even when Gradio changes internal class names. */
