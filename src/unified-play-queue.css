@@ -77,6 +77,10 @@
   border-color: color-mix(in srgb, #ff4e58 22%, transparent);
 }
 
+.unified-play-queue-row.is-vimeo {
+  border-color: color-mix(in srgb, #1ab7ea 28%, transparent);
+}
+
 .unified-play-queue-main {
   min-width: 0;
   min-height: 54px;
