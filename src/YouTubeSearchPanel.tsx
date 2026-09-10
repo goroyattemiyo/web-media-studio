@@ -1,4 +1,5 @@
-import { FormEvent, useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
+import type { FormEvent } from 'react'
 import { createPortal } from 'react-dom'
 import { requestLoadYouTubeSource } from './mediaSourceBridge'
 import { addYouTubeToPlayQueue } from './playQueueBridge'
