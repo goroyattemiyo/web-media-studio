@@ -73,6 +73,35 @@
   font-size: 12px;
 }
 
+.colab-companion-handoff {
+  display: grid;
+  gap: 3px;
+  padding: 10px 12px;
+  border: 1px solid rgba(89, 215, 255, 0.2);
+  border-radius: 12px;
+  background: rgba(9, 31, 46, 0.82);
+}
+
+.colab-companion-handoff span {
+  color: var(--muted, #7896a8);
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+}
+
+.colab-companion-handoff strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13px;
+}
+
+.colab-companion-handoff small {
+  color: var(--muted, #a8bfcc);
+  font-size: 10px;
+  text-transform: uppercase;
+}
+
 .colab-companion-connect-row {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
