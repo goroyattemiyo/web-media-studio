@@ -1,0 +1,57 @@
+body,
+.gradio-container {
+  background: #06111d !important;
+  color: #eaf6ff !important;
+}
+
+.gradio-container {
+  max-width: 920px !important;
+  margin: 0 auto !important;
+}
+
+.gradio-container h1,
+.gradio-container h2,
+.gradio-container h3,
+.gradio-container label,
+.gradio-container span,
+.gradio-container p,
+.gradio-container .prose,
+.gradio-container .prose * {
+  color: #eaf6ff !important;
+}
+
+.wms-card {
+  border: 1px solid rgba(85, 200, 255, 0.22) !important;
+  border-radius: 18px !important;
+  background: rgba(8, 24, 38, 0.9) !important;
+  padding: 12px !important;
+}
+
+.wms-status {
+  border-left: 3px solid #59d7ff;
+  padding: 10px 12px;
+  background: rgba(89, 215, 255, 0.08);
+  border-radius: 10px;
+}
+
+.wms-note,
+.wms-note * {
+  color: #9fc4d8 !important;
+  font-size: 12px !important;
+}
+
+.gradio-container input,
+.gradio-container textarea,
+.gradio-container select {
+  color: #f2fbff !important;
+}
+
+.gradio-container input::placeholder,
+.gradio-container textarea::placeholder {
+  color: #8aa8b8 !important;
+  opacity: 1 !important;
+}
+
+button.primary {
+  font-weight: 800 !important;
+}
