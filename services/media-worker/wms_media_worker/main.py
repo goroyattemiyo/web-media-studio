@@ -31,7 +31,7 @@ from .video_search import (
 
 app = FastAPI(
     title="WMS Media Worker",
-    version="0.5.0",
+    version="0.6.0",
     description="Media preprocessing and provider-based video search worker for Web Media Studio.",
 )
 
@@ -59,6 +59,7 @@ class ExtractRequest(BaseModel):
     url: str = Field(min_length=1, max_length=2048)
     format: AudioFormat = "mp3"
     bitrate: str = "192"
+    rights_confirmed: bool = False
 
 
 class AuthenticatedUser(BaseModel):
@@ -220,6 +221,11 @@ def extract(
 ):
     _authorize(authorization)
 
+    if not request.rights_confirmed:
+        raise HTTPException(
+            status_code=422,
+            detail="保存・変換する権利または許可の確認が必要です。",
+        )
     if request.bitrate not in _ALLOWED_BITRATES:
         raise HTTPException(status_code=422, detail="Unsupported MP3 bitrate.")
 

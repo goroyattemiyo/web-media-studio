@@ -1,0 +1,201 @@
+.direct-cloud-download-slot {
+  width: 100%;
+  margin-top: 10px;
+}
+
+.direct-cloud-download-panel {
+  display: grid;
+  gap: 11px;
+  padding: 13px;
+  border: 1px solid rgba(89, 215, 255, 0.22);
+  border-radius: 16px;
+  background: rgba(5, 18, 29, 0.94);
+}
+
+.direct-cloud-download-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.direct-cloud-download-heading > div {
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+}
+
+.direct-cloud-download-heading span {
+  color: var(--muted, #7896a8);
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: 0.14em;
+}
+
+.direct-cloud-download-heading strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 14px;
+}
+
+.direct-cloud-download-heading small {
+  color: var(--muted, #8da9ba);
+  font-size: 10px;
+  text-transform: uppercase;
+}
+
+.direct-cloud-download-close {
+  width: 34px;
+  height: 34px;
+  flex: 0 0 34px;
+  border: 0;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.07);
+  color: inherit;
+  font: inherit;
+  font-size: 20px;
+  cursor: pointer;
+}
+
+.direct-cloud-download-options {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.direct-cloud-download-options label {
+  display: grid;
+  gap: 5px;
+}
+
+.direct-cloud-download-options label > span {
+  color: var(--muted, #9ab1c0);
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.direct-cloud-download-options select {
+  width: 100%;
+  min-height: 42px;
+  border: 1px solid rgba(89, 215, 255, 0.22);
+  border-radius: 10px;
+  background: rgba(12, 38, 56, 0.96);
+  color: inherit;
+  padding: 0 10px;
+  font: inherit;
+  font-weight: 800;
+}
+
+.direct-cloud-download-rights {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  padding: 10px 11px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 11px;
+  background: rgba(255, 255, 255, 0.035);
+  cursor: pointer;
+}
+
+.direct-cloud-download-rights input {
+  width: 18px;
+  height: 18px;
+  flex: 0 0 18px;
+  margin-top: 1px;
+  accent-color: var(--accent, #51d4ff);
+}
+
+.direct-cloud-download-rights span {
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.direct-cloud-download-auth {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-height: 40px;
+  color: var(--muted, #a8bfcc);
+  font-size: 11px;
+}
+
+.direct-cloud-download-auth > button {
+  min-height: 32px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 9px;
+  background: rgba(255, 255, 255, 0.05);
+  color: inherit;
+  padding: 0 10px;
+  font: inherit;
+  cursor: pointer;
+}
+
+.direct-cloud-download-google {
+  min-height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+}
+
+.direct-cloud-download-submit {
+  width: 100%;
+  min-height: 46px;
+  border: 0;
+  border-radius: 11px;
+  background: var(--accent, #51d4ff);
+  color: #031019;
+  font: inherit;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.direct-cloud-download-submit:disabled,
+.direct-cloud-download-close:disabled,
+.direct-cloud-download-auth > button:disabled {
+  opacity: 0.48;
+  cursor: default;
+}
+
+.direct-cloud-download-status,
+.direct-cloud-download-error,
+.direct-cloud-download-note {
+  margin: 0;
+  line-height: 1.5;
+}
+
+.direct-cloud-download-status {
+  color: #8ff7c2;
+  font-size: 11px;
+}
+
+.direct-cloud-download-error {
+  color: #ffb4b4;
+  font-size: 11px;
+}
+
+.direct-cloud-download-note {
+  color: var(--muted, #7896a8);
+  font-size: 9px;
+}
+
+@media (max-width: 720px) {
+  .direct-cloud-download-panel {
+    padding: 12px;
+  }
+
+  .direct-cloud-download-options {
+    grid-template-columns: 1fr;
+  }
+
+  .direct-cloud-download-auth {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .direct-cloud-download-google {
+    width: 100%;
+    justify-content: flex-start;
+  }
+}

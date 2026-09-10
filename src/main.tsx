@@ -17,7 +17,7 @@ import SkinVisualEnhancer from './SkinVisualEnhancer'
 import InfoTipsEnhancer from './InfoTipsEnhancer'
 import ABLoopLabelsEnhancer from './ABLoopLabelsEnhancer'
 import LanguageEnhancer from './LanguageEnhancer'
-import ColabCompanionShell from './ColabCompanionShell'
+import DirectCloudDownloadPanel from './DirectCloudDownloadPanel'
 import SystemMessageCenter from './SystemMessageCenter'
 import InterfaceSimplifier from './InterfaceSimplifier'
 import VisualPolishEnhancer from './VisualPolishEnhancer'
@@ -42,7 +42,7 @@ import './unified-play-queue.css'
 import './info-tips.css'
 import './ab-loop-labels.css'
 import './language-switch.css'
-import './colab-companion-shell.css'
+import './direct-cloud-download.css'
 import './system-message-center.css'
 import './interface-simplifier.css'
 import './ui-v2.css'
@@ -83,7 +83,7 @@ function Root() {
       <InfoTipsEnhancer />
       <ABLoopLabelsEnhancer />
       <LanguageEnhancer />
-      <ColabCompanionShell />
+      <DirectCloudDownloadPanel />
       <SystemMessageCenter />
       <InterfaceSimplifier />
       <VisualPolishEnhancer />

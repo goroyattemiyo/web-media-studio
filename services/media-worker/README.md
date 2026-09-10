@@ -44,11 +44,13 @@ curl http://localhost:8080/health
 
 Google認証を有効にした本番環境では、`POST /extract` と `GET /auth/me` に Google Identity Services が発行した ID token を `Authorization: Bearer ...` で送ります。
 
+`POST /extract` は権利・許可確認も必須です。
+
 ```bash
 curl -X POST http://localhost:8080/extract \
   -H "Authorization: Bearer GOOGLE_ID_TOKEN" \
   -H "Content-Type: application/json" \
-  -d '{"url":"https://www.youtube.com/watch?v=VIDEO_ID","format":"mp3","bitrate":"192"}' \
+  -d '{"url":"https://www.youtube.com/watch?v=VIDEO_ID","format":"mp3","bitrate":"192","rights_confirmed":true}' \
   --output output.mp3
 ```
 
@@ -58,14 +60,21 @@ Worker は次を検証します。
 - `aud` が `GOOGLE_CLIENT_ID` と一致
 - `email_verified=true`
 - メールアドレスが `ALLOWED_GOOGLE_EMAILS` に含まれる
+- `rights_confirmed=true`
 
-ローカル開発では Google 認証が未設定なら認証なしで動きます。本番 Cloud Run では Google 認証を必須にします。
+ローカル開発では Google 認証が未設定なら認証なしで動きます。本番 Cloud Run では Google 認証を必須にします。権利確認は認証設定の有無にかかわらず必須です。
+
+WMS本体では通常導線を次のようにします。
+
+`Download -> 形式選択 -> 権利確認 -> Google認証 -> /extract -> ブラウザ保存`
+
+Colab / Gradio URL登録は通常導線では使用しません。
 
 ## 3. YouTube PO Token mode
 
-YouTube は一部クライアントの再生用リクエストで Proof of Origin (PO) Token を要求します。Cloud Run では `bgutil-ytdlp-pot-provider` を使い、yt-dlp の `mweb` client に GVS 用 PO Token を自動提供する mode を試験導入します。
+YouTube は一部クライアントの再生用リクエストで Proof of Origin (PO) Token を要求します。Cloud Run では `bgutil-ytdlp-pot-provider` を使う診断用 fallback もイメージ内に保持しています。
 
-Cloud Run の設定:
+明示的に試す場合の設定:
 
 ```text
 YOUTUBE_PO_TOKEN_MODE=bgutil-script-mweb
@@ -82,11 +91,13 @@ PO Token は動画ごとに provider が生成します。手動で token を貼
 
 この mode は YouTube 側の 403 / Bot 判定を必ず解決するものではありません。Cloud Run の出口 IP 自体が制限されている場合などは、PO Token を使っても取得できない場合があります。
 
+現在の本番デプロイ標準は、Deno + yt-dlp標準クライアント選択を使う `YOUTUBE_PO_TOKEN_MODE=off` です。
+
 ## 4. YouTube側の取得制限
 
 Cloud Run から YouTube へアクセスした際、YouTube 側が Bot 確認や追加認証を要求する場合があります。
 
-PO Token mode を有効にしても取得できない場合は、内部エラー文や Cookie 利用手順をそのままフロントエンドへ返さず、HTTP 409 と次の案内へ変換します。
+取得できない場合は、内部エラー文や Cookie 利用手順をそのままフロントエンドへ返さず、HTTP 409 と次の案内へ変換します。
 
 > YouTube側で取得が制限されました。この動画はCloud処理から直接Local化できません。手元の音声・動画ファイルをLocal Libraryへ追加してください。
 
@@ -101,8 +112,8 @@ Cloud Run:
 - `ALLOWED_ORIGINS=https://goroyattemiyo.github.io`
 - `MAX_DURATION_SECONDS=1800`
 - `MAX_SOURCE_BYTES=786432000`
-- `YOUTUBE_PO_TOKEN_MODE=bgutil-script-mweb` — Cloud Run で PO Token provider を有効化
-- `BGUTIL_SERVER_HOME` — Docker image では `/opt/bgutil-ytdlp-pot-provider/server` を既定値として設定
+- `YOUTUBE_PO_TOKEN_MODE=off` — 現在の本番標準
+- `BGUTIL_SERVER_HOME` — optional PO Token fallback用。Docker image では `/opt/bgutil-ytdlp-pot-provider/server` を既定値として設定
 
 GitHub Pages build:
 
@@ -131,7 +142,7 @@ docker build -t wms-media-worker .
 docker run --rm -p 8080:8080 wms-media-worker
 ```
 
-コンテナには FFmpeg、Node.js、bgutil PO Token provider を含めています。PO Token provider の利用自体は `YOUTUBE_PO_TOKEN_MODE` で制御します。
+コンテナには FFmpeg、Deno、Node.js、bgutil PO Token provider を含めています。PO Token provider の利用自体は `YOUTUBE_PO_TOKEN_MODE` で制御します。
 
 ## 8. GitHub Actions
 
@@ -141,7 +152,7 @@ docker run --rm -p 8080:8080 wms-media-worker
 2. Docker image build
 3. コンテナ起動
 4. `/health` が 200 を返すこと
-5. FFmpeg / Node.js / bgutil plugin / provider script の存在確認
+5. FFmpeg / Deno / Node.js / bgutil plugin / provider script の存在確認
 
 ネットワーク依存の YouTube 実取得は PR CI では行いません。
 
@@ -155,7 +166,7 @@ docker run --rm -p 8080:8080 wms-media-worker
 - max instances 2
 - 1 CPU / 1 GiB
 - Google auth config を Repository variables から注入
-- `YOUTUBE_PO_TOKEN_MODE=bgutil-script-mweb`
+- `YOUTUBE_PO_TOKEN_MODE=off`
 - 旧 `WMS_WORKER_API_KEY` は Cloud Run へ設定しない
 
 ## 9. Colab からの移植対応表
