@@ -1,0 +1,37 @@
+body,
+.gradio-container {
+  background: #06111d !important;
+  color: #eaf6ff !important;
+}
+
+.gradio-container {
+  max-width: 900px !important;
+  margin: 0 auto !important;
+}
+
+.gradio-container h1,
+.gradio-container h2,
+.gradio-container h3,
+.gradio-container label,
+.gradio-container span,
+.gradio-container p {
+  color: #eaf6ff;
+}
+
+.wms-card {
+  border: 1px solid rgba(85, 200, 255, 0.22) !important;
+  border-radius: 18px !important;
+  background: rgba(8, 24, 38, 0.86) !important;
+  padding: 12px !important;
+}
+
+.wms-status {
+  border-left: 3px solid #59d7ff;
+  padding: 8px 12px;
+  background: rgba(89, 215, 255, 0.07);
+  border-radius: 10px;
+}
+
+button.primary {
+  font-weight: 800 !important;
+}
