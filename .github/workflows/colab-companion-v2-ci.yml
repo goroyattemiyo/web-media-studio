@@ -35,11 +35,28 @@ jobs:
       - name: Build Gradio Blocks without media network access
         run: |
           python - <<'PY'
-          from colab_companion.wms_colab_companion import build_demo
-          demo = build_demo()
-          assert demo is not None
-          print('Companion Blocks build: PASS')
+          import traceback
+          from pathlib import Path
+          try:
+              from colab_companion.wms_colab_companion import build_demo
+              demo = build_demo()
+              assert demo is not None
+              print('Companion Blocks build: PASS')
+          except Exception:
+              detail = traceback.format_exc()
+              print(detail)
+              Path('companion-build-error.txt').write_text(detail, encoding='utf-8')
+              raise
           PY
+
+      - name: Upload build traceback on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: companion-build-error
+          path: companion-build-error.txt
+          retention-days: 1
+          if-no-files-found: ignore
 
       - name: Validate input guards
         run: |
