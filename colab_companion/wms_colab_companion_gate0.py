@@ -86,7 +86,6 @@ def build_demo() -> gr.Blocks:
     with gr.Blocks(
         title=APP_TITLE,
         analytics_enabled=False,
-        css=_load_css(),
     ) as demo:
         gr.Markdown(
             """
@@ -156,6 +155,7 @@ def main() -> None:
         debug=bool(args.debug),
         show_error=True,
         allowed_paths=[str(OUTPUT_ROOT)],
+        css=_load_css(),
     )
 
 
