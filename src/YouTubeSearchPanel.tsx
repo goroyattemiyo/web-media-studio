@@ -89,6 +89,7 @@ export default function YouTubeSearchPanel() {
   useEffect(() => {
     let mount: HTMLDivElement | null = null
     let frame = 0
+    let observer: MutationObserver | null = null
 
     const attach = () => {
       frame = 0
@@ -101,6 +102,8 @@ export default function YouTubeSearchPanel() {
       mount.className = 'youtube-search-slot'
       heading.insertAdjacentElement('afterend', mount)
       setTarget(mount)
+      observer?.disconnect()
+      observer = null
     }
 
     const schedule = () => {
@@ -109,13 +112,14 @@ export default function YouTubeSearchPanel() {
     }
 
     attach()
-    const observer = new MutationObserver(schedule)
-    observer.observe(document.body, { childList: true, subtree: true })
+    if (!mount) {
+      observer = new MutationObserver(schedule)
+      observer.observe(document.body, { childList: true, subtree: true })
+    }
 
     return () => {
-      observer.disconnect()
+      observer?.disconnect()
       if (frame) window.cancelAnimationFrame(frame)
-      setTarget(null)
       mount?.remove()
     }
   }, [])
