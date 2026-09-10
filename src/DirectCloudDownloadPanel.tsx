@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
+import { loadGoogleIdentityServices } from './googleIdentity'
 import { parseYouTubeInput, youtubeWatchUrl } from './providers/youtube'
 
 const DEFAULT_MEDIA_WORKER_URL = 'https://wms-media-worker-pcdbs5armq-an.a.run.app'
@@ -14,75 +15,6 @@ type DownloadTarget = {
   source: string
   title: string
   provider: string
-}
-
-type GoogleCredentialResponse = {
-  credential?: string
-}
-
-type GoogleIdentityApi = {
-  initialize(options: {
-    client_id: string
-    callback: (response: GoogleCredentialResponse) => void
-    auto_select?: boolean
-    cancel_on_tap_outside?: boolean
-  }): void
-  renderButton(
-    parent: HTMLElement,
-    options: {
-      type?: 'standard' | 'icon'
-      theme?: 'outline' | 'filled_blue' | 'filled_black'
-      size?: 'large' | 'medium' | 'small'
-      shape?: 'rectangular' | 'pill' | 'circle' | 'square'
-      text?: 'signin_with' | 'signup_with' | 'continue_with' | 'signin'
-      width?: number
-    },
-  ): void
-}
-
-declare global {
-  interface Window {
-    google?: {
-      accounts?: {
-        id?: GoogleIdentityApi
-      }
-    }
-  }
-}
-
-let googleIdentityPromise: Promise<GoogleIdentityApi> | null = null
-
-function loadGoogleIdentity(): Promise<GoogleIdentityApi> {
-  const existing = window.google?.accounts?.id
-  if (existing) return Promise.resolve(existing)
-  if (googleIdentityPromise) return googleIdentityPromise
-
-  googleIdentityPromise = new Promise((resolve, reject) => {
-    const current = document.querySelector<HTMLScriptElement>('script[data-wms-google-identity]')
-    const script = current ?? document.createElement('script')
-
-    const complete = () => {
-      const api = window.google?.accounts?.id
-      if (api) resolve(api)
-      else reject(new Error('Google認証を読み込めませんでした。'))
-    }
-
-    if (current) {
-      current.addEventListener('load', complete, { once: true })
-      current.addEventListener('error', () => reject(new Error('Google認証を読み込めませんでした。')), { once: true })
-      return
-    }
-
-    script.src = 'https://accounts.google.com/gsi/client'
-    script.async = true
-    script.defer = true
-    script.dataset.wmsGoogleIdentity = '1'
-    script.addEventListener('load', complete, { once: true })
-    script.addEventListener('error', () => reject(new Error('Google認証を読み込めませんでした。')), { once: true })
-    document.head.appendChild(script)
-  })
-
-  return googleIdentityPromise
 }
 
 function loadStoredToken() {
@@ -312,7 +244,7 @@ export default function DirectCloudDownloadPanel() {
     const host = authButtonRef.current
     host.innerHTML = ''
 
-    void loadGoogleIdentity().then((api) => {
+    void loadGoogleIdentityServices().then((api) => {
       if (cancelled) return
       api.initialize({
         client_id: GOOGLE_CLIENT_ID,
@@ -330,7 +262,6 @@ export default function DirectCloudDownloadPanel() {
         },
       })
       api.renderButton(host, {
-        type: 'standard',
         theme: 'outline',
         size: 'large',
         shape: 'pill',
@@ -351,6 +282,11 @@ export default function DirectCloudDownloadPanel() {
     setToken('')
     setAuthState('signed_out')
     setAuthLabel('')
+    try {
+      window.google?.accounts?.id?.disableAutoSelect()
+    } catch {
+      // Google Identity may not be loaded yet.
+    }
   }
 
   const download = async () => {
