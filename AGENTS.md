@@ -6,13 +6,16 @@ This repository is developed with AI-assisted workflows. Treat the repository do
 
 ## Source of truth order
 
-1. `docs/CURRENT_IMPLEMENTATION.md` — what actually exists now
-2. `docs/REQUIREMENTS.md` — product requirements and constraints
-3. `docs/ARCHITECTURE.md` — intended technical structure
-4. `docs/ROADMAP.md` — phased plan
-5. `README.md` — public overview
+1. `docs/PLATFORM_DIRECTION_2026-09-11.md` — current cross-platform product direction; supersedes older provider/download direction when they conflict
+2. `docs/ANDROID_NATIVE_ARCHITECTURE_2026-09-11.md` — approved Android native design target
+3. `docs/ANDROID_NATIVE_PHASE_PLAN_2026-09-11.md` — current Android execution sequence and gates
+4. `docs/CURRENT_IMPLEMENTATION.md` — what actually exists now in the Web/PWA repository; historical sections may predate the platform pivot
+5. `docs/REQUIREMENTS.md` — original Web/PWA requirements and constraints
+6. `docs/ARCHITECTURE.md` — original Web/PWA technical structure
+7. `docs/ROADMAP.md` — historical Web/PWA phased plan; secondary to the native-platform direction
+8. `README.md` — public overview
 
-When documents conflict, stop and resolve the conflict instead of guessing.
+When documents conflict, use the higher-priority document and update stale lower-priority documentation in the next relevant documentation pass instead of guessing.
 
 ## Development workflow
 
@@ -21,7 +24,7 @@ Use this sequence for non-trivial work:
 1. Plan — identify requirement, affected modules, risks and acceptance criteria.
 2. Execute — implement the smallest coherent change.
 3. Test/Check — run lint, typecheck, tests and build relevant to the change.
-4. Review — check regressions, browser implications, privacy and performance.
+4. Review — check regressions, platform implications, privacy and performance.
 5. Improve — fix discovered issues and re-run checks.
 
 Do not spend excessive time extending the plan once the implementation path is clear.
@@ -33,25 +36,52 @@ Do not spend excessive time extending the plan once the implementation path is c
 - Prefer pull requests into `main`.
 - Do not force-push `main`.
 
+## Platform direction
+
+- The existing Web/PWA remains a supported local-media player, recorder, browser FFmpeg toolset and UI reference.
+- The new highest-priority product track is a dedicated native Android app focused on `Share URL -> local acquisition -> Library -> playlist -> screen-off playback`.
+- The recommended Android code repository is `goroyattemiyo/web-media-studio-android` once bootstrapped.
+- Do not force native Android code into the current Vite/Web build merely to keep one repository.
+- Cloud Run media extraction and Colab/Gradio are not the long-term normal Android acquisition UX. Cloud Run remains support/diagnostic infrastructure; Colab remains fallback/diagnostic evidence.
+- Chrome extension work is deferred until a desktop-native WMS track exists; Android should use the system share sheet.
+
 ## Architecture rules
 
 - Mobile first.
+- Local first for saved media and playback.
 - Core playback must not depend on FFmpeg.
-- FFmpeg must be lazy-loaded.
+- Web FFmpeg must remain lazy-loaded.
+- Native acquisition must be behind a replaceable `MediaAcquisitionEngine` boundary; do not couple Compose UI directly to yt-dlp wrappers.
 - Providers must not leak provider-specific behavior into generic player UI/state.
-- Use feature detection for browser APIs.
-- Background playback is best effort; never hard-code a promise that all browsers/OSes will continue playback.
-- Keep local user media and recordings local unless a future feature explicitly requires user-approved upload.
-- Never commit secrets, API keys, cookies or access tokens.
-- Treat external URLs and media metadata as untrusted input.
+- Use platform capability detection instead of browser/device-name assumptions where applicable.
+- Keep `main` deployable.
+- Add a regression test whenever a bug exposes a reusable failure mode.
+- Browser/OS/device behavior requires real-device validation before being marked supported.
 
-## YouTube boundary
+## Remote-media acquisition boundary
 
-YouTube integration is for official embedded playback/control. Do not implement stream scraping, audio extraction or download from YouTube URLs.
+Web/PWA:
+
+- YouTube playback continues to use the official embedded player.
+- Do not make browser/Cloud Run extraction the required core path.
+
+Native Android development build:
+
+- Local acquisition of public, technically supported URLs may be implemented only after explicit user action.
+- Target user-owned or otherwise permitted media.
+- No account-cookie harvesting/import in the initial implementation.
+- No proxy rotation as an automatic workaround.
+- No DRM bypass.
+- No authentication/access-control bypass.
+- Login-only/private media is not an MVP target.
+- Treat URLs and metadata as untrusted input and sanitize extractor errors/filenames.
+- Do not expose arbitrary yt-dlp flags or filesystem paths through normal UI.
 
 ## FFmpeg boundary
 
-Initial GitHub Pages deployment should assume a single-thread-compatible ffmpeg.wasm configuration. Do not require cross-origin isolation until deployment headers and target-browser behavior have been explicitly verified.
+The Web/PWA GitHub Pages deployment should assume a single-thread-compatible ffmpeg.wasm configuration unless cross-origin isolation has been explicitly verified.
+
+Native Android FFmpeg/extractor code belongs behind the acquisition layer and must not become a dependency of native playback.
 
 ## UI/UX quality
 
@@ -61,29 +91,43 @@ The app should look like a finished media product rather than a developer utilit
 - responsive touch targets
 - accessible focus/labels
 - polished empty/loading/error states
-- switchable design-token-based skins
-- no duplicate per-theme component markup
+- no raw extractor logs in normal UI
+- Android primary import flow should stay compact: Share -> choose output -> Save to WMS
+- advanced codec/provider diagnostics belong outside the normal path
 
 ## Testing expectations
 
 Before declaring work complete, check as applicable:
 
-- lint
+Web/PWA:
+
 - TypeScript typecheck
-- unit tests
 - production build
 - local media playback regression
 - mobile viewport behavior
 - permission-denied paths for microphone/storage APIs
 
-Browser/OS-specific features require real-device validation before being marked fully supported.
+Android:
+
+- Gradle build
+- unit tests
+- Android lint
+- APK artifact build
+- foreground acquisition lifecycle/cancel behavior
+- local playback through Media3
+- share-intent parsing
+- Room/file cleanup behavior
+- real-device screen-off and lock-screen controls
+
+CI does not substitute for real-device provider/acquisition or background-playback tests.
 
 ## Documentation discipline
 
 After a meaningful implementation step:
 
-- update `docs/CURRENT_IMPLEMENTATION.md`
-- update `docs/ROADMAP.md` checkboxes only for verified work
-- document newly discovered browser/platform constraints
+- update the relevant canonical platform/Android gate document
+- update `docs/CURRENT_IMPLEMENTATION.md` for verified Web/PWA implementation changes
+- update historical roadmap checkboxes only when that roadmap still applies
+- document newly discovered platform/provider constraints
 
 Do not describe planned work as implemented work.
