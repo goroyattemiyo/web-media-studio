@@ -195,7 +195,7 @@ export default function SettingsPanel() {
               <button type="button" className={detailMode === 'full' ? 'is-active' : ''} onClick={() => setDetailMode('full')}>すべて</button>
             </div>
           </div>
-          <button type="button" className="settings-background-button" onClick={() => document.querySelector<HTMLButtonElement>('.appearance-trigger')?.click()}>
+          <button type="button" className="settings-background-button" onClick={() => window.dispatchEvent(new Event('wms:open-appearance'))}>
             ▧ 背景を変更
           </button>
         </div>
