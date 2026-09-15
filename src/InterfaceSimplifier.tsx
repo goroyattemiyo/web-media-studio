@@ -56,7 +56,7 @@ export default function InterfaceSimplifier() {
       window.setTimeout(() => {
         if (input.value.trim()) {
           form.requestSubmit()
-          emitSystem('URLを受け取りました。YouTubeを読み込みます。', 'YouTube', 'success')
+          emitSystem('URLを受け取りました。YouTubeを読み込みます。', 'Search', 'success')
         }
       }, 40)
     }
@@ -67,15 +67,15 @@ export default function InterfaceSimplifier() {
     }
   }, [youtubeTarget])
 
-  const audioRecords = useMemo(
-    () => savedMedia.map((record, index) => ({ record, index })).filter(({ record }) => record.kind === 'audio'),
+  const savedRecords = useMemo(
+    () => savedMedia.map((record, index) => ({ record, index })),
     [savedMedia],
   )
 
   const clickLibraryInput = (folder = false) => {
     const selector = folder ? '.folder-button input[type="file"]' : '.import-button:not(.folder-button) input[type="file"]'
     document.querySelector<HTMLInputElement>(`#library-panel ${selector}`)?.click()
-    if (!folder) emitSystem('端末から複数の音声ファイルを選べます。', 'Library')
+    if (!folder) emitSystem('端末から音声・動画を複数選択できます。', 'Local')
   }
 
   const clickHiddenAction = (selector: string) => {
@@ -93,7 +93,7 @@ export default function InterfaceSimplifier() {
       if (button) {
         button.click()
         document.getElementById('player-panel')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-        emitSystem(`${name} を選択しました。保存済みライブラリを再生キューへ読み込みました。`, 'Library', 'success')
+        emitSystem(`${name} をPlayerへ読み込みました。`, 'Local', 'success')
       }
     }, 80)
   }
@@ -101,7 +101,7 @@ export default function InterfaceSimplifier() {
   const runSavedAction = (record: StoredMediaLibraryItem, action: 'library' | 'up' | 'down' | 'remove') => {
     const row = findCanonicalRow(record)
     if (!row) {
-      emitSystem(`${record.name} は現在の再生キューにないため、この操作はPlayer側から行ってください。`, 'Library')
+      emitSystem(`${record.name} は現在の再生キューにないため、この操作はPlayer側から行ってください。`, 'Local')
       setOpenSavedId(null)
       return
     }
@@ -122,10 +122,10 @@ export default function InterfaceSimplifier() {
 
   const libraryUi = libraryTarget
     ? createPortal(
-        <section className="device-library-browser" aria-label="端末内ライブラリ">
+        <section className="device-library-browser" aria-label="Local media">
           <div className="device-library-actions">
             <button type="button" className="device-library-primary" onClick={() => clickLibraryInput(false)}>
-              <span>♫</span><b>端末の曲を選ぶ</b>
+              <span>＋</span><b>端末メディアを追加</b>
             </button>
             <div className="device-library-more-wrap">
               <button
@@ -135,12 +135,12 @@ export default function InterfaceSimplifier() {
                   setOpenSavedId(null)
                   setMenuOpen((value) => !value)
                 }}
-                aria-label="その他のライブラリ操作"
+                aria-label="その他のLocal操作"
               >⋯</button>
               {menuOpen && (
                 <div className="device-library-menu">
-                  <button type="button" onClick={() => { clickLibraryInput(true); setMenuOpen(false) }}>📁 フォルダから選ぶ</button>
-                  <button type="button" onClick={() => clickHiddenAction('.save-library-button')}>端末内に保存</button>
+                  <button type="button" onClick={() => { clickLibraryInput(true); setMenuOpen(false) }}>📁 フォルダから追加</button>
+                  <button type="button" onClick={() => clickHiddenAction('.save-library-button')}>WMSに保存</button>
                   <button type="button" onClick={() => clickHiddenAction('.clear-library-button')}>一時追加をクリア</button>
                 </div>
               )}
@@ -148,19 +148,22 @@ export default function InterfaceSimplifier() {
           </div>
 
           <div className="device-library-list-heading">
-            <strong>保存済みの曲</strong>
-            <span>{audioRecords.length}曲</span>
+            <strong>保存済みメディア</strong>
+            <span>{savedRecords.length}件</span>
           </div>
 
-          {audioRecords.length ? (
+          {savedRecords.length ? (
             <div className="device-library-list">
-              {audioRecords.map(({ record, index }) => {
+              {savedRecords.map(({ record, index }) => {
                 const isOpen = openSavedId === record.id
                 return (
                   <div className="device-library-item" key={record.id}>
                     <button type="button" className="device-library-item-main" onClick={() => playSavedRecord(index, record.name)}>
-                      <span>▶</span>
-                      <strong>{record.name}</strong>
+                      <span className="device-library-play">▶</span>
+                      <span className="device-library-item-copy">
+                        <strong>{record.name}</strong>
+                        <small>{record.kind === 'video' ? 'VIDEO' : 'AUDIO'}</small>
+                      </span>
                     </button>
                     <button
                       type="button"
@@ -186,7 +189,7 @@ export default function InterfaceSimplifier() {
             </div>
           ) : (
             <button type="button" className="device-library-empty" onClick={() => clickLibraryInput(false)}>
-              端末の音声を複数選択すると、ここからまとめて選曲できます。
+              音声・動画を追加すると、ここからすぐ再生できます。
             </button>
           )}
         </section>,
@@ -197,8 +200,8 @@ export default function InterfaceSimplifier() {
   const youtubePrompt = youtubeTarget
     ? createPortal(
         <div className="youtube-paste-prompt" aria-hidden="true">
-          <span>🔗</span>
-          <div><strong>YouTube URL</strong><small>ここに貼り付けるだけ</small></div>
+          <span>⌕</span>
+          <div><strong>Search / URL</strong><small>曲名・アーティスト・URLから探す</small></div>
         </div>,
         youtubeTarget,
       )
