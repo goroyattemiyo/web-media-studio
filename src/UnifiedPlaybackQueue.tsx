@@ -13,6 +13,7 @@ import {
 
 const REMOTE_QUEUE_KEY = 'wms-unified-remote-queue-v1'
 const LEGACY_YOUTUBE_QUEUE_KEY = 'wms-unified-youtube-queue-v1'
+const QUEUE_EXPANDED_KEY = 'wms-player-queue-expanded-v1'
 
 type LocalQueueItem = {
   index: number
@@ -83,6 +84,14 @@ function saveRemoteQueue(items: QueueRemoteSource[]) {
   }
 }
 
+function loadQueueExpanded() {
+  try {
+    return window.localStorage.getItem(QUEUE_EXPANDED_KEY) === '1'
+  } catch {
+    return false
+  }
+}
+
 function localRowsSnapshot(): LocalQueueItem[] {
   return Array.from(document.querySelectorAll<HTMLElement>('#library-panel .playlist-row')).map((row, index) => ({
     index,
@@ -119,6 +128,15 @@ function UnifiedPlaybackQueue() {
   const [playlistYouTube, setPlaylistYouTube] = useState<YouTubePlaylistEntry[]>([])
   const [playlistName, setPlaylistName] = useState('')
   const [status, setStatus] = useState('各カードで選んだメディアをここから再生できます。')
+  const [expanded, setExpanded] = useState(loadQueueExpanded)
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(QUEUE_EXPANDED_KEY, expanded ? '1' : '0')
+    } catch {
+      // Queue disclosure still works for the current session.
+    }
+  }, [expanded])
 
   useEffect(() => {
     let frame = 0
@@ -301,63 +319,78 @@ function UnifiedPlaybackQueue() {
   const total = locals.length + remoteItems.length
 
   return createPortal(
-    <section className="unified-play-queue" aria-label="現在の再生キュー">
+    <section className={`unified-play-queue ${expanded ? 'is-expanded' : 'is-collapsed'}`} aria-label="現在の再生キュー">
       <div className="unified-play-queue-heading">
         <div>
           <p className="eyebrow">PLAY QUEUE</p>
           <h3>次に再生</h3>
           <span>{playlistName ? `Saved Playlist · ${playlistName}` : 'Local / Video をここに集約'}</span>
         </div>
-        <b>{total} items</b>
+        <div className="unified-play-queue-heading-actions">
+          <b>{total} items</b>
+          <button
+            type="button"
+            className="unified-play-queue-toggle"
+            aria-expanded={expanded}
+            aria-label={expanded ? '再生キューを閉じる' : '再生キューを開く'}
+            onClick={() => setExpanded((value) => !value)}
+          >
+            {expanded ? '⌃' : '⌄'}
+          </button>
+        </div>
       </div>
 
-      <p className="unified-play-queue-status">{status}</p>
+      {expanded && (
+        <>
+          <p className="unified-play-queue-status">{status}</p>
 
-      {total ? (
-        <div className="unified-play-queue-list">
-          {locals.map((item, index) => (
-            <div className={`unified-play-queue-row ${item.current ? 'is-current' : ''}`} key={`local-${item.index}-${item.name}`}>
-              <button type="button" className="unified-play-queue-main" onClick={() => playLocal(item.index)}>
-                <span className="unified-play-queue-index">{String(index + 1).padStart(2, '0')}</span>
-                <span className="unified-play-queue-copy"><strong>{item.name}</strong><small>{item.current ? '再生中 / 選択中' : 'Local media'}</small></span>
-                <span className="source-chip">{item.source}</span>
-              </button>
-              <div className="unified-play-queue-actions">
-                <button type="button" disabled={item.index === 0} onClick={() => moveLocal(item.index, -1)}>↑</button>
-                <button type="button" disabled={item.index === locals.length - 1} onClick={() => moveLocal(item.index, 1)}>↓</button>
-                <button type="button" onClick={() => removeLocal(item.index)}>×</button>
-              </div>
-            </div>
-          ))}
-
-          {remoteItems.map((item, remoteIndex) => {
-            const manualIndex = manualRemote.findIndex((candidate) => remoteKey(candidate) === remoteKey(item))
-            const globalIndex = locals.length + remoteIndex
-            return (
-              <div className={`unified-play-queue-row is-remote is-${item.provider}`} key={remoteKey(item)}>
-                <button type="button" className="unified-play-queue-main" onClick={() => playRemote(item)}>
-                  <span className="unified-play-queue-index">{String(globalIndex + 1).padStart(2, '0')}</span>
-                  <span className="unified-play-queue-copy"><strong>{item.title}</strong><small>{item.origin === 'playlist' ? 'Saved Playlistから追加' : `${item.provider} Queue`}</small></span>
-                  <span className="source-chip">{item.provider}</span>
-                </button>
-                <div className="unified-play-queue-actions">
-                  {item.origin === 'queue' ? (
-                    <>
-                      <button type="button" disabled={manualIndex <= 0} onClick={() => moveRemote(item.provider, item.sourceId, -1)}>↑</button>
-                      <button type="button" disabled={manualIndex < 0 || manualIndex === manualRemote.length - 1} onClick={() => moveRemote(item.provider, item.sourceId, 1)}>↓</button>
-                      <button type="button" onClick={() => removeRemote(item.provider, item.sourceId)}>×</button>
-                    </>
-                  ) : <span className="unified-play-queue-saved">saved</span>}
+          {total ? (
+            <div className="unified-play-queue-list">
+              {locals.map((item, index) => (
+                <div className={`unified-play-queue-row ${item.current ? 'is-current' : ''}`} key={`local-${item.index}-${item.name}`}>
+                  <button type="button" className="unified-play-queue-main" onClick={() => playLocal(item.index)}>
+                    <span className="unified-play-queue-index">{String(index + 1).padStart(2, '0')}</span>
+                    <span className="unified-play-queue-copy"><strong>{item.name}</strong><small>{item.current ? '再生中 / 選択中' : 'Local media'}</small></span>
+                    <span className="source-chip">{item.source}</span>
+                  </button>
+                  <div className="unified-play-queue-actions">
+                    <button type="button" disabled={item.index === 0} onClick={() => moveLocal(item.index, -1)}>↑</button>
+                    <button type="button" disabled={item.index === locals.length - 1} onClick={() => moveLocal(item.index, 1)}>↓</button>
+                    <button type="button" onClick={() => removeLocal(item.index)}>×</button>
+                  </div>
                 </div>
-              </div>
-            )
-          })}
-        </div>
-      ) : (
-        <div className="unified-play-queue-empty">
-          <strong>Queue is empty.</strong>
-          <span>Library・Video Search・録音などで選んだメディアがここに集まります。</span>
-        </div>
+              ))}
+
+              {remoteItems.map((item, remoteIndex) => {
+                const manualIndex = manualRemote.findIndex((candidate) => remoteKey(candidate) === remoteKey(item))
+                const globalIndex = locals.length + remoteIndex
+                return (
+                  <div className={`unified-play-queue-row is-remote is-${item.provider}`} key={remoteKey(item)}>
+                    <button type="button" className="unified-play-queue-main" onClick={() => playRemote(item)}>
+                      <span className="unified-play-queue-index">{String(globalIndex + 1).padStart(2, '0')}</span>
+                      <span className="unified-play-queue-copy"><strong>{item.title}</strong><small>{item.origin === 'playlist' ? 'Saved Playlistから追加' : `${item.provider} Queue`}</small></span>
+                      <span className="source-chip">{item.provider}</span>
+                    </button>
+                    <div className="unified-play-queue-actions">
+                      {item.origin === 'queue' ? (
+                        <>
+                          <button type="button" disabled={manualIndex <= 0} onClick={() => moveRemote(item.provider, item.sourceId, -1)}>↑</button>
+                          <button type="button" disabled={manualIndex < 0 || manualIndex === manualRemote.length - 1} onClick={() => moveRemote(item.provider, item.sourceId, 1)}>↓</button>
+                          <button type="button" onClick={() => removeRemote(item.provider, item.sourceId)}>×</button>
+                        </>
+                      ) : <span className="unified-play-queue-saved">saved</span>}
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          ) : (
+            <div className="unified-play-queue-empty">
+              <strong>Queue is empty.</strong>
+              <span>Library・Video Search・録音などで選んだメディアがここに集まります。</span>
+            </div>
+          )}
+        </>
       )}
     </section>,
     target,
