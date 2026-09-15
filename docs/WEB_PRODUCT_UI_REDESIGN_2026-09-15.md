@@ -1,7 +1,7 @@
 # Web Media Studio — Product UI Redesign
 
 Last updated: 2026-09-15 JST
-Status: design proposal only; not implemented yet
+Status: design baseline; implementation follows in UI-R gates
 Target: `goroyattemiyo/web-media-studio`
 Reference implementation: `goroyattemiyo/web-media-studio-android`
 
@@ -9,13 +9,14 @@ Reference implementation: `goroyattemiyo/web-media-studio-android`
 
 Make the Web/PWA version feel like a finished media product instead of a collection of tools.
 
-The redesign must preserve the useful Web-only features, but the first-time experience should answer three questions immediately:
+The redesign must preserve the useful Web-only features, but the first-time experience should answer four questions immediately:
 
-1. Where do I find or open media?
-2. What is playing now?
-3. Where is my saved media?
+1. Where do I find/open media?
+2. Where do I open media already on this device?
+3. What is playing now?
+4. Where are advanced tools/settings when I need them?
 
-The product should remain recognizably WMS: dark/neon identity, switchable skins, player visuals, local-first media, recorder, FFmpeg tools, playlists and provider-aware playback.
+The product should remain recognizably WMS: dark/neon identity, switchable skins, player visuals, local-first media, playlists, recorder, FFmpeg tools and provider-aware playback.
 
 ## 2. Designer review summary
 
@@ -23,14 +24,15 @@ The product should remain recognizably WMS: dark/neon identity, switchable skins
 
 The current Web UI has strong visual assets and many capable features, but information hierarchy is weak because product functions and developer/advanced functions compete at the same visual level.
 
-The main visual problems are:
+Main problems:
 
 - too many primary destinations
 - horizontal tool-card paging plus a second mini-player layer
-- several controls visible before the user has media loaded
-- settings, capability checks, recorder and FFmpeg appear as peer-level product destinations
-- Search exists inside the YouTube/provider surface instead of owning the launch experience
-- the old App layout still exists underneath newer UI overlays, making spacing and hierarchy harder to control consistently
+- several controls visible before media is loaded
+- Settings, capability checks, Recorder and FFmpeg appear as peer-level destinations
+- Search exists inside the YouTube/provider surface instead of owning launch
+- the old App layout remains underneath newer Portal/Enhancer layers
+- provider/implementation boundaries are visible where user-task boundaries should be visible
 
 ### UI / UX designer view
 
@@ -38,40 +40,41 @@ The current interaction model asks the user to understand WMS architecture befor
 
 Examples:
 
-- `Player`, `Library`, `YouTube`, `Recorder`, `Tools`, `Device` are presented equally even though they are not equally frequent tasks
-- a user searching for media must understand the difference between Video Search and the YouTube provider player
-- advanced playback controls are visually close to basic playback controls
-- technical capability/status information is too easy to encounter during normal use
-- the floating player helps continuity but still looks like a control strip rather than a media object because artwork/thumbnail is not the primary visual anchor
+- `Player`, `Library`, `YouTube`, `Recorder`, `Tools`, `Device` are presented equally
+- a user searching for media must understand Video Search vs YouTube Player
+- advanced playback controls sit too close to basic playback controls
+- capability/status information appears during normal use
+- the floating player is control-first rather than artwork/media-first
+- the simplified Local/Library UI currently filters saved media to audio, so saved video can disappear from the simplified surface
 
-The redesign should use progressive disclosure: common actions first, advanced actions only when requested.
+Use progressive disclosure: common actions first, advanced actions only when requested.
 
 ## 3. What Android gets right
 
-The Android UI establishes a clearer product model:
+Android establishes a clearer model:
 
-`Search or Share -> Import -> Library -> Playback`
+`Search or Share -> Import -> Local Library -> Playback`
 
-Useful concepts to bring back to Web:
+Bring these concepts back to Web:
 
-- launch into Search, not Player or diagnostics
+- launch into Search
 - one prominent Search / URL input
-- thumbnail-first search results
+- thumbnail-first results
 - one obvious primary action per result
 - persistent mini player after media is loaded
 - Settings / Appearance / Developer functions outside primary navigation
-- Search providers are implementation details behind one Search experience
+- Search providers behind one Search experience
 
-The Web version should not copy Android literally. Recorder, FFmpeg and richer desktop controls remain useful on Web, but they should move to secondary navigation.
+The Web version should not copy Android literally. Web has a second equally important intake path: local files already on the device. Therefore Web primary navigation should expose **Local** directly.
 
 ## 4. New information architecture
 
 ### Primary surfaces
 
-1. **Search** — default launch surface
-2. **Library** — saved local media and playlists
+1. **Search** — default launch; keyword or URL
+2. **Local** — device files, WMS-saved audio/video, playlists
 3. **Player** — full Now Playing / queue
-4. **More** — Recorder, Audio Tools, Settings
+4. **More** — Recorder, Audio Tools, Appearance, Settings, fallback/diagnostics
 
 Do not show `Device Check` as a primary destination.
 Do not show provider names such as `YouTube` as a primary navigation destination.
@@ -85,17 +88,17 @@ Do not show provider names such as `YouTube` as a primary navigation destination
 │          active page         │
 │                              │
 │ ┌──────────────────────────┐ │
-│ │ thumbnail  title     ▶   │ │  mini player
+│ │ artwork  title       ▶   │ │
 │ └──────────────────────────┘ │
-│ Search   Library  Player More│
+│ Search    Local   Player More│
 └──────────────────────────────┘
 ```
 
 ### Desktop navigation
 
-Use the same four destinations, but allow a compact left rail or top-level tab treatment. Do not introduce a different information architecture just because more width is available.
+Use the same four destinations. A compact rail/top tab is acceptable, but do not create a second desktop-only information architecture.
 
-## 5. Search — new default home
+## 5. Search — default home
 
 Search becomes the visual home of WMS.
 
@@ -119,13 +122,9 @@ Suggested copy:
 
 `曲名・アーティスト・URLを入力`
 
-The input should be the first dominant control after the brand header.
-
-Provider selectors should only be shown when more than one working provider is actually available.
+Provider selectors should only appear when more than one working provider is actually available.
 
 ### Search results
-
-Each result is a media card:
 
 ```text
 ┌────────────────────────────────┐
@@ -137,73 +136,115 @@ Each result is a media card:
 └────────────────────────────────┘
 ```
 
-Primary action is `再生`.
-Secondary action is `次に再生` when supported.
-`元サイト`, `Download`, diagnostics and provider-specific actions move into `⋯` unless they are essential for the current source.
+Primary: `再生`.
+Secondary: `次に再生` when supported.
+`元サイト`, `Download` and provider-specific actions move into `⋯` unless essential.
 
 ### Remote video playback
 
-When a search result starts remote video playback, the active video should remain visibly attached to the Search experience instead of requiring the user to discover a separate provider card.
+Starting remote video should not force the user to discover a separate provider card.
 
-On desktop, use a sticky player area above results when video is active.
-On mobile, use a compact inline video/player area that can expand to Player.
+- desktop: sticky/inline player above results
+- mobile: compact inline player that expands to Player
 
-## 6. Mini player
+## 6. Local — first-class Web intake surface
 
-The mini player is persistent whenever media is loaded and the full Player is not the dominant surface.
+`Local` is not just the old Library panel renamed. It is the home for media already on the device and media WMS has saved locally.
 
-Required visual order:
+### Local top actions
 
-1. thumbnail / artwork / video preview fallback
+Primary:
+
+- `＋ 端末メディアを追加`
+
+Secondary / overflow:
+
+- folder import when supported
+- storage details
+- clear temporary items
+- maintenance actions
+
+The main copy must say **media**, not only **曲**, because WMS supports audio and video.
+
+### Local sections
+
+1. **Recently added / current local queue**
+2. **Saved media** — audio + video
+3. **Playlists**
+
+Do not filter the simplified saved-media list to audio only.
+
+### Local media card
+
+Each row/card:
+
+- thumbnail/artwork/video poster/WMS emblem fallback
+- title
+- audio/video type + short source metadata
+- row tap or primary button = Play
+- `⋯` for delete, save, reorder, queue removal
+
+Do not show `Save`, `Delete`, `↑`, `↓`, `×` as peer-level buttons on every row.
+
+### Local missing capabilities to address
+
+- saved video must appear alongside audio
+- video should open the Player immediately, not look like an unsupported library item
+- local rows need media-type visibility
+- playlists need a visible Local subsection
+- storage quota/protection text moves out of the main list into details/settings
+- thumbnail/artwork fallback should replace generic note-only presentation
+
+## 7. Mini player
+
+Persistent whenever media is loaded and full Player is not dominant.
+
+Required order:
+
+1. artwork / thumbnail / video poster
 2. title
 3. play/pause
 4. next
 
-Optional actions should not crowd the default row.
-Previous, queue, playlist and other actions may be revealed on expansion or on wider screens.
+Previous, queue, playlist and advanced actions can be revealed on expansion/wider layouts.
 
-Fallback visual priority:
+Fallback priority:
 
 1. provider/search thumbnail
-2. local embedded artwork when available later
-3. video preview frame/poster when available
+2. embedded local artwork when available
+3. video poster/frame when available
 4. WMS emblem
 
-Do not use a generic music-note icon as the normal long-term representation of loaded media.
+Do not use a generic music-note icon as the normal loaded-media identity.
 
-## 7. Full Player / Now Playing
+## 8. Full Player / Now Playing
 
 The Player should feel like one coherent media player, not a control laboratory.
 
-### Top half
+### Main visual
 
-For video:
+Video: video immediately.
+Audio: artwork or selected WMS visualizer.
 
-- video is the main visual immediately
-
-For audio:
-
-- artwork or selected WMS visualizer is the main visual
-
-The visualizer is first-class product UI and must not disappear behind advanced settings.
+Visualizer remains a first-class WMS feature.
 
 ### Track information
 
 - title
 - artist/provider/source when known
-- playlist/queue context as secondary text
+- playlist/queue context secondary
 
 ### Primary controls
 
 - previous
 - play/pause
 - next
-- seek bar
-- elapsed / remaining or elapsed / duration
+- seek
+- elapsed / duration
 
-### Secondary controls
+### Playback options
 
-Move into an expandable `Playback options` area:
+Collapse into an expandable area:
 
 - ±10 sec
 - shuffle
@@ -212,40 +253,69 @@ Move into an expandable `Playback options` area:
 - volume
 - A-B loop
 
-A-B loop remains important for practice use, but it is not a first-screen control for every user.
+A-B remains valuable for practice but is not first-screen UI for everyone.
 
 ### Queue
 
-Queue should be a collapsible lower sheet/panel rather than always competing with the main player visual.
+Use a collapsible lower sheet/panel instead of permanently competing with the main visual.
 
-## 8. Library
+## 9. Download / Localize and Colab fallback
 
-Library should answer `What have I saved?` before exposing storage internals.
+The current repository still contains `ColabCompanionShell`, but production `main.tsx` no longer mounts it. Direct Cloud Download replaced the mounted Companion path. Therefore a user currently cannot reconnect a `gradio.live` Companion from normal WMS UI.
 
-### Top controls
+This is a product/UI defect if Colab remains a supported fallback.
 
-- `＋ 端末から追加`
-- search/filter saved media later
-- `Playlists` shortcut
-- overflow for folder import, storage details and maintenance
+### Product rule
 
-### Media rows/cards
+Normal flow:
 
-Each saved item should use:
+`Search / URL -> Play`
 
-- thumbnail/artwork/emblem fallback
-- title
-- short media/source metadata
-- one primary row action: play
-- overflow menu for delete, save-state/queue operations
+For authorized local acquisition where available:
 
-Do not show `Save`, `Delete`, `↑`, `↓`, and `×` as five peer-level controls on every row.
+`Download -> preferred available method`
 
-### Playlists
+Colab must be **fallback**, not another primary tab.
 
-Named playlists should be a visible Library subsection, not mixed with raw storage controls.
+### Download sheet
 
-## 9. More
+When Download is selected:
+
+```text
+Download
+  format: MP3 / M4A / WAV
+  rights confirmation
+  [ Download ]
+
+  Cloud unavailable?
+  [ Colab Companionを使う ]
+```
+
+### Colab Companion fallback
+
+When expanded:
+
+- `Companionを起動` opens canonical notebook
+- paste/register `https://xxxxx.gradio.live`
+- visible OFFLINE / CONNECTING / READY / EXPIRED status
+- reconnect / disconnect
+- current download target is retained
+- separate-tab fallback remains available
+- rights confirmation is still performed on the Companion side per job
+
+Do not display the Colab connection form permanently on Search Home.
+
+### Implementation constraint
+
+Direct Cloud Download and Colab Companion must not both intercept the same Download click independently.
+
+Refactor toward one Download coordinator:
+
+`Download action -> Download coordinator -> Cloud OR Colab fallback`
+
+During migration, a custom WMS event/handoff is acceptable, but there must be exactly one owner of the initial Download action.
+
+## 10. More
 
 `More` opens a simple sheet/menu:
 
@@ -254,15 +324,18 @@ Named playlists should be a visible Library subsection, not mixed with raw stora
 - Appearance
 - Settings
 
-Development/diagnostic information should be nested under Settings only when needed.
+Optional/fallback entries:
+
+- Colab Companion status / reconnect
+- diagnostics under Settings/Developer
 
 ### Recorder
 
-Recorder remains a product feature, but it is not part of the primary playback navigation.
+Product feature, but not primary playback navigation.
 
 ### Audio Tools
 
-FFmpeg conversion remains available, but normal playback should never feel like it depends on FFmpeg.
+FFmpeg remains available; normal playback must not feel dependent on FFmpeg.
 
 ### Appearance
 
@@ -271,47 +344,45 @@ Combine:
 - Skin
 - Visualizer
 - Backdrop
-- reduced motion / effects later
+- reduced motion/effects later
 
-Do not keep separate top-bar appearance controls and a Settings appearance section at the same time.
+Do not keep duplicate top-bar and Settings appearance controls.
 
-## 10. Navigation behavior
+## 11. Navigation behavior
 
-The current UI uses horizontal scroll-snap cards and a pager. This should be removed from the final product navigation.
+Remove the final-product dependency on horizontal scroll-snap tool cards and the `1 / 6` style pager.
 
-Target behavior:
+Target:
 
-- tapping a primary destination changes the active surface directly
-- browser back should eventually return to the previous surface/state where practical
-- no requirement to horizontally swipe through unrelated tools
-- mini-player tap opens Player
-- remote video started in Search stays visibly connected to Search and can expand to Player
+- tap primary destination -> direct surface change
+- no horizontal swipe required to discover unrelated tools
+- mini-player tap -> Player
+- remote video started in Search remains connected to Search and can expand to Player
+- More is a sheet/menu, not a seventh tool card
 
-During migration, the existing panels may remain mounted internally for compatibility, but only one product surface should be visually dominant at a time.
+Existing panels may remain mounted internally during migration, but only one product surface should be visually dominant.
 
-## 11. Visual design rules
+## 12. Visual design rules
 
 ### Preserve
 
 - canonical WMS diamond emblem
 - dark neon identity
 - cyan/blue/purple accent family
-- glass surfaces where they improve hierarchy
+- glass surfaces when they improve hierarchy
 - optional immersive skins
 
 ### Change
 
-- larger readable body text than the current 8–10 px utility labels
-- fewer nested bordered boxes
+- normal body text larger than current 8–10 px utility labels
+- fewer nested borders
 - fewer simultaneous glow effects
-- 44 px minimum touch target on interactive mobile controls
+- 44 px minimum mobile touch target
 - stronger thumbnail/artwork emphasis
 - more empty space around the primary task
-- consistent 8 px spacing rhythm with 16/24 px section spacing
+- consistent 8 px rhythm with 16/24 px section spacing
 
-### Typography hierarchy
-
-Recommended hierarchy:
+Recommended typography:
 
 - page title: 24–32 px
 - section title: 18–22 px
@@ -321,98 +392,109 @@ Recommended hierarchy:
 
 Avoid 8–9 px text for normal user-facing information.
 
-## 12. Accessibility
+## 13. Accessibility
 
 - visible keyboard focus
 - `aria-label` for icon-only controls
-- do not encode state by glow/color alone
+- no color-only state
 - respect `prefers-reduced-motion`
-- maintain sufficient contrast on all skins
-- keep touch targets at least 44 x 44 CSS px where practical
+- sufficient contrast on all skins
+- touch targets at least 44 x 44 CSS px where practical
 
-## 13. Architecture implication
+## 14. Architecture implication
 
-The current UI is assembled from the original `App.tsx` plus many DOM/Portal-based Enhancer components.
+Current UI is assembled from the original `App.tsx` plus many DOM/Portal-based Enhancer components.
 
-Do not add another long-lived Enhancer to implement this redesign.
+Do not add another long-lived Enhancer just to implement this redesign.
 
 Migration direction:
 
-1. keep existing playback/storage/provider engines
-2. introduce an explicit product shell/navigation state
-3. move Search, Player, Library and More into first-class React composition
-4. gradually retire DOM-query/Portal shims once each migrated surface owns its controls directly
+1. keep proven playback/storage/provider engines
+2. introduce explicit product-shell navigation state
+3. move Search, Local, Player and More into first-class React composition
+4. introduce one Download coordinator
+5. gradually retire DOM-query/Portal shims
 
-Temporary compatibility adapters are acceptable during migration, but the number of Enhancers should decrease, not increase.
+The number of Enhancers should decrease, not increase.
 
-## 14. Implementation phases
+## 15. Implementation phases
 
 ### UI-R0 — design baseline
 
 - this document
-- no product code change
+- compare Web and Android UX
 - no CI required
 
-### UI-R1 — navigation simplification
+### UI-R1 — navigation + Local correctness
 
-- Search becomes first destination
-- primary navigation becomes Search / Library / Player / More
-- remove the visible tool pager
-- move Recorder / Tools / Settings into More
-- remove always-visible Skin selector from header
-- keep current engines and current panel internals
+- Search is default
+- primary navigation = Search / Local / Player / More
+- remove visible tool pager
+- Recorder / Tools / Settings move under More
+- remove always-visible Skin selector
+- simplified Local shows both audio and video
+- Local wording becomes media-oriented
 
 Acceptance:
 
 - first-time user lands on Search
-- no horizontal tool discovery is required for primary tasks
+- Local is directly reachable
+- saved video is visible in Local
+- no horizontal tool discovery required for primary tasks
 - all existing major features remain reachable
 
-### UI-R2 — Search + remote playback integration
+### UI-R2 — Search + remote playback
 
-- unified Search/URL home treatment
+- unified Search/URL treatment
 - thumbnail-first cards
-- remote video stays visible on Search after play
-- provider-specific secondary actions move behind overflow
+- remote video remains visible on Search after Play
+- provider-specific secondary actions behind overflow
 
-### UI-R3 — Player redesign
+### UI-R3 — Download coordinator + Colab fallback
 
-- thumbnail/artwork/video-first layout
-- restore visualizer prominence
+- one owner for Download action
+- Cloud remains optional/preferred only while working
+- Colab Companion reconnect flow restored as fallback
+- no competing click interceptors
+- fallback retains current target/format
+
+### UI-R4 — Player redesign
+
+- artwork/video/visualizer first
 - primary transport simplified
-- advanced playback controls collapsed
-- queue becomes collapsible
+- advanced playback options collapsed
+- queue collapsible
 
-### UI-R4 — Library redesign
+### UI-R5 — Local/playlist polish
 
-- thumbnail-first saved-media rows
-- one-row primary play action
-- overflow per item
+- thumbnail-first local rows
+- item overflow
 - playlists separated from storage diagnostics
+- media metadata presentation improved
 
-### UI-R5 — architecture cleanup
+### UI-R6 — architecture cleanup
 
 - replace DOM-query/Portal Enhancers with explicit component/state ownership
 - remove redundant legacy CSS/navigation layers
-- add focused regression tests for navigation and playback arbitration
+- add focused regression tests for navigation, Local visibility and playback arbitration
 
-## 15. CI / validation policy
+## 16. CI / validation policy
 
-Follow the repository and account Actions-saving policy.
+Follow the Actions-saving policy.
 
-For UI-R1 through UI-R5:
+For each UI-R gate:
 
 1. branch / Draft PR
-2. static code review first
-3. TypeScript/API/DOM selector regression review
+2. static review first
+3. TypeScript/API/DOM selector/lifecycle regression review
 4. local typecheck/build when available
-5. mobile/desktop manual test plan prepared
-6. only then run one full Web CI for the finished gate if needed
+5. mobile/desktop manual test plan
+6. one full Web CI only for the finished gate when needed
 
 Do not use CI as a layout-debug loop.
 
-## 16. First implementation recommendation
+## 17. First implementation recommendation
 
-Start with **UI-R1 only**.
+Start with **UI-R1**.
 
-Do not redesign Player and Search internals in the same first patch. The highest-value low-risk change is to fix navigation and information hierarchy first while preserving the proven playback/storage/provider behavior underneath.
+It has the best risk/value ratio: fix information hierarchy and the concrete Local audio-only regression without changing proven playback/storage/provider engines. Then implement Download/Colab ownership in UI-R3 rather than mixing two download handlers into the first navigation patch.
