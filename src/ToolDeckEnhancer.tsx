@@ -9,22 +9,21 @@ const DETAIL_MODE_KEY = 'wms-ui-v2-detail-mode'
 const MAX_BACKGROUND_BYTES = 20 * 1024 * 1024
 
 type DetailMode = 'compact' | 'full'
+type ProductSurface = 'search' | 'local' | 'player' | 'more'
 
-type ToolDefinition = {
-  key: PlaybackTool
-  selector: string
+type SurfaceDefinition = {
+  key: ProductSurface
+  playbackTool: PlaybackTool
   icon: string
   label: string
-  shortLabel: string
+  selector: string
 }
 
-const tools: ToolDefinition[] = [
-  { key: 'player', selector: '#player-panel', icon: '▶', label: 'Player', shortLabel: 'Player' },
-  { key: 'library', selector: '#library-panel', icon: '▣', label: 'Library', shortLabel: 'Library' },
-  { key: 'youtube', selector: '#youtube-provider-panel', icon: 'YT', label: 'YouTube', shortLabel: 'YouTube' },
-  { key: 'record', selector: '#recorder-panel', icon: '●', label: 'Recorder', shortLabel: 'Record' },
-  { key: 'tools', selector: '#ffmpeg-tools-panel', icon: '✦', label: 'Audio tools', shortLabel: 'Tools' },
-  { key: 'device', selector: '.device-panel', icon: '◇', label: 'Device check', shortLabel: 'Device' },
+const surfaces: SurfaceDefinition[] = [
+  { key: 'search', playbackTool: 'youtube', icon: '⌕', label: 'Search', selector: '#youtube-provider-panel' },
+  { key: 'local', playbackTool: 'library', icon: '▣', label: 'Local', selector: '#library-panel' },
+  { key: 'player', playbackTool: 'player', icon: '▶', label: 'Player', selector: '#player-panel' },
+  { key: 'more', playbackTool: 'device', icon: '•••', label: 'More', selector: '.device-panel' },
 ]
 
 function loadNumber(key: string, fallback: number, min: number, max: number) {
@@ -51,8 +50,7 @@ function formatBytes(value: number) {
 }
 
 function ToolDeckEnhancer() {
-  const [activeTool, setActiveTool] = useState<PlaybackTool>('player')
-  const [topbarTarget, setTopbarTarget] = useState<Element | null>(null)
+  const [activeSurface, setActiveSurface] = useState<ProductSurface>('search')
   const [sheetOpen, setSheetOpen] = useState(false)
   const [backgroundUrl, setBackgroundUrl] = useState<string | null>(null)
   const [backgroundName, setBackgroundName] = useState<string | null>(null)
@@ -72,8 +70,6 @@ function ToolDeckEnhancer() {
   }
 
   useEffect(() => {
-    setTopbarTarget(document.querySelector('.topbar'))
-
     let cancelled = false
     void getBackgroundAsset()
       .then((asset) => {
@@ -106,67 +102,31 @@ function ToolDeckEnhancer() {
   }, [backgroundDim, backgroundBlur, detailMode])
 
   useEffect(() => {
-    setActivePlaybackTool(activeTool)
-  }, [activeTool])
-
-  useEffect(() => {
-    const container = document.querySelector<HTMLElement>('.content-grid')
-    if (!container) return
-
-    let frame = 0
-    let lastKey = ''
-
-    const updateActiveTool = () => {
-      frame = 0
-      const containerRect = container.getBoundingClientRect()
-      const center = containerRect.left + containerRect.width / 2
-      let best: { key: PlaybackTool; distance: number } | null = null
-
-      for (const tool of tools) {
-        const element = document.querySelector<HTMLElement>(tool.selector)
-        if (!element) continue
-        element.dataset.toolDeckPanel = tool.key
-        const rect = element.getBoundingClientRect()
-        const distance = Math.abs(rect.left + rect.width / 2 - center)
-        if (!best || distance < best.distance) best = { key: tool.key, distance }
-      }
-
-      if (best && best.key !== lastKey) {
-        lastKey = best.key
-        setActiveTool(best.key)
-      }
-    }
-
-    const scheduleUpdate = () => {
-      if (frame) return
-      frame = window.requestAnimationFrame(updateActiveTool)
-    }
-
-    const observer = new MutationObserver(scheduleUpdate)
-    observer.observe(container, { childList: true, subtree: true })
-    container.addEventListener('scroll', scheduleUpdate, { passive: true })
-    window.addEventListener('resize', scheduleUpdate)
-    scheduleUpdate()
+    const definition = surfaces.find((surface) => surface.key === activeSurface) ?? surfaces[0]
+    document.documentElement.dataset.wmsSurface = activeSurface
+    setActivePlaybackTool(definition.playbackTool)
+    window.dispatchEvent(new CustomEvent('wms:surface-change', { detail: { surface: activeSurface } }))
 
     return () => {
-      observer.disconnect()
-      container.removeEventListener('scroll', scheduleUpdate)
-      window.removeEventListener('resize', scheduleUpdate)
-      if (frame) window.cancelAnimationFrame(frame)
+      if (document.documentElement.dataset.wmsSurface === activeSurface) {
+        delete document.documentElement.dataset.wmsSurface
+      }
     }
+  }, [activeSurface])
+
+  useEffect(() => {
+    const openAppearance = () => setSheetOpen(true)
+    window.addEventListener('wms:open-appearance', openAppearance)
+    return () => window.removeEventListener('wms:open-appearance', openAppearance)
   }, [])
 
-  const goToTool = (tool: ToolDefinition) => {
-    const element = document.querySelector<HTMLElement>(tool.selector)
-    if (!element) return
-    element.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' })
-    setActiveTool(tool.key)
-  }
-
-  const moveTool = (offset: number) => {
-    const currentIndex = Math.max(0, tools.findIndex((tool) => tool.key === activeTool))
-    const nextIndex = Math.min(tools.length - 1, Math.max(0, currentIndex + offset))
-    goToTool(tools[nextIndex])
+  const goToSurface = (surface: SurfaceDefinition) => {
+    setActiveSurface(surface.key)
+    window.requestAnimationFrame(() => {
+      const target = document.querySelector<HTMLElement>(surface.selector)
+      target?.focus({ preventScroll: true })
+      document.querySelector<HTMLElement>('.content-grid')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    })
   }
 
   const chooseBackground = async (event: ChangeEvent<HTMLInputElement>) => {
@@ -212,9 +172,6 @@ function ToolDeckEnhancer() {
     }
   }
 
-  const activeIndex = Math.max(0, tools.findIndex((tool) => tool.key === activeTool))
-  const activeDefinition = tools[activeIndex]
-
   const backgroundLayers = createPortal(
     <>
       {backgroundUrl && (
@@ -240,7 +197,7 @@ function ToolDeckEnhancer() {
           <section className="appearance-sheet" role="dialog" aria-modal="true" aria-labelledby="appearance-sheet-title">
             <div className="appearance-sheet-heading">
               <div>
-                <p className="eyebrow">WMS UI v2</p>
+                <p className="eyebrow">WMS</p>
                 <h2 id="appearance-sheet-title">Appearance</h2>
               </div>
               <button type="button" className="appearance-close" onClick={() => setSheetOpen(false)} aria-label="閉じる">×</button>
@@ -291,30 +248,18 @@ function ToolDeckEnhancer() {
   return (
     <>
       {backgroundLayers}
-      {topbarTarget && createPortal(
-        <button type="button" className="appearance-trigger" onClick={() => setSheetOpen(true)} aria-label="背景と表示設定を開く" title="背景と表示設定">
-          <span>▧</span><b>Backdrop</b>
-        </button>,
-        topbarTarget,
-      )}
 
-      <div className="tool-deck-pager" aria-live="polite">
-        <button type="button" onClick={() => moveTool(-1)} disabled={activeIndex === 0} aria-label="前のツール">‹</button>
-        <span><strong>{activeDefinition.label}</strong><small>{activeIndex + 1} / {tools.length}</small></span>
-        <button type="button" onClick={() => moveTool(1)} disabled={activeIndex === tools.length - 1} aria-label="次のツール">›</button>
-      </div>
-
-      <nav className="tool-deck-nav" aria-label="WMS tools">
-        {tools.map((tool) => (
+      <nav className="tool-deck-nav" aria-label="WMS primary navigation">
+        {surfaces.map((surface) => (
           <button
             type="button"
-            key={tool.key}
-            className={activeTool === tool.key ? 'is-current' : ''}
-            onClick={() => goToTool(tool)}
-            aria-current={activeTool === tool.key ? 'page' : undefined}
+            key={surface.key}
+            className={activeSurface === surface.key ? 'is-current' : ''}
+            onClick={() => goToSurface(surface)}
+            aria-current={activeSurface === surface.key ? 'page' : undefined}
           >
-            <span>{tool.icon}</span>
-            <small>{tool.shortLabel}</small>
+            <span>{surface.icon}</span>
+            <small>{surface.label}</small>
           </button>
         ))}
       </nav>
