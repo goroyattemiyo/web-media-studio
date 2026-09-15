@@ -1,5 +1,21 @@
 /* Small visual consistency fixes shared across skins/visualizers. */
 
+/* Product shell keeps appearance/language controls in More instead of the persistent header. */
+.topbar .theme-picker,
+.topbar .language-switch {
+  display: none !important;
+}
+
+.topbar .brand-lockup h1 {
+  font-size: 0;
+}
+
+.topbar .brand-lockup h1::after {
+  content: 'WMS';
+  font-size: 22px;
+  letter-spacing: .02em;
+}
+
 /* Visualizers should show the music visualization itself, not the WMS artwork/logo. */
 .wms-visual-enhanced .artwork-placeholder {
   opacity: 0 !important;
