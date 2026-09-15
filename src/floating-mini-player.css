@@ -4,13 +4,13 @@
   left: 50%;
   bottom: calc(78px + env(safe-area-inset-bottom));
   width: min(calc(100% - 22px), 620px);
-  min-height: 60px;
+  min-height: 62px;
   transform: translateX(-50%);
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
   gap: 8px;
-  padding: 8px 9px 8px 12px;
+  padding: 8px 9px 8px 10px;
   border: 1px solid var(--color-border);
   border-radius: 18px;
   background: color-mix(in srgb, var(--color-surface-strong) 92%, transparent);
@@ -21,15 +21,15 @@
 }
 
 body:has(.floating-mini-player) .app-shell {
-  padding-bottom: calc(158px + env(safe-area-inset-bottom));
+  padding-bottom: calc(160px + env(safe-area-inset-bottom));
 }
 
 .floating-mini-title {
   min-width: 0;
   display: grid;
-  grid-template-columns: 32px minmax(0, 1fr);
+  grid-template-columns: 44px minmax(0, 1fr);
   align-items: center;
-  gap: 9px;
+  gap: 10px;
   border: 0;
   background: transparent;
   color: var(--color-text);
@@ -38,16 +38,28 @@ body:has(.floating-mini-player) .app-shell {
   cursor: pointer;
 }
 
-.floating-mini-title > span {
-  width: 32px;
-  height: 32px;
-  display: grid;
-  place-items: center;
-  border-radius: 9px;
-  background: rgba(var(--color-accent-rgb), .12);
-  color: var(--color-accent);
-  font-size: 12px;
-  font-weight: 900;
+.floating-mini-title > .floating-mini-artwork {
+  width: 44px;
+  height: 44px;
+  display: block;
+  overflow: hidden;
+  border: 1px solid var(--color-border);
+  border-radius: 11px;
+  background: rgba(var(--color-accent-rgb), .1);
+}
+
+.floating-mini-artwork img,
+.floating-mini-artwork video {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  background: #08090d;
+}
+
+.floating-mini-player.is-local .floating-mini-artwork img {
+  object-fit: contain;
+  padding: 6px;
 }
 
 .floating-mini-title strong {
@@ -56,6 +68,7 @@ body:has(.floating-mini-player) .app-shell {
   text-overflow: ellipsis;
   white-space: nowrap;
   font-size: 12px;
+  line-height: 1.35;
 }
 
 .floating-mini-controls {
@@ -93,18 +106,23 @@ body:has(.floating-mini-player) .app-shell {
     bottom: calc(74px + env(safe-area-inset-bottom));
     width: calc(100% - 14px);
     gap: 4px;
-    padding-inline: 8px;
+    padding-inline: 7px;
   }
   body:has(.floating-mini-player) .app-shell {
-    padding-bottom: calc(150px + env(safe-area-inset-bottom));
+    padding-bottom: calc(152px + env(safe-area-inset-bottom));
   }
-  .floating-mini-title { grid-template-columns: 28px minmax(0, 1fr); gap: 7px; }
-  .floating-mini-title > span { width: 28px; height: 28px; border-radius: 8px; font-size: 10px; }
+  .floating-mini-title { grid-template-columns: 38px minmax(0, 1fr); gap: 7px; }
+  .floating-mini-title > .floating-mini-artwork { width: 38px; height: 38px; border-radius: 9px; }
+  .floating-mini-player.is-local .floating-mini-artwork img { padding: 5px; }
   .floating-mini-title strong { font-size: 11px; }
   .floating-mini-controls button { width: 38px; height: 40px; font-size: 13px; }
 }
 
 @media (max-width: 420px) {
-  .floating-mini-controls button:nth-child(1),
-  .floating-mini-controls button:nth-child(3) { display: none; }
+  /* Keep Previous / Play-Pause / Next visible on narrow iPhones; hide secondary queue actions first. */
+  .floating-mini-controls button:nth-child(4),
+  .floating-mini-controls button:nth-child(5) { display: none; }
+  .floating-mini-controls button { width: 36px; }
+  .floating-mini-title { grid-template-columns: 36px minmax(0, 1fr); }
+  .floating-mini-title > .floating-mini-artwork { width: 36px; height: 36px; }
 }
