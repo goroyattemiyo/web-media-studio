@@ -19,6 +19,10 @@ type SurfaceDefinition = {
   selector: string
 }
 
+type NavigateEventDetail = {
+  surface?: ProductSurface
+}
+
 const surfaces: SurfaceDefinition[] = [
   { key: 'search', playbackTool: 'youtube', icon: '⌕', label: 'Search', selector: '#youtube-provider-panel' },
   { key: 'local', playbackTool: 'library', icon: '▣', label: 'Local', selector: '#library-panel' },
@@ -116,15 +120,23 @@ function ToolDeckEnhancer() {
 
   useEffect(() => {
     const openAppearance = () => setSheetOpen(true)
+    const navigate = (event: Event) => {
+      const requested = (event as CustomEvent<NavigateEventDetail>).detail?.surface
+      if (!requested || !surfaces.some((surface) => surface.key === requested)) return
+      setActiveSurface(requested)
+    }
+
     window.addEventListener('wms:open-appearance', openAppearance)
-    return () => window.removeEventListener('wms:open-appearance', openAppearance)
+    window.addEventListener('wms:navigate', navigate)
+    return () => {
+      window.removeEventListener('wms:open-appearance', openAppearance)
+      window.removeEventListener('wms:navigate', navigate)
+    }
   }, [])
 
   const goToSurface = (surface: SurfaceDefinition) => {
     setActiveSurface(surface.key)
     window.requestAnimationFrame(() => {
-      const target = document.querySelector<HTMLElement>(surface.selector)
-      target?.focus({ preventScroll: true })
       document.querySelector<HTMLElement>('.content-grid')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
     })
   }
