@@ -81,7 +81,7 @@ export default function PlayerPlaylistActions() {
   }
 
   useEffect(() => {
-    const resolve = () => setTarget(document.querySelector('.unified-play-queue-heading'))
+    const resolve = () => setTarget(document.querySelector('.unified-play-queue-heading-actions'))
     resolve()
     const observer = new MutationObserver(resolve)
     observer.observe(document.body, { childList: true, subtree: true })
