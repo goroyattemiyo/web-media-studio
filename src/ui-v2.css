@@ -1,4 +1,4 @@
-/* WMS UI v2 — one tool per horizontal snap card, with optional local backdrop. */
+/* WMS product shell — four primary destinations: Search / Local / Player / More. */
 
 html,
 body {
@@ -19,37 +19,32 @@ body {
   max-width: 100%;
   padding-left: 0;
   padding-right: 0;
-  padding-bottom: calc(132px + env(safe-area-inset-bottom));
+  padding-bottom: calc(92px + env(safe-area-inset-bottom));
 }
 
 .topbar {
-  width: min(calc(100% - 28px), 980px);
-  max-width: 980px;
-  margin-bottom: 12px;
+  width: min(calc(100% - 28px), 1040px);
+  max-width: 1040px;
+  margin-inline: auto;
+  margin-bottom: 14px;
   padding-inline: 2px;
 }
 
+/*
+ * UI-R1 deliberately removes the horizontal tool carousel. Existing panels remain
+ * mounted for playback/state compatibility, but the product shell exposes only
+ * the currently selected destination.
+ */
 .content-grid {
-  width: 100%;
-  max-width: none;
-  margin: 0;
-  display: flex !important;
-  grid-template-columns: none !important;
-  align-items: stretch !important;
-  gap: 14px;
-  overflow-x: auto;
-  overflow-y: hidden;
-  scroll-snap-type: x mandatory;
-  scroll-padding-inline: max(4vw, 16px);
-  overscroll-behavior-x: contain;
-  scrollbar-width: none;
-  padding: 4px max(4vw, 16px) 16px;
-  -webkit-overflow-scrolling: touch;
-}
-
-.content-grid::-webkit-scrollbar,
-.tool-deck-nav::-webkit-scrollbar {
-  display: none;
+  width: min(100%, 1080px);
+  max-width: 1080px;
+  margin: 0 auto;
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) !important;
+  align-items: start !important;
+  gap: 16px;
+  overflow: visible;
+  padding: 4px 14px 28px;
 }
 
 .side-stack {
@@ -58,46 +53,39 @@ body {
 
 .content-grid > .glass-panel,
 .side-stack > .glass-panel {
-  flex: 0 0 min(92vw, 860px);
-  width: min(92vw, 860px);
-  max-width: 860px;
-  height: min(780px, calc(100dvh - 196px));
-  min-height: min(440px, calc(100dvh - 196px));
-  overflow-x: hidden;
-  overflow-y: auto;
-  scroll-snap-align: center;
-  scroll-snap-stop: always;
-  scroll-margin-inline: max(4vw, 16px);
-  scrollbar-width: thin;
-  scrollbar-color: rgba(var(--color-accent-rgb), .28) transparent;
+  display: none !important;
+  width: 100%;
+  max-width: none;
+  height: auto;
+  min-height: 0;
+  overflow: visible;
 }
 
-.content-grid > .glass-panel::-webkit-scrollbar,
-.side-stack > .glass-panel::-webkit-scrollbar {
-  width: 5px;
+html[data-wms-surface='search'] #youtube-provider-panel,
+html[data-wms-surface='local'] #library-panel,
+html[data-wms-surface='player'] #player-panel,
+html[data-wms-surface='more'] #recorder-panel,
+html[data-wms-surface='more'] #ffmpeg-tools-panel,
+html[data-wms-surface='more'] .device-panel {
+  display: block !important;
 }
 
-.content-grid > .glass-panel::-webkit-scrollbar-thumb,
-.side-stack > .glass-panel::-webkit-scrollbar-thumb {
-  border-radius: 999px;
-  background: rgba(var(--color-accent-rgb), .28);
+/* Keep legacy/localizer surfaces out of the primary product navigation. */
+#youtube-localizer-panel {
+  display: none !important;
 }
 
-.player-panel { order: 1; }
-#library-panel { order: 2; }
-#youtube-provider-panel { order: 3; }
-#youtube-localizer-panel { order: 4; }
-#recorder-panel { order: 5; }
-#ffmpeg-tools-panel { order: 6; }
-.device-panel { order: 7; }
+html[data-wms-surface='more'] #recorder-panel { order: 1; }
+html[data-wms-surface='more'] #ffmpeg-tools-panel { order: 2; }
+html[data-wms-surface='more'] .device-panel { order: 3; }
 
 .glass-panel {
-  background: color-mix(in srgb, var(--color-surface) 88%, transparent);
+  background: color-mix(in srgb, var(--color-surface) 90%, transparent);
   backdrop-filter: blur(26px) saturate(128%);
   -webkit-backdrop-filter: blur(26px) saturate(128%);
 }
 
-/* The previous vertically-scrolling navigation remains in App for compatibility, but UI v2 owns navigation. */
+/* The original App navigation remains mounted for compatibility; product shell owns navigation. */
 .bottom-nav {
   display: none !important;
 }
@@ -107,30 +95,29 @@ body {
   z-index: 80;
   left: 50%;
   bottom: max(8px, env(safe-area-inset-bottom));
-  width: min(calc(100% - 18px), 660px);
+  width: min(calc(100% - 18px), 560px);
   transform: translateX(-50%);
-  display: flex;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   align-items: stretch;
-  gap: 4px;
-  overflow-x: auto;
+  gap: 5px;
   padding: 7px;
   border: 1px solid var(--color-border);
   border-radius: 22px;
-  background: color-mix(in srgb, var(--color-surface-strong) 88%, transparent);
+  background: color-mix(in srgb, var(--color-surface-strong) 91%, transparent);
   backdrop-filter: blur(30px) saturate(135%);
   -webkit-backdrop-filter: blur(30px) saturate(135%);
   box-shadow: 0 18px 52px rgba(0, 0, 0, .34);
-  scrollbar-width: none;
 }
 
 .tool-deck-nav button {
-  flex: 1 0 66px;
-  min-width: 66px;
-  min-height: 54px;
+  min-width: 0;
+  min-height: 58px;
   display: grid;
   place-items: center;
   align-content: center;
-  gap: 4px;
+  gap: 5px;
+  padding: 5px 8px;
   border: 0;
   border-radius: 15px;
   background: transparent;
@@ -143,104 +130,27 @@ body {
   transform: scale(.96);
 }
 
+.tool-deck-nav button:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
 .tool-deck-nav button > span {
-  min-height: 17px;
-  font-size: 14px;
+  min-height: 18px;
+  font-size: 17px;
   font-weight: 900;
   line-height: 1;
 }
 
 .tool-deck-nav button > small {
-  font-size: 8px;
+  font-size: 11px;
   font-weight: 800;
-  letter-spacing: .02em;
+  letter-spacing: .01em;
 }
 
 .tool-deck-nav button.is-current {
-  background: rgba(var(--color-accent-rgb), .11);
+  background: rgba(var(--color-accent-rgb), .13);
   color: var(--color-accent);
-}
-
-.tool-deck-pager {
-  position: fixed;
-  z-index: 79;
-  left: 50%;
-  bottom: calc(77px + env(safe-area-inset-bottom));
-  transform: translateX(-50%);
-  width: min(calc(100% - 32px), 360px);
-  min-height: 36px;
-  display: grid;
-  grid-template-columns: 38px minmax(0, 1fr) 38px;
-  align-items: center;
-  gap: 4px;
-  padding: 3px;
-  border: 1px solid var(--color-border);
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--color-surface-strong) 82%, transparent);
-  backdrop-filter: blur(24px);
-  -webkit-backdrop-filter: blur(24px);
-  box-shadow: 0 10px 32px rgba(0, 0, 0, .22);
-}
-
-.tool-deck-pager button {
-  width: 34px;
-  height: 30px;
-  border: 0;
-  border-radius: 999px;
-  background: transparent;
-  color: var(--color-text);
-  font-size: 22px;
-  line-height: 1;
-  cursor: pointer;
-}
-
-.tool-deck-pager button:disabled {
-  opacity: .25;
-  cursor: default;
-}
-
-.tool-deck-pager > span {
-  min-width: 0;
-  display: flex;
-  justify-content: center;
-  align-items: baseline;
-  gap: 8px;
-  text-align: center;
-}
-
-.tool-deck-pager strong {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-size: 10px;
-}
-
-.tool-deck-pager small {
-  flex: none;
-  color: var(--color-text-muted);
-  font-size: 8px;
-  font-variant-numeric: tabular-nums;
-}
-
-.appearance-trigger {
-  flex: none;
-  min-height: 38px;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 0 11px;
-  border: 1px solid var(--color-border);
-  border-radius: 12px;
-  background: color-mix(in srgb, var(--color-surface-strong) 82%, transparent);
-  color: var(--color-text-muted);
-  cursor: pointer;
-  font-size: 10px;
-  font-weight: 800;
-}
-
-.appearance-trigger > span {
-  color: var(--color-accent);
-  font-size: 15px;
 }
 
 .wms-user-backdrop,
@@ -280,8 +190,8 @@ body {
   margin: 0 auto max(2px, env(safe-area-inset-bottom));
   overflow: auto;
   display: grid;
-  gap: 14px;
-  padding: 18px;
+  gap: 16px;
+  padding: 20px;
   border: 1px solid var(--color-border);
   border-radius: 26px;
   background: color-mix(in srgb, var(--color-surface-strong) 96%, transparent);
@@ -298,24 +208,24 @@ body {
 
 .appearance-sheet-heading h2 {
   margin: 0;
-  font-size: 20px;
+  font-size: 22px;
 }
 
 .appearance-close {
-  width: 38px;
-  height: 38px;
+  width: 44px;
+  height: 44px;
   border: 1px solid var(--color-border);
   border-radius: 12px;
   background: transparent;
   color: var(--color-text);
   cursor: pointer;
-  font-size: 20px;
+  font-size: 22px;
 }
 
 .appearance-setting-card {
   display: grid;
   gap: 10px;
-  padding: 13px;
+  padding: 14px;
   border: 1px solid var(--color-border);
   border-radius: 16px;
   background: rgba(255, 255, 255, .025);
@@ -323,18 +233,18 @@ body {
 
 .appearance-setting-copy {
   display: grid;
-  gap: 4px;
+  gap: 5px;
 }
 
 .appearance-setting-copy strong {
-  font-size: 11px;
+  font-size: 14px;
 }
 
 .appearance-setting-copy span,
 .appearance-status {
   color: var(--color-text-muted);
-  font-size: 9px;
-  line-height: 1.6;
+  font-size: 12px;
+  line-height: 1.55;
 }
 
 .appearance-actions,
@@ -347,17 +257,17 @@ body {
 .appearance-file-button,
 .appearance-actions button,
 .appearance-segmented button {
-  min-height: 38px;
+  min-height: 44px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: 0 12px;
+  padding: 0 14px;
   border: 1px solid var(--color-border);
   border-radius: 11px;
   background: var(--color-surface);
   color: var(--color-text);
   cursor: pointer;
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 800;
 }
 
@@ -372,7 +282,7 @@ body {
 
 .appearance-range-row {
   display: grid;
-  gap: 8px;
+  gap: 9px;
   color: var(--color-text-muted);
 }
 
@@ -381,7 +291,7 @@ body {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  font-size: 10px;
+  font-size: 12px;
 }
 
 .appearance-range-row strong {
@@ -417,7 +327,7 @@ body {
   margin: 0;
 }
 
-/* Progressive disclosure: keep the one-line tool description, hide secondary technical copy by default. */
+/* Progressive disclosure: keep the one-line tool description, hide technical copy by default. */
 :root[data-ui-detail='compact'] .localizer-flow,
 :root[data-ui-detail='compact'] .youtube-capabilities,
 :root[data-ui-detail='compact'] .device-note,
@@ -426,22 +336,19 @@ body {
   display: none !important;
 }
 
-@media (min-width: 980px) {
-  .content-grid > .glass-panel,
-  .side-stack > .glass-panel {
-    flex-basis: min(78vw, 900px);
-    width: min(78vw, 900px);
-    max-width: 900px;
+@media (min-width: 900px) {
+  html[data-wms-surface='more'] .content-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
   }
 
-  .content-grid {
-    padding-inline: max(calc((100vw - min(78vw, 900px)) / 2), 24px);
+  html[data-wms-surface='more'] .device-panel {
+    grid-column: 1 / -1;
   }
 }
 
 @media (max-width: 620px) {
   .app-shell {
-    padding-bottom: calc(130px + env(safe-area-inset-bottom));
+    padding-bottom: calc(86px + env(safe-area-inset-bottom));
   }
 
   .topbar {
@@ -453,32 +360,15 @@ body {
     margin-left: auto;
   }
 
-  .appearance-trigger {
-    width: 38px;
-    min-height: 38px;
-    justify-content: center;
-    padding: 0;
-  }
-
-  .appearance-trigger b {
-    display: none;
-  }
-
   .content-grid {
-    gap: 10px;
-    padding-inline: 10px;
-    scroll-padding-inline: 10px;
+    width: 100%;
+    gap: 12px;
+    padding: 2px 10px 20px;
   }
 
   .content-grid > .glass-panel,
   .side-stack > .glass-panel {
-    flex-basis: calc(100vw - 20px);
-    width: calc(100vw - 20px);
-    max-width: calc(100vw - 20px);
-    height: calc(100dvh - 188px);
-    min-height: 0;
     border-radius: 22px;
-    scroll-margin-inline: 10px;
   }
 
   .player-panel,
@@ -490,17 +380,20 @@ body {
   .tool-deck-nav {
     width: calc(100% - 12px);
     border-radius: 19px;
+    padding: 6px;
   }
 
   .tool-deck-nav button {
-    flex-basis: 62px;
-    min-width: 62px;
-    min-height: 50px;
+    min-height: 56px;
+    padding-inline: 4px;
   }
 
-  .tool-deck-pager {
-    bottom: calc(73px + env(safe-area-inset-bottom));
-    width: min(calc(100% - 30px), 330px);
+  .tool-deck-nav button > span {
+    font-size: 16px;
+  }
+
+  .tool-deck-nav button > small {
+    font-size: 10px;
   }
 
   .appearance-sheet-layer {
@@ -518,18 +411,21 @@ body {
 }
 
 @media (max-height: 620px) and (orientation: landscape) {
-  .content-grid > .glass-panel,
-  .side-stack > .glass-panel {
-    height: calc(100dvh - 150px);
+  .tool-deck-nav {
+    position: sticky;
+    left: auto;
+    bottom: 4px;
+    transform: none;
+    margin: 0 auto 6px;
   }
 
-  .tool-deck-pager {
-    display: none;
+  .app-shell {
+    padding-bottom: 12px;
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .content-grid {
-    scroll-behavior: auto;
+  .tool-deck-nav button {
+    transition: none;
   }
 }
