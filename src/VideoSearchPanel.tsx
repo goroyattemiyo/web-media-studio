@@ -7,6 +7,7 @@ import {
   onRequestRemotePlayback,
   type QueueRemoteSource,
 } from './playQueueBridge'
+import { parseYouTubeInput, youtubeWatchUrl } from './providers/youtube'
 
 const DEFAULT_MEDIA_WORKER_URL = 'https://wms-media-worker-pcdbs5armq-an.a.run.app'
 const MEDIA_WORKER_URL = ((import.meta.env.VITE_WMS_MEDIA_WORKER_URL as string | undefined)?.trim() || DEFAULT_MEDIA_WORKER_URL).replace(/\/$/, '')
@@ -129,15 +130,13 @@ export default function VideoSearchPanel() {
     if (item.playback === 'youtube' && item.provider === 'youtube') {
       requestLoadYouTubeSource({ videoId: item.sourceId, url: item.url, title: item.title })
       tryPlayLoadedYouTube()
-      emitSystem(language === 'ja' ? `${item.title} をYouTube Playerへ送ります。` : `Loading ${item.title} in YouTube Player.`, 'success')
+      emitSystem(language === 'ja' ? `${item.title} を再生します。` : `Playing ${item.title}.`, 'success')
       return
     }
 
     if (item.playback === 'iframe' && item.embedUrl) {
       setEmbedded({ provider: item.provider, title: item.title, url: item.url, embedUrl: item.embedUrl })
-      const panel = document.querySelector<HTMLElement>('#youtube-provider-panel')
-      panel?.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' })
-      window.setTimeout(() => document.querySelector('.video-search-embed')?.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'center' }), 180)
+      window.setTimeout(() => document.querySelector('.video-search-embed')?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 120)
       emitSystem(language === 'ja' ? `${item.title} をWMS内で開きました。` : `Opened ${item.title} in WMS.`, 'success')
       return
     }
@@ -185,7 +184,7 @@ export default function VideoSearchPanel() {
         const payload = await response.json() as ProviderStatus[]
         if (Array.isArray(payload)) setProviders(payload)
       } catch {
-        // Search submit will surface worker connectivity failures.
+        // Direct YouTube URL playback remains available even when search is offline.
       }
     }
     void loadProviders()
@@ -204,28 +203,54 @@ export default function VideoSearchPanel() {
 
   const copy = useMemo(() => language === 'ja'
     ? {
-        heading: '動画を横断検索',
-        placeholder: '曲名・アーティスト・動画名で検索',
+        heading: '検索',
+        placeholder: '曲名・アーティスト・YouTube URL',
         search: '検索', searching: '検索中…',
-        hint: '対応プロバイダーをまとめて検索します。',
-        all: 'すべて', empty: '該当する動画が見つかりませんでした。',
-        play: '▶ 今すぐ再生', next: '＋ 次に再生', download: '↓ Download', open: '↗ 元サイト',
+        hint: '検索するか、YouTube URLをそのまま貼り付け',
+        provider: '検索先', all: 'すべて', empty: '該当する動画が見つかりませんでした。',
+        play: '▶ 再生', next: '＋ 次に再生', download: '↓ Download', open: '↗ 元サイト', more: 'その他',
         resultLabel: '検索結果', unavailable: '未設定', close: 'プレーヤーを閉じる',
+        searchUnavailable: '検索サーバへ接続できません。YouTube URLの直接再生は利用できます。',
       }
     : {
-        heading: 'Search video providers',
-        placeholder: 'Search title, artist, or video',
+        heading: 'Search',
+        placeholder: 'Title, artist, or YouTube URL',
         search: 'Search', searching: 'Searching…',
-        hint: 'Search all configured video providers.',
-        all: 'All', empty: 'No matching videos found.',
-        play: '▶ Play now', next: '＋ Play next', download: '↓ Download', open: '↗ Open source',
+        hint: 'Search by words or paste a YouTube URL',
+        provider: 'Providers', all: 'All', empty: 'No matching videos found.',
+        play: '▶ Play', next: '＋ Play next', download: '↓ Download', open: '↗ Open source', more: 'More',
         resultLabel: 'Search results', unavailable: 'Not configured', close: 'Close player',
+        searchUnavailable: 'Search service is unavailable. Direct YouTube URL playback still works.',
       }, [language])
+
+  const enabledProviders = providers.filter((item) => item.enabled)
+  const directYouTube = parseYouTubeInput(query.trim())
 
   const search = async (event: FormEvent) => {
     event.preventDefault()
     const value = query.trim()
-    if (value.length < 2 || busy) return
+    if (!value || busy) return
+
+    const parsed = parseYouTubeInput(value)
+    if (parsed) {
+      const canonicalUrl = youtubeWatchUrl(parsed.videoId)
+      setQuery(canonicalUrl)
+      setError(null)
+      setEmbedded(null)
+      setResults([])
+      setSearchedQuery('')
+      requestLoadYouTubeSource({ videoId: parsed.videoId, url: canonicalUrl, title: 'YouTube video' })
+      tryPlayLoadedYouTube()
+      emitSystem(language === 'ja' ? 'YouTube URLを読み込みました。' : 'Loaded YouTube URL.', 'success')
+      return
+    }
+
+    if (value.length < 2) return
+    if (!enabledProviders.length) {
+      setError(copy.searchUnavailable)
+      return
+    }
+
     setBusy(true)
     setError(null)
     setEmbedded(null)
@@ -262,32 +287,34 @@ export default function VideoSearchPanel() {
     void copyText(item.url).then((copied) => {
       emitSystem(
         copied
-          ? (language === 'ja' ? '動画URLをコピーしました。Colabで権利確認後にDownloadできます。' : 'Video URL copied. Confirm rights in Colab before Download.')
-          : (language === 'ja' ? 'Colabを開きました。動画URLを貼り付けてください。' : 'Colab opened. Paste the video URL there.'),
+          ? (language === 'ja' ? '動画URLをコピーしました。Download画面で権利確認を行ってください。' : 'Video URL copied. Confirm rights in the Download flow.')
+          : (language === 'ja' ? 'Download先を開きました。動画URLを貼り付けてください。' : 'Download helper opened. Paste the video URL there.'),
         copied ? 'success' : 'info',
       )
     }).catch(() => undefined)
   }
 
   if (!target) return null
-  const enabledProviders = providers.filter((item) => item.enabled)
 
   return createPortal(
     <section className="video-search-panel" aria-label={copy.heading}>
       <form className="video-search-form" onSubmit={(event) => void search(event)}>
         <div className="video-search-heading"><strong>{copy.heading}</strong><span>{copy.hint}</span></div>
-        <div className="video-search-providers" aria-label="Video providers">
-          <button type="button" className={provider === 'all' ? 'is-active' : ''} disabled={!enabledProviders.length} onClick={() => setProvider('all')}>{copy.all}</button>
-          {providers.map((item) => (
-            <button key={item.id} type="button" className={provider === item.id ? 'is-active' : ''} disabled={!item.enabled} title={item.reason ?? item.label} onClick={() => setProvider(item.id)}>
-              {item.label}{item.enabled ? '' : ` · ${copy.unavailable}`}
-            </button>
-          ))}
-        </div>
         <div className="video-search-input-row">
-          <input type="search" value={query} minLength={2} maxLength={120} placeholder={copy.placeholder} aria-label={copy.heading} onChange={(event) => { setQuery(event.target.value); setError(null) }} />
-          <button type="submit" disabled={busy || query.trim().length < 2 || !enabledProviders.length}>{busy ? copy.searching : copy.search}</button>
+          <input type="search" value={query} maxLength={240} placeholder={copy.placeholder} aria-label={copy.heading} onChange={(event) => { setQuery(event.target.value); setError(null) }} />
+          <button type="submit" disabled={busy || !query.trim() || (!directYouTube && query.trim().length < 2)}>{busy ? copy.searching : copy.search}</button>
         </div>
+        <details className="video-search-provider-options">
+          <summary>{copy.provider}: {provider === 'all' ? copy.all : providers.find((item) => item.id === provider)?.label ?? provider}</summary>
+          <div className="video-search-providers" aria-label="Video providers">
+            <button type="button" className={provider === 'all' ? 'is-active' : ''} disabled={!enabledProviders.length} onClick={() => setProvider('all')}>{copy.all}</button>
+            {providers.map((item) => (
+              <button key={item.id} type="button" className={provider === item.id ? 'is-active' : ''} disabled={!item.enabled} title={item.reason ?? item.label} onClick={() => setProvider(item.id)}>
+                {item.label}{item.enabled ? '' : ` · ${copy.unavailable}`}
+              </button>
+            ))}
+          </div>
+        </details>
       </form>
 
       {embedded && (
@@ -311,8 +338,13 @@ export default function VideoSearchPanel() {
               <div className="video-search-actions">
                 <button type="button" className="is-primary" onClick={() => playNow(item)}>{copy.play}</button>
                 {item.can_queue && <button type="button" onClick={() => playNext(item)}>{copy.next}</button>}
-                {item.can_download && <a href={COLAB_LOCALIZER_URL} target="_blank" rel="noreferrer" onClick={() => prepareDownload(item)}>{copy.download}</a>}
-                <a href={item.url} target="_blank" rel="noreferrer">{copy.open}</a>
+                <details className="video-search-more-actions">
+                  <summary aria-label={copy.more}>•••</summary>
+                  <div>
+                    {item.can_download && <a href={COLAB_LOCALIZER_URL} target="_blank" rel="noreferrer" onClick={() => prepareDownload(item)}>{copy.download}</a>}
+                    <a href={item.url} target="_blank" rel="noreferrer">{copy.open}</a>
+                  </div>
+                </details>
               </div>
             </article>
           )) : <p className="video-search-empty">{copy.empty}</p>}
