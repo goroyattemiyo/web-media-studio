@@ -1,5 +1,9 @@
 import { useEffect, useMemo, useState } from 'react'
 import { getActivePlaybackSource, onActivePlaybackSourceChange, type PlaybackSource } from './playbackArbiter'
+import { parseYouTubeInput } from './providers/youtube'
+
+type ProductSurface = 'search' | 'local' | 'player' | 'more'
+type PreviewKind = 'image' | 'video'
 
 type MiniState = {
   source: PlaybackSource | null
@@ -7,7 +11,11 @@ type MiniState = {
   playing: boolean
   canPrevious: boolean
   canNext: boolean
+  previewKind: PreviewKind
+  previewUrl: string
 }
+
+const WMS_ICON_URL = `${import.meta.env.BASE_URL}icons/app-icon.svg`
 
 function hasLocalSource() {
   return Boolean(document.querySelector<HTMLMediaElement>('#player-panel audio, #player-panel video'))
@@ -22,22 +30,33 @@ function readLocalState(): Omit<MiniState, 'source'> {
   const title = document.querySelector<HTMLElement>('#player-panel .track-heading h2')?.textContent?.trim() || 'Local Player'
   const previous = document.querySelector<HTMLButtonElement>('#player-panel .transport button[aria-label="前の曲"]')
   const next = document.querySelector<HTMLButtonElement>('#player-panel .transport button[aria-label="次の曲"]')
+  const isVideo = media instanceof HTMLVideoElement
+  const videoUrl = isVideo ? (media.currentSrc || media.src) : ''
+
   return {
     title,
     playing: Boolean(media && !media.paused && !media.ended),
     canPrevious: Boolean(previous && !previous.disabled),
     canNext: Boolean(next && !next.disabled),
+    previewKind: isVideo && videoUrl ? 'video' : 'image',
+    previewUrl: isVideo && videoUrl ? videoUrl : WMS_ICON_URL,
   }
 }
 
 function readYouTubeState(): Omit<MiniState, 'source'> {
   const title = document.querySelector<HTMLElement>('#youtube-provider-panel .youtube-track-info strong')?.textContent?.trim() || 'YouTube'
   const status = document.querySelector<HTMLElement>('#youtube-provider-panel .youtube-status-row > span')?.textContent?.trim().toLowerCase() || ''
+  const input = document.querySelector<HTMLInputElement>('#youtube-provider-panel .youtube-url-form input')
+  const parsed = parseYouTubeInput(input?.value ?? '')
+  const thumbnail = parsed ? `https://i.ytimg.com/vi/${parsed.videoId}/mqdefault.jpg` : WMS_ICON_URL
+
   return {
     title,
     playing: status.includes('playing') || status.includes('再生中'),
     canPrevious: false,
     canNext: false,
+    previewKind: 'image',
+    previewUrl: thumbnail,
   }
 }
 
@@ -46,17 +65,32 @@ function snapshot(source: PlaybackSource | null): MiniState {
   if (source === 'local' && hasLocalSource()) return { source, ...readLocalState() }
   if (hasLocalSource()) return { source: 'local', ...readLocalState() }
   if (hasYouTubeSource()) return { source: 'youtube', ...readYouTubeState() }
-  return { source: null, title: '再生する曲を選んでください', playing: false, canPrevious: false, canNext: false }
+  return {
+    source: null,
+    title: '再生する曲を選んでください',
+    playing: false,
+    canPrevious: false,
+    canNext: false,
+    previewKind: 'image',
+    previewUrl: WMS_ICON_URL,
+  }
 }
 
 function click(selector: string) {
   document.querySelector<HTMLButtonElement>(selector)?.click()
 }
 
+function navigate(surface: ProductSurface) {
+  window.dispatchEvent(new CustomEvent('wms:navigate', { detail: { surface } }))
+}
+
 export default function FloatingMiniPlayer() {
   const [source, setSource] = useState<PlaybackSource | null>(() => getActivePlaybackSource())
   const [state, setState] = useState<MiniState>(() => snapshot(getActivePlaybackSource()))
-  const [hiddenOnPlayer, setHiddenOnPlayer] = useState(false)
+  const [activeSurface, setActiveSurface] = useState<ProductSurface>(() => {
+    const value = document.documentElement.dataset.wmsSurface
+    return value === 'local' || value === 'player' || value === 'more' ? value : 'search'
+  })
   const [languageRevision, setLanguageRevision] = useState(0)
 
   useEffect(() => onActivePlaybackSourceChange(setSource), [])
@@ -65,7 +99,7 @@ export default function FloatingMiniPlayer() {
     const refresh = () => setState(snapshot(source))
     refresh()
 
-    const mediaEvents = ['play', 'pause', 'ended', 'loadedmetadata', 'emptied', 'durationchange'] as const
+    const mediaEvents = ['play', 'pause', 'ended', 'loadedmetadata', 'loadeddata', 'emptied', 'durationchange'] as const
     mediaEvents.forEach((eventName) => document.addEventListener(eventName, refresh, true))
 
     const observers: MutationObserver[] = []
@@ -81,6 +115,7 @@ export default function FloatingMiniPlayer() {
     observe('#player-panel .transport', { attributes: true, subtree: true, attributeFilter: ['disabled', 'aria-label'] })
     observe('#youtube-provider-panel .youtube-track-info', { childList: true, subtree: true, characterData: true })
     observe('#youtube-provider-panel .youtube-status-row', { childList: true, subtree: true, characterData: true })
+    observe('#youtube-provider-panel .youtube-url-form', { childList: true, subtree: true, attributes: true, attributeFilter: ['value'] })
 
     const handleLanguage = () => {
       setLanguageRevision((value) => value + 1)
@@ -96,50 +131,17 @@ export default function FloatingMiniPlayer() {
   }, [source])
 
   useEffect(() => {
-    const player = document.querySelector<HTMLElement>('#player-panel')
-    const container = document.querySelector<HTMLElement>('.content-grid')
-    if (!player || !container) return
-
-    const IntersectionObserverCtor = (globalThis as typeof globalThis & {
-      IntersectionObserver?: typeof IntersectionObserver
-    }).IntersectionObserver
-
-    if (IntersectionObserverCtor) {
-      const observer = new IntersectionObserverCtor((entries) => {
-        const ratio = entries[0]?.intersectionRatio ?? 0
-        setHiddenOnPlayer(ratio > 0.58)
-      }, {
-        root: container,
-        threshold: [0, 0.58, 1],
-      })
-      observer.observe(player)
-      return () => observer.disconnect()
+    const handleSurface = (event: Event) => {
+      const next = (event as CustomEvent<{ surface?: ProductSurface }>).detail?.surface
+      if (next === 'search' || next === 'local' || next === 'player' || next === 'more') setActiveSurface(next)
     }
-
-    let frame = 0
-    const update = () => {
-      frame = 0
-      const playerRect = player.getBoundingClientRect()
-      const containerRect = container.getBoundingClientRect()
-      const overlap = Math.max(0, Math.min(playerRect.right, containerRect.right) - Math.max(playerRect.left, containerRect.left))
-      setHiddenOnPlayer(overlap > Math.min(playerRect.width, containerRect.width) * 0.58)
-    }
-    const schedule = () => {
-      if (frame) return
-      frame = window.requestAnimationFrame(update)
-    }
-    schedule()
-    container.addEventListener('scroll', schedule, { passive: true })
-    window.addEventListener('resize', schedule)
-    return () => {
-      container.removeEventListener('scroll', schedule)
-      window.removeEventListener('resize', schedule)
-      if (frame) window.cancelAnimationFrame(frame)
-    }
+    window.addEventListener('wms:surface-change', handleSurface)
+    return () => window.removeEventListener('wms:surface-change', handleSurface)
   }, [])
 
   const isEnglish = useMemo(() => document.documentElement.dataset.language === 'en', [languageRevision])
   const hasSource = state.source !== null
+  const fullPlayerVisible = (state.source === 'local' && activeSurface === 'player') || (state.source === 'youtube' && activeSurface === 'search')
 
   const toggle = () => {
     if (state.source === 'youtube') {
@@ -158,24 +160,33 @@ export default function FloatingMiniPlayer() {
   }
 
   const openPlayer = () => {
-    const target = state.source === 'youtube'
-      ? document.querySelector<HTMLElement>('#youtube-provider-panel')
-      : document.querySelector<HTMLElement>('#player-panel')
-    target?.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' })
+    navigate(state.source === 'youtube' ? 'search' : 'player')
+    window.setTimeout(() => {
+      const selector = state.source === 'youtube' ? '#youtube-provider-panel' : '#player-panel'
+      document.querySelector<HTMLElement>(selector)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    }, 80)
   }
 
   const openQueue = () => {
-    document.querySelector<HTMLElement>('.unified-play-queue')?.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'center' })
+    navigate('player')
+    window.setTimeout(() => document.querySelector<HTMLElement>('.unified-play-queue')?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 80)
   }
 
-  const openPlaylist = () => click('.player-playlist-trigger')
+  const openPlaylist = () => {
+    navigate('player')
+    window.setTimeout(() => click('.player-playlist-trigger'), 80)
+  }
 
-  if (hiddenOnPlayer || !hasSource) return null
+  if (fullPlayerVisible || !hasSource) return null
 
   return (
     <div className={`floating-mini-player is-${state.source}`} role="region" aria-label={isEnglish ? 'Mini player' : 'ミニプレイヤー'}>
       <button type="button" className="floating-mini-title" onClick={openPlayer} aria-label={isEnglish ? 'Open current player' : '再生中のプレイヤーを開く'}>
-        <span>{state.source === 'youtube' ? 'YT' : '♪'}</span>
+        <span className="floating-mini-artwork">
+          {state.previewKind === 'video'
+            ? <video src={state.previewUrl} muted playsInline preload="metadata" aria-hidden="true" />
+            : <img src={state.previewUrl} alt="" loading="lazy" />}
+        </span>
         <strong>{state.title}</strong>
       </button>
       <div className="floating-mini-controls">
