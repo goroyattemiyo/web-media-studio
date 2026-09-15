@@ -22,18 +22,18 @@
 
 .device-library-browser {
   display: grid;
-  gap: 10px;
+  gap: 12px;
 }
 
 .device-library-actions {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 44px;
+  grid-template-columns: minmax(0, 1fr) 46px;
   gap: 8px;
 }
 
 .device-library-primary,
 .device-library-more {
-  min-height: 46px;
+  min-height: 48px;
   border: 1px solid rgba(var(--color-accent-rgb), .3);
   border-radius: 14px;
   background: rgba(var(--color-accent-rgb), .1);
@@ -46,12 +46,13 @@
   align-items: center;
   justify-content: center;
   gap: 9px;
-  font-size: 13px;
+  font-size: 14px;
 }
 
 .device-library-primary span {
   color: var(--color-accent);
-  font-size: 18px;
+  font-size: 20px;
+  line-height: 1;
 }
 
 .device-library-more-wrap {
@@ -59,7 +60,7 @@
 }
 
 .device-library-more {
-  width: 44px;
+  width: 46px;
   font-size: 20px;
   color: var(--color-text-muted);
 }
@@ -69,7 +70,7 @@
   z-index: 25;
   top: calc(100% + 6px);
   right: 0;
-  min-width: 190px;
+  min-width: 210px;
   display: grid;
   gap: 4px;
   padding: 6px;
@@ -80,14 +81,15 @@
 }
 
 .device-library-menu button {
-  min-height: 38px;
-  padding: 0 10px;
+  min-height: 42px;
+  padding: 0 11px;
   border: 0;
   border-radius: 9px;
   background: transparent;
   color: var(--color-text);
   text-align: left;
   cursor: pointer;
+  font-size: 12px;
 }
 
 .device-library-menu button:hover,
@@ -103,66 +105,80 @@
 }
 
 .device-library-list-heading strong {
-  font-size: 13px;
+  font-size: 14px;
 }
 
 .device-library-list-heading span {
   color: var(--color-text-muted);
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .device-library-list {
-  max-height: min(38vh, 330px);
+  max-height: min(42vh, 360px);
   display: grid;
-  gap: 6px;
+  gap: 7px;
   overflow: auto;
 }
 
 .device-library-list button,
 .device-library-empty {
   width: 100%;
-  min-height: 46px;
+  min-height: 50px;
   border: 1px solid var(--color-border);
-  border-radius: 12px;
+  border-radius: 13px;
   background: color-mix(in srgb, var(--color-surface-strong) 76%, transparent);
   color: var(--color-text);
   cursor: pointer;
 }
 
 .device-library-list button {
-  display: grid;
-  grid-template-columns: 24px minmax(0, 1fr);
-  align-items: center;
-  gap: 8px;
-  padding: 0 10px;
+  padding: 0 11px;
   text-align: left;
-}
-
-.device-library-list button span {
-  color: var(--color-accent);
-  font-size: 11px;
-}
-
-.device-library-list button strong {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-size: 12px;
 }
 
 .device-library-item {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 42px;
-  gap: 6px;
+  grid-template-columns: minmax(0, 1fr) 44px;
+  gap: 7px;
 }
 
 .device-library-item-main {
   min-width: 0;
+  display: grid;
+  grid-template-columns: 26px minmax(0, 1fr);
+  align-items: center;
+  gap: 9px;
+}
+
+.device-library-play {
+  color: var(--color-accent);
+  font-size: 13px;
+  text-align: center;
+}
+
+.device-library-item-copy {
+  min-width: 0;
+  display: grid;
+  gap: 3px;
+}
+
+.device-library-item-copy strong {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13px;
+}
+
+.device-library-item-copy small {
+  color: var(--color-text-muted);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: .08em;
 }
 
 .device-library-item-more {
-  width: 42px !important;
+  width: 44px !important;
   padding: 0 !important;
   display: grid !important;
   grid-template-columns: 1fr !important;
@@ -190,13 +206,13 @@
 }
 
 .device-library-item-menu button {
-  min-height: 38px !important;
+  min-height: 42px !important;
   padding: 0 10px !important;
   display: block !important;
   border-radius: 10px;
   background: rgba(255,255,255,.018);
   color: var(--color-text);
-  font-size: 9px;
+  font-size: 11px;
   font-weight: 800;
   text-align: left !important;
 }
@@ -207,15 +223,15 @@
 }
 
 .device-library-empty {
-  padding: 16px;
+  padding: 18px;
   color: var(--color-text-muted);
-  font-size: 12px;
+  font-size: 13px;
   line-height: 1.55;
 }
 
-/* YouTube source input becomes the obvious primary action. */
+/* Search/URL input is the obvious primary action. */
 .youtube-url-form.wms-paste-simplified {
-  grid-template-columns: minmax(0, 1fr) 40px;
+  grid-template-columns: minmax(0, 1fr) 42px;
   gap: 8px;
 }
 
@@ -224,26 +240,27 @@
   order: -2;
   display: flex;
   align-items: center;
-  gap: 9px;
+  gap: 10px;
   padding: 0 2px;
 }
 
 .youtube-paste-prompt > span {
-  font-size: 18px;
+  color: var(--color-accent);
+  font-size: 20px;
 }
 
 .youtube-paste-prompt div {
   display: grid;
-  gap: 1px;
+  gap: 2px;
 }
 
 .youtube-paste-prompt strong {
-  font-size: 13px;
+  font-size: 14px;
 }
 
 .youtube-paste-prompt small {
   color: var(--color-text-muted);
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .youtube-url-form.wms-paste-simplified input {
@@ -253,7 +270,7 @@
   border-color: rgba(var(--color-accent-rgb), .34);
   border-radius: 15px;
   background: color-mix(in srgb, var(--color-surface-strong) 88%, transparent);
-  font-size: 13px;
+  font-size: 14px;
   box-shadow: inset 0 0 0 1px rgba(var(--color-accent-rgb), .03);
 }
 
@@ -266,8 +283,8 @@
 }
 
 .youtube-url-form.wms-paste-simplified .secondary {
-  width: 40px;
-  min-width: 40px;
+  width: 42px;
+  min-width: 42px;
   padding: 0;
   font-size: 0;
 }
@@ -277,7 +294,7 @@
   font-size: 17px;
 }
 
-/* Technical readouts are available through Info instead of occupying the card. */
+/* Technical readouts are available through Settings/Info instead of occupying the card. */
 .youtube-capabilities,
 .youtube-policy-note,
 .youtube-screenoff-note,
@@ -291,15 +308,11 @@
 
 @media (max-width: 620px) {
   .device-library-list {
-    max-height: 34vh;
+    max-height: 38vh;
   }
 
   .device-library-item {
-    grid-template-columns: minmax(0, 1fr) 40px;
-  }
-
-  .device-library-item-more {
-    width: 40px !important;
+    grid-template-columns: minmax(0, 1fr) 44px;
   }
 
   .device-library-item-menu {
@@ -307,7 +320,7 @@
   }
 
   .youtube-url-form.wms-paste-simplified {
-    grid-template-columns: minmax(0, 1fr) 40px;
+    grid-template-columns: minmax(0, 1fr) 42px;
   }
 
   .youtube-url-form.wms-paste-simplified input {
