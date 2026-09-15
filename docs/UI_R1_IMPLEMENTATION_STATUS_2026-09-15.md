@@ -1,10 +1,10 @@
-# UI-R1 / UI-R2 Implementation Status — 2026-09-15
+# UI-R1 / UI-R2 / UI-R3 Implementation Status — 2026-09-15
 
 Branch: `feat/web-product-ui-r1`
 
 ## Goal
 
-Replace the old horizontal tool carousel with a simple product navigation model, then simplify Search without changing the playback/download backend in the same gate.
+Replace the old horizontal tool carousel with a simple product navigation model, simplify Search, then make Player readable and usable on desktop/mobile without changing the playback/download backend in the same gate.
 
 Primary destinations:
 
@@ -21,7 +21,7 @@ Primary destinations:
 - Removed the six-item horizontal tool-deck/pager interaction.
 - Added a fixed four-item primary navigation: Search / Local / Player / More.
 - Existing panels stay mounted so media/playback state is not destroyed while changing destinations.
-- The shell exposes a `wms:navigate` event for later cross-feature navigation without adding more DOM-scroll shims.
+- The shell exposes a `wms:navigate` event for cross-feature navigation without adding more scroll-only navigation shims.
 
 ### Search — UI-R2 first pass
 
@@ -41,11 +41,21 @@ Primary destinations:
 - Primary import wording changed from songs/audio to endpoint media.
 - Local remains a first-class destination rather than a secondary tool card.
 
-### Player
+### Player — UI-R3 first pass
 
-- Existing full player remains mounted as a first-class destination.
-- Playback arbitration behavior is unchanged.
-- Mini player spacing/tap targets were adjusted so it does not overlap the new primary navigation.
+- Player now uses a dedicated product layout rather than the old generic tool-card density.
+- Video keeps a 16:9 first-class visual surface.
+- Audio visualizers remain first-class and the visual selector remains available on Player.
+- Track/source hierarchy and title readability are larger and clearer.
+- Previous / Play-Pause / Next are visually stronger; ±10 controls remain available but are deliberately secondary.
+- Shuffle / Repeat / A-B controls are visually grouped as secondary playback options.
+- Speed / Volume are grouped separately from transport.
+- Play Queue is collapsible and remembers the user's disclosure preference locally.
+- Playlist action is grouped with Play Queue controls.
+- Mini player now uses a YouTube thumbnail when available and a local-video preview for video sources; local audio falls back to the WMS artwork until embedded artwork metadata exists.
+- Mini player uses product navigation instead of horizontal scroll positioning.
+- On narrow iPhones the mini player keeps Previous / Play-Pause / Next visible and hides queue/playlist shortcuts first.
+- Playback arbitration behavior itself is unchanged.
 
 ### More
 
@@ -80,8 +90,11 @@ Cloud Run remains the current production Download path until that gate is implem
 - `mediaSourceBridge.ts` still drives the hidden YouTube URL form, so the unified Search input can load direct YouTube URLs without duplicating player state.
 - Settings still controls hidden skin/language elements, so removing them from the persistent header does not remove functionality.
 - Search-result Download links keep the existing selector shape expected by `DirectCloudDownloadPanel.tsx`.
+- Player changes are presentation/state-disclosure changes; media elements and core App playback handlers remain intact.
+- Mini-player thumbnail changes do not introduce a second playback source; its local video element is muted metadata preview only.
 - No GitHub Actions workflow has been run for this gate yet.
 - No PR has been opened yet because `pages.yml` runs typecheck/build on every PR and the project policy is to avoid CI until the gate is ready.
+- A local clone/typecheck was attempted from the execution environment, but outbound DNS to GitHub is unavailable there. This is not counted as a passed check.
 
 ## Manual verification required before Ready for review
 
@@ -96,7 +109,8 @@ Desktop:
 - Current Download flow still opens from a search result.
 - YouTube playback continues correctly when browsing another destination.
 - Local audio and video both appear in the simplified Local list.
-- Player controls and visualizer still work.
+- Player title, timeline, transport, secondary controls and visualizer are readable.
+- Play Queue expands/collapses and playlist add remains reachable.
 - More shows Recorder, Audio tools, and Settings.
 - Settings can change language, skin, visualizer, and background.
 - Mini player does not overlap primary navigation.
@@ -109,17 +123,17 @@ Mobile / iPhone-size viewport:
 - Unified Search input and result cards stay within viewport width.
 - Direct YouTube URL paste works from Safari-sized layout.
 - Local list is readable and playable.
+- Player keeps the 16:9 video/visualizer surface within the viewport.
+- Mini player shows media preview plus Previous / Play-Pause / Next on narrow iPhone widths.
 - More sections stack vertically.
 
-## Next implementation gate
+## Next gate
 
-UI-R3 should redesign Player and the mini player:
+Before Ready for review:
 
-- real thumbnail/artwork/video-poster surface instead of the generic media icon
-- clearer title/source hierarchy
-- Previous / Play-Pause / Next as primary controls
-- seek plus secondary controls grouped without crowding
-- keep video immediately visible when video is active
-- keep audio visualizers as a first-class visual option
+1. Perform desktop + iPhone-size manual rendering/interaction verification.
+2. Fix any layout/regression issues found there.
+3. Only when the gate is otherwise complete, run the single planned typecheck/build CI according to the repository CI-saving policy.
+4. Then open/ready the PR and merge only after the UI gate passes.
 
-After UI-R3, separate the Download execution backends behind one router before reintroducing Colab Companion as a fallback.
+Download execution backends remain a separate gate. Reintroduce Colab Companion only after one Download router exists.
