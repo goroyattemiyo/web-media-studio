@@ -16,6 +16,7 @@ type RecordingTake = Omit<StoredRecordingTake, 'blob'> & {
 }
 
 type CaptureMode = 'mic' | 'tab' | 'mix'
+type TabChannelMode = 'stereo' | 'original'
 
 type RecorderPanelProps = {
   sourceName: string | null
@@ -123,6 +124,7 @@ export default function RecorderPanel({
 }: RecorderPanelProps) {
   const [takes, setTakes] = useState<RecordingTake[]>([])
   const [captureMode, setCaptureMode] = useState<CaptureMode>('mic')
+  const [tabChannelMode, setTabChannelMode] = useState<TabChannelMode>('stereo')
   const [isRecording, setIsRecording] = useState(false)
   const [elapsedMs, setElapsedMs] = useState(0)
   const [error, setError] = useState<string | null>(null)
@@ -233,18 +235,23 @@ export default function RecorderPanel({
     return stream
   }
 
-  const buildRecordingStream = async (mode: CaptureMode): Promise<MediaStream> => {
+  const buildRecordingStream = async (mode: CaptureMode, channels: TabChannelMode): Promise<MediaStream> => {
     if (mode === 'mic') return getMicStream()
 
     const tabStream = await getTabStream()
-    if (mode === 'tab') return new MediaStream(tabStream.getAudioTracks())
+    // Preserve the original captured track when requested; avoid unnecessary re-encoding paths.
+    if (mode === 'tab' && channels === 'original') {
+      return new MediaStream(tabStream.getAudioTracks())
+    }
 
-    const micStream = await getMicStream()
+    const micStream = mode === 'mix' ? await getMicStream() : null
     const context = new AudioContext()
     mixContextRef.current = context
     const destination = context.createMediaStreamDestination()
+    // MediaStreamAudioDestinationNode provides a two-channel output. A mono source
+    // remains dual-mono: this cannot restore stereo information absent from capture.
     context.createMediaStreamSource(tabStream).connect(destination)
-    context.createMediaStreamSource(micStream).connect(destination)
+    if (micStream) context.createMediaStreamSource(micStream).connect(destination)
     if (context.state === 'suspended') await context.resume()
     return destination.stream
   }
@@ -303,7 +310,7 @@ export default function RecorderPanel({
 
     try {
       captureModeRef.current = mode
-      const stream = await buildRecordingStream(mode)
+      const stream = await buildRecordingStream(mode, tabChannelMode)
       recordingStreamRef.current = stream
 
       if (!stream.getAudioTracks().length) throw new Error('NO_AUDIO')
@@ -321,7 +328,11 @@ export default function RecorderPanel({
       }
 
       const mimeType = chooseMimeType()
-      const recorder = mimeType ? new MediaRecorder(stream, { mimeType }) : new MediaRecorder(stream)
+      const recordingOptions: MediaRecorderOptions = {
+        ...(mimeType ? { mimeType } : {}),
+        ...(mode === 'mic' ? {} : { audioBitsPerSecond: 192_000 }),
+      }
+      const recorder = new MediaRecorder(stream, recordingOptions)
       recorderRef.current = recorder
       chunksRef.current = []
       startedAtRef.current = Date.now()
@@ -488,6 +499,17 @@ export default function RecorderPanel({
           <strong>タブ + Mic</strong><span>{tabCaptureSupported ? '音声 + マイク' : '利用不可'}</span>
         </button>
       </div>
+
+      {captureMode === 'tab' && (
+        <label className="record-channel-setting">
+          録音チャンネル
+          <select value={tabChannelMode} disabled={isRecording || starting} onChange={(event) => setTabChannelMode(event.target.value as TabChannelMode)}>
+            <option value="stereo">ステレオ優先（2ch）</option>
+            <option value="original">入力そのまま（従来方式）</option>
+          </select>
+          <small>ステレオ優先は2chで録音します。入力がモノラルの場合は左右同じ音となります。目標ビットレート192kbps（実際の値はブラウザ依存）。</small>
+        </label>
+      )}
 
       <div id="tab-capture-status" className={`tab-capture-capability ${tabCaptureSupported ? 'is-supported' : 'is-unavailable'}`} role="status">
         <strong>ブラウザタブ音声 · {tabCaptureSupport.status}</strong>
