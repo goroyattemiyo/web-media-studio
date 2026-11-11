@@ -500,7 +500,7 @@ export default function RecorderPanel({
         </button>
       </div>
 
-      {captureMode !== 'mic' && (
+      {captureMode === 'tab' && (
         <label className="record-channel-setting">
           録音チャンネル
           <select value={tabChannelMode} disabled={isRecording || starting} onChange={(event) => setTabChannelMode(event.target.value as TabChannelMode)}>
