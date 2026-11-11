@@ -16,6 +16,7 @@ type RecordingTake = Omit<StoredRecordingTake, 'blob'> & {
 }
 
 type CaptureMode = 'mic' | 'tab' | 'mix'
+type RecordingChannels = 1 | 2
 
 type RecorderPanelProps = {
   sourceName: string | null
@@ -123,6 +124,8 @@ export default function RecorderPanel({
 }: RecorderPanelProps) {
   const [takes, setTakes] = useState<RecordingTake[]>([])
   const [captureMode, setCaptureMode] = useState<CaptureMode>('mic')
+  const [recordingChannels, setRecordingChannels] = useState<RecordingChannels>(2)
+  const [channelStatus, setChannelStatus] = useState<string | null>(null)
   const [isRecording, setIsRecording] = useState(false)
   const [elapsedMs, setElapsedMs] = useState(0)
   const [error, setError] = useState<string | null>(null)
@@ -233,18 +236,21 @@ export default function RecorderPanel({
     return stream
   }
 
-  const buildRecordingStream = async (mode: CaptureMode): Promise<MediaStream> => {
+  const buildRecordingStream = async (mode: CaptureMode, channels: RecordingChannels): Promise<MediaStream> => {
+    // Preserve the existing mic-only path; only tab capture needs channel conversion.
     if (mode === 'mic') return getMicStream()
 
     const tabStream = await getTabStream()
-    if (mode === 'tab') return new MediaStream(tabStream.getAudioTracks())
+    const sourceStreams = [tabStream]
+    if (mode === 'mix') sourceStreams.push(await getMicStream())
 
-    const micStream = await getMicStream()
     const context = new AudioContext()
     mixContextRef.current = context
     const destination = context.createMediaStreamDestination()
-    context.createMediaStreamSource(tabStream).connect(destination)
-    context.createMediaStreamSource(micStream).connect(destination)
+    destination.channelCountMode = 'explicit'
+    destination.channelCount = channels
+    if (destination.channelCount !== channels) throw new Error('CHANNEL_UNAVAILABLE')
+    sourceStreams.forEach((source) => context.createMediaStreamSource(source).connect(destination))
     if (context.state === 'suspended') await context.resume()
     return destination.stream
   }
@@ -288,6 +294,7 @@ export default function RecorderPanel({
     setStarting(true)
     setError(null)
     setNotice(null)
+    setChannelStatus(null)
 
     if (!('MediaRecorder' in window)) {
       setError('このブラウザではMediaRecorderを利用できません。PC版Chrome / Edgeまたは対応PWAで確認してください。')
@@ -303,10 +310,19 @@ export default function RecorderPanel({
 
     try {
       captureModeRef.current = mode
-      const stream = await buildRecordingStream(mode)
+      const stream = await buildRecordingStream(mode, recordingChannels)
       recordingStreamRef.current = stream
 
       if (!stream.getAudioTracks().length) throw new Error('NO_AUDIO')
+
+      if (mode !== 'mic') {
+        const sources = captureStreamsRef.current.map((capture, index) => {
+          const inputChannels = capture.getAudioTracks()[0]?.getSettings().channelCount
+          const label = mode === 'mix' && index === 1 ? 'Mic' : 'Tab'
+          return `${label}: ${inputChannels ? `${inputChannels}ch` : '不明'}`
+        })
+        setChannelStatus(`入力 ${sources.join(' / ')} → 録音指定 ${recordingChannels}ch（出力ファイルは要確認）`)
+      }
 
       if (mode === 'mic') {
         sourceNameRef.current = playSource && sourceName ? sourceName : null
@@ -321,7 +337,9 @@ export default function RecorderPanel({
       }
 
       const mimeType = chooseMimeType()
-      const recorder = mimeType ? new MediaRecorder(stream, { mimeType }) : new MediaRecorder(stream)
+      const options: MediaRecorderOptions = mimeType ? { mimeType } : {}
+      if (mode !== 'mic') options.audioBitsPerSecond = recordingChannels === 2 ? 192_000 : 96_000
+      const recorder = new MediaRecorder(stream, options)
       recorderRef.current = recorder
       chunksRef.current = []
       startedAtRef.current = Date.now()
@@ -415,6 +433,8 @@ export default function RecorderPanel({
         setError(`タブ音声キャプチャを利用できません。${tabCaptureSupport.detail}`)
       } else if (message === 'MIC_UNAVAILABLE') {
         setError('このブラウザではマイク録音を利用できません。')
+      } else if (message === 'CHANNEL_UNAVAILABLE') {
+        setError('このブラウザは指定した録音チャンネル数に対応していません。別のブラウザでお試しください。')
       } else if (name === 'NotAllowedError') {
         setError(mode === 'mic' ? 'マイク権限が許可されていません。サイト設定からマイクを許可してください。' : '画面共有がキャンセルされたか許可されませんでした。録音したいタブを選択して「タブの音声を共有」をONにしてください。')
       } else {
@@ -489,6 +509,17 @@ export default function RecorderPanel({
         </button>
       </div>
 
+      {captureMode !== 'mic' && (
+        <div className="record-channel-picker">
+          <span>録音チャンネル</span>
+          <div className="record-channel-options" role="group" aria-label="録音チャンネル">
+            <button type="button" aria-pressed={recordingChannels === 2} className={recordingChannels === 2 ? 'is-active' : ''} disabled={isRecording || starting} onClick={() => setRecordingChannels(2)}>ステレオ（2ch）</button>
+            <button type="button" aria-pressed={recordingChannels === 1} className={recordingChannels === 1 ? 'is-active' : ''} disabled={isRecording || starting} onClick={() => setRecordingChannels(1)}>モノラル（1ch）</button>
+          </div>
+          <small>2chは元音声の左右を維持します。入力が1chの場合、2chを選んでも左右同じ音です。</small>
+        </div>
+      )}
+
       <div id="tab-capture-status" className={`tab-capture-capability ${tabCaptureSupported ? 'is-supported' : 'is-unavailable'}`} role="status">
         <strong>ブラウザタブ音声 · {tabCaptureSupport.status}</strong>
         <span>{tabCaptureSupport.detail}</span>
@@ -544,6 +575,7 @@ export default function RecorderPanel({
 
       {error && <p className="record-error" role="alert">{error}</p>}
       {notice && <p className="record-notice">{notice}</p>}
+      {channelStatus && <p className="record-channel-status" role="status">{channelStatus}</p>}
       <p className="record-note">
         ブラウザタブ音声はPC版Chrome / Edge向けです。先にYouTube・動画サイト・Webラジオなどで音を再生し、WMSへ切り替えて「録音するタブを選ぶ」を押してください。表示された共有画面で音を流しているタブを選び、「タブの音声を共有」をONにすると録音できます。WMS自身のYouTubeタブでも、別タブのWeb音声でも利用できます。タブ音声 / タブ + Mic録音はSaved takesに加えてLocal Libraryにも保存します。Androidではブラウザ実装により利用できない場合があります。保存・録音は権利または許可のあるコンテンツに限ってください。
       </p>
