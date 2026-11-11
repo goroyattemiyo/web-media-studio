@@ -53,6 +53,14 @@ Recorder MVP does not claim sample-accurate synchronization and does not digital
 
 Android real-device persistence checks passed.
 
+## Tab recording stereo-priority change (Draft, not yet merged)
+
+- Web Recorder offers `Stereo priority (2ch)` (default) and `Original input` for tab capture.
+- The 2ch path routes tab audio into a Web Audio destination; with mono source audio, the resulting channels remain dual-mono, not true stereo.
+- MediaRecorder requests 192 kbps audio for tab/mixed recordings; the actual encoded bitrate is browser-dependent.
+- The original-input setting preserves direct tab audio track capture. Mic-only behavior and existing stored recordings are unchanged.
+- Pending validation: TypeScript/build, desktop Chrome/Edge left/right channel separation with stereo test media, mono-source fallback, permission denial, tab+mic mix, and saved take/Local Library regression. Do not call stereo end-to-end PASS until verified.
+
 ## Implemented current-tab recording (merged PR #30)
 
 - capture modes: `Mic`, `Tab audio`, `Tab + Mic`
